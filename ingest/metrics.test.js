@@ -136,3 +136,16 @@ test("chamber model: environment blend and control probability behave", async ()
   assert.ok(Math.abs(total - 1) < 1e-6);
   assert.ok(result.control.D > 0.4 && result.control.D < 0.8);
 });
+
+test("rated chamber model: implied margins and control", async () => {
+  const { ratingImpliedMargin, runRatedChamberModel } = await import("./legislature.js");
+  assert.equal(ratingImpliedMargin("Tossup"), 0);
+  assert.equal(ratingImpliedMargin("Lean R"), -5.5);
+  assert.equal(ratingImpliedMargin("Safe D"), 17);
+  const seats = [{ id: "a", margin: 0 }, { id: "b", margin: 10 }, { id: "c", margin: -17 }];
+  const result = runRatedChamberModel({ seats, notUp: { D: 1, R: 1 }, majority: 3 });
+  const total = result.histogram.reduce((s, h) => s + h.probability, 0);
+  assert.ok(Math.abs(total - 1) < 1e-6);
+  assert.equal(result.totalSeats, 5);
+  assert.ok(result.control.D > 0.3 && result.control.D < 0.6, `control ${result.control.D}`);
+});

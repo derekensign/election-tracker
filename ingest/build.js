@@ -4,7 +4,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CONTROL_MARKETS, SENATE_MARKETS, SENATE_SEATS_NOT_UP, SENATE_STATES, TEXAS_LEGISLATURE, TEXAS_STATEWIDE_RACES,
-  THIN_MARKET_VOLUME_USD, US_SENATE_WIKIPEDIA_PAGE,
+  THIN_MARKET_VOLUME_USD, US_HOUSE, US_SENATE_WIKIPEDIA_PAGE,
 } from "./config.js";
 import * as polymarket from "./sources/polymarket.js";
 import * as kalshi from "./sources/kalshi.js";
@@ -12,7 +12,7 @@ import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
 import { ratePollster } from "./pollsters.js";
-import { estimateEnvironment, runChamberModel } from "./legislature.js";
+import { estimateEnvironment, ratingImpliedMargin, runChamberModel, runRatedChamberModel } from "./legislature.js";
 
 const ELECTION_DAY = "2026-11-03";
 import { detectChanges } from "./diff.js";
@@ -134,10 +134,13 @@ export async function build() {
   });
   const txSenate = buildChamber("senate", wikiPages?.txSenate, previous?.txSenate, { environment });
 
+  // ---- U.S. House -------------------------------------------------------------------------------------------
+  const usHouse = buildUsHouse({ pages: wikiPages?.usHouse, previous: previous?.usHouse, votehubPolls, kalshiSeats: kalshiData?.usHouseSeats, polymarketControl: polymarketData?.houseControl, sources, asOf });
+
   const snapshot = {
     version: 1, generatedAt: generatedAt.toISOString(), asOf, sources,
     usSenate: { forecasters, races: senateRaces },
-    senateControl, texas, txLegislature, txHouse, txSenate,
+    senateControl, texas, txLegislature, txHouse, txSenate, usHouse,
   };
   snapshot.changes = detectChanges(previous, snapshot);
   snapshot.previousAsOf = previous?.asOf ?? null;
@@ -211,7 +214,8 @@ async function fetchKalshi() {
   const txHouseControl = kalshiWithFlags(kalshi.partyProbabilities(txHouseMarkets, {}), CONTROL_MARKETS.txHouse.kalshi);
   const txHouseDemSeats = await fetchBuckets(CONTROL_MARKETS.txHouse.kalshiSeatsSeries);
   const statewideDemWins = await fetchBuckets(CONTROL_MARKETS.txStatewideDemWins.kalshiSeries);
-  return { senate, texas, senateSeats, txHouseControl, txHouseDemSeats, statewideDemWins };
+  const usHouseSeats = await fetchBuckets(US_HOUSE.kalshiSeatsSeries);
+  return { senate, texas, senateSeats, txHouseControl, txHouseDemSeats, statewideDemWins, usHouseSeats };
 }
 
 async function fetchBuckets(seriesTicker) {
@@ -232,7 +236,11 @@ async function fetchWikipedia() {
   }
   const txHouse = await wikipedia.fetchWikitext(TEXAS_LEGISLATURE.house.wikipedia);
   const txSenate = await wikipedia.fetchWikitext(TEXAS_LEGISLATURE.senate.wikipedia);
-  return { senate, texas, txHouse, txSenate };
+  const usHouse = {};
+  for (const [key, page] of [["national", US_HOUSE.wikipedia], ["ratings", US_HOUSE.ratingsPage], ["texas", US_HOUSE.texasPage]]) {
+    try { usHouse[key] = await wikipedia.fetchWikitext(page); } catch (error) { console.warn(`  wikipedia us-house ${key}: ${error.message}`); }
+  }
+  return { senate, texas, txHouse, txSenate, usHouse };
 }
 
 // ---- Helpers ------------------------------------------------------------------------------------------------
@@ -341,6 +349,83 @@ function buildChamber(kind, page, previousChamber, { control, demSeats, environm
   };
 }
 
+/**
+ * U.S. House: national ratings table (144 competitive seats), the Texas congressional page (ratings for all 38
+ * districts plus district polls), the generic ballot (VoteHub + Wikipedia aggregates), markets, and our model.
+ */
+function buildUsHouse({ pages, previous, votehubPolls, kalshiSeats, polymarketControl, sources, asOf }) {
+  const ratingsTable = pages?.ratings ? wikipedia.parseHouseRatingsTable(pages.ratings.wikitext) : null;
+  const forecasters = ratingsTable?.forecasters ?? previous?.forecasters ?? [];
+  const national = pages?.national ? wikipedia.parseHouseNationalPage(pages.national.wikitext) : null;
+  const composition = national?.composition ?? previous?.composition ?? US_HOUSE.compositionFallback;
+  const texasPage = pages?.texas ? wikipedia.parseTexasCongressPage(pages.texas.wikitext) : null;
+
+  // Generic ballot: VoteHub national polls (Dem/Rep answers) plus Wikipedia aggregator averages.
+  const genericPolls = votehubPolls
+    ? sortPolls(dedupePolls(votehubPolls.filter((p) => p.poll_type === "generic-ballot" && String(p.subject) === "2026").map((poll) => {
+        const dem = (poll.answers || []).find((a) => /^dem/i.test(a.choice)); const rep = (poll.answers || []).find((a) => /^rep/i.test(a.choice));
+        return dem && rep ? { source: "votehub", id: `votehub:${poll.id}`, pollster: poll.pollster, sponsors: poll.sponsors || [], startDate: poll.start_date, endDate: poll.end_date, sampleSize: poll.sample_size ?? null, population: (poll.population || "").toUpperCase() || null, partisan: poll.partisan || null, internal: Boolean(poll.internal), dem: dem.pct, rep: rep.pct, url: poll.url || null } : null;
+      }).filter(Boolean)))
+    : previous?.genericBallot?.polls ?? [];
+  const genericAverage = pollingAverage(genericPolls, { asOf, ratePollster });
+
+  // Rated districts: national table first; Texas districts also get the Texas page's per-district ratings and polls.
+  const rated = (ratingsTable?.districts ?? previous?.districts?.filter((d) => d.nationallyRated) ?? []).map((d) => ({ ...d, nationallyRated: true }));
+  const byId = new Map(rated.map((d) => [d.id, d]));
+  for (const tx of texasPage?.districts ?? []) {
+    const id = `TX-${tx.district}`;
+    const ratings = Object.fromEntries(Object.entries(tx.ratings).map(([k, v]) => [k, v.label]));
+    const existing = byId.get(id);
+    const polls = sortPolls(dedupePolls(tx.polls));
+    const average = pollingAverage(polls, { asOf, ratePollster, minPolls: 1 });
+    if (existing) { existing.texasRatings = tx.ratings; existing.polls = polls.slice(0, 20); existing.pollingAverage = average; }
+    else {
+      // Not on the national competitive list: the holding party is inferred from the (safe) consensus rating.
+      const side = Object.values(ratings).some((l) => /D$/.test(l)) && !Object.values(ratings).some((l) => /R$/.test(l)) ? "D" : Object.values(ratings).some((l) => /R$/.test(l)) ? "R" : null;
+      byId.set(id, { id, state: "TX", district: tx.district, incumbentParty: side, heldInferred: true, incumbent: null, pvi: null, open: false, flip: false, ratings, texasRatings: tx.ratings, polls: polls.slice(0, 20), pollingAverage: average, nationallyRated: false });
+    }
+  }
+  const districts = [...byId.values()].map((d) => {
+    const consensus = ratingConsensus(d.ratings);
+    const impliedMargin = ratingImpliedMargin(consensus?.label);
+    // District polls (Texas only, so far) are blended half-and-half with the rating-implied margin when at least two exist.
+    const pollMargin = d.pollingAverage && d.pollingAverage.pollCount >= 2 ? d.pollingAverage.margin : null;
+    const margin = impliedMargin === null ? null : pollMargin === null ? impliedMargin : Math.round((0.5 * impliedMargin + 0.5 * pollMargin) * 10) / 10;
+    return { ...d, consensus, impliedMargin, pollMargin, margin };
+  });
+  // Seats outside the modeled set keep their party. Modeled open seats and the vacancies overlap in the
+  // composition counts, so the fixed pool is trimmed proportionally to make the chamber total exactly 435.
+  const modeledD = districts.filter((d) => d.incumbentParty === "D").length;
+  const modeledR = districts.filter((d) => d.incumbentParty === "R").length;
+  let fixedD = Math.max(0, composition.D - modeledD);
+  let fixedR = Math.max(0, composition.R - modeledR);
+  const excess = fixedD + fixedR + districts.length - US_HOUSE.seats;
+  if (excess > 0) { const trimD = Math.round(excess * fixedD / (fixedD + fixedR)); fixedD -= trimD; fixedR -= excess - trimD; }
+  const notUp = { D: fixedD, R: fixedR };
+  const model = runRatedChamberModel({ seats: districts.map((d) => ({ id: d.id, margin: d.margin, party: d.incumbentParty })), notUp, majority: US_HOUSE.majority });
+  const modelById = new Map(model.seats.map((seat) => [seat.id, seat]));
+  for (const d of districts) d.modelD = modelById.get(d.id)?.pD ?? null;
+
+  // Kalshi "at least N seats" ladder -> P(D ≥ 218) and an implied distribution over the ladder steps.
+  let kalshi = null;
+  if (kalshiSeats?.length) {
+    const ladder = kalshiSeats.map((b) => ({ atLeast: Number((b.label.match(/\d+/) || [])[0]), probability: b.probability, volumeContracts: b.volumeContracts })).filter((b) => Number.isFinite(b.atLeast)).sort((a, b) => a.atLeast - b.atLeast);
+    const majorityStep = ladder.find((b) => b.atLeast === US_HOUSE.majority) || ladder.filter((b) => b.atLeast <= US_HOUSE.majority).pop();
+    kalshi = { ladder, controlD: majorityStep ? round3(majorityStep.probability) : null, volumeContracts: Math.round(ladder.reduce((s, b) => s + b.volumeContracts, 0)), url: `https://kalshi.com/markets/${US_HOUSE.kalshiSeatsSeries.toLowerCase()}` };
+  } else if (!sources.kalshi.ok) kalshi = previous?.markets?.kalshi ?? null;
+
+  return {
+    seats: US_HOUSE.seats, majority: US_HOUSE.majority, composition,
+    forecasters,
+    districts: districts.sort((a, b) => Math.abs((a.modelD ?? 0.5) - 0.5) - Math.abs((b.modelD ?? 0.5) - 0.5)),
+    genericBallot: { polls: genericPolls.slice(0, 30), average: genericAverage, aggregates: national?.aggregates ?? previous?.genericBallot?.aggregates ?? [] },
+    texasStatewidePolls: texasPage ? sortPolls(dedupePolls(texasPage.statewidePolls)).slice(0, 12) : previous?.texasStatewidePolls ?? [],
+    model: { ...model, seats: undefined, notUp, ratedCount: districts.length },
+    markets: { polymarket: polymarketControl ?? (sources.polymarket.ok ? null : previous?.markets?.polymarket ?? null), kalshi },
+    pages: { national: pages?.national?.url ?? previous?.pages?.national ?? null, ratings: pages?.ratings?.url ?? previous?.pages?.ratings ?? null, texas: pages?.texas?.url ?? previous?.pages?.texas ?? null },
+  };
+}
+
 function loadPreviousSnapshot(asOf) {
   if (!existsSync(HISTORY_DIR)) return null;
   const files = readdirSync(HISTORY_DIR).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f) && f.slice(0, 10) < asOf).sort();
@@ -366,6 +451,7 @@ function buildSeries() {
       txHouseModel: { control: s.txHouse?.model?.control?.D ?? null, expectedD: s.txHouse?.model?.expected?.D ?? null },
       txSenateModel: { control: s.txSenate?.model?.control?.D ?? null, expectedD: s.txSenate?.model?.expected?.D ?? null },
       txEnvironment: s.txLegislature?.environment?.margin ?? null,
+      usHouse: { control: s.usHouse?.model?.control?.D ?? null, expectedD: s.usHouse?.model?.expected?.D ?? null, generic: s.usHouse?.genericBallot?.average?.margin ?? null, polymarket: s.usHouse?.markets?.polymarket?.D ?? null },
       races,
     };
   });

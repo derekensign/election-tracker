@@ -1,15 +1,44 @@
-// One-off: convert Texas Legislative Council KML district plans into compact TopoJSON.
-// Usage: node scripts/build-geo.mjs <PlanH2316.kml> <PlanS2168.kml>
-// Source plans (public domain, TLC): https://data.capitol.texas.gov/dataset/planh2316 and /plans2168
-import { readFileSync, writeFileSync } from "node:fs";
+// One-off: convert Texas Legislative Council district plans into compact TopoJSON.
+// Usage: node scripts/build-geo.mjs <PlanH2316.kml> <PlanS2168.kml> [<PLANC2333 shapefile dir>]
+// Source plans (public domain, TLC): https://data.capitol.texas.gov/dataset/planh2316, /plans2168, /planc2333
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import * as topojsonServer from "topojson-server";
 import * as topojsonSimplify from "topojson-simplify";
+import { readShapefile, readDbf, lambertConformalConicInverse } from "./shapefile.mjs";
 
-const [houseKmlPath, senateKmlPath] = process.argv.slice(2);
+const [houseKmlPath, senateKmlPath, congressShapeDir] = process.argv.slice(2);
 if (!houseKmlPath || !senateKmlPath) {
-  console.error("usage: node scripts/build-geo.mjs <house.kml> <senate.kml>");
+  console.error("usage: node scripts/build-geo.mjs <house.kml> <senate.kml> [<congress shapefile dir>]");
   process.exit(1);
 }
+
+/** TLC congressional plans ship as NAD83 Lambert Conformal Conic shapefiles; reproject to lon/lat GeoJSON. */
+function shapefileToGeoJson(directory) {
+  const base = readdirSync(directory).find((f) => f.toLowerCase().endsWith(".shp")).replace(/\.shp$/i, "");
+  const prj = readFileSync(join(directory, `${base}.prj`), "utf8");
+  const param = (name) => Number((prj.match(new RegExp(`PARAMETER\\["${name}",([-\\d.]+)\\]`)) || [])[1]);
+  const inverse = lambertConformalConicInverse({
+    falseEasting: param("False_Easting"), falseNorthing: param("False_Northing"), centralMeridian: param("Central_Meridian"),
+    standardParallel1: param("Standard_Parallel_1"), standardParallel2: param("Standard_Parallel_2"), latitudeOfOrigin: param("Latitude_Of_Origin"),
+  });
+  const shapes = readShapefile(join(directory, `${base}.shp`));
+  const { records } = readDbf(join(directory, `${base}.dbf`));
+  const features = shapes.map((shape, index) => {
+    const attributes = records[index] || {};
+    const district = Number(attributes.District ?? attributes.DISTRICT ?? attributes.district ?? index + 1);
+    // Shapefile rings: clockwise = outer, counter-clockwise = hole. Group holes with the preceding outer ring.
+    const polygons = [];
+    for (const ring of shape.rings) {
+      const projected = ring.map(inverse);
+      if (signedArea(ring) < 0 || polygons.length === 0) polygons.push([projected]); else polygons[polygons.length - 1].push(projected);
+    }
+    return { type: "Feature", id: district, properties: { district }, geometry: polygons.length === 1 ? { type: "Polygon", coordinates: polygons[0] } : { type: "MultiPolygon", coordinates: polygons } };
+  });
+  features.sort((a, b) => a.id - b.id);
+  return { type: "FeatureCollection", features };
+}
+function signedArea(ring) { let s = 0; for (let i = 0; i < ring.length - 1; i += 1) s += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1]; return s / 2; }
 
 /** Parse a TLC KML plan into a GeoJSON FeatureCollection keyed by district number. */
 function kmlToGeoJson(kmlText) {
@@ -72,11 +101,13 @@ function buildTopology(name, geojson, targetPointCount) {
   return topology;
 }
 
-for (const [label, path, outputFile, targetPointCount] of [
-  ["house", houseKmlPath, "public/geo/tx-house.json", 16000],
-  ["senate", senateKmlPath, "public/geo/tx-senate.json", 7000],
-]) {
-  const geojson = kmlToGeoJson(readFileSync(path, "utf8"));
+const inputs = [
+  ["house", () => kmlToGeoJson(readFileSync(houseKmlPath, "utf8")), "public/geo/tx-house.json", 16000],
+  ["senate", () => kmlToGeoJson(readFileSync(senateKmlPath, "utf8")), "public/geo/tx-senate.json", 7000],
+];
+if (congressShapeDir) inputs.push(["congress", () => shapefileToGeoJson(congressShapeDir), "public/geo/tx-congress.json", 8000]);
+for (const [label, load, outputFile, targetPointCount] of inputs) {
+  const geojson = load();
   const topology = buildTopology("districts", geojson, targetPointCount);
   const json = JSON.stringify(topology);
   writeFileSync(outputFile, json);

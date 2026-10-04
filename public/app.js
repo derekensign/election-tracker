@@ -1,8 +1,8 @@
 /* 2026 Race Tracker front end. Reads data/latest.json + data/series.json and three TopoJSON files. No build step. */
 (async function main() {
-  const [snapshot, series, usTopo, houseTopo, senateTopo] = await Promise.all([
+  const [snapshot, series, usTopo, houseTopo, senateTopo, congressTopo] = await Promise.all([
     fetchJson("data/latest.json"), fetchJson("data/series.json").catch(() => []),
-    fetchJson("geo/us-states.json"), fetchJson("geo/tx-house.json"), fetchJson("geo/tx-senate.json"),
+    fetchJson("geo/us-states.json"), fetchJson("geo/tx-house.json"), fetchJson("geo/tx-senate.json"), fetchJson("geo/tx-congress.json").catch(() => null),
   ]);
   const previousDay = series.length >= 2 ? series[series.length - 2] : null;
   SNAPSHOT = snapshot; PREVIOUS_DAY = previousDay; US_TOPO = usTopo;
@@ -18,6 +18,7 @@
   renderTexas(snapshot, previousDay);
   renderChamber("house", snapshot.txHouse, houseTopo, snapshot);
   renderChamber("senate", snapshot.txSenate, senateTopo, snapshot);
+  renderUsHouse(snapshot, congressTopo, previousDay);
   renderSources(snapshot);
 })().catch((error) => {
   document.getElementById("asof").textContent = `Failed to load data: ${error.message}`;
@@ -48,7 +49,7 @@ function setModel(model) {
   MODEL = model; localStorage.setItem("model", model);
   document.querySelectorAll("[data-model]").forEach((b) => b.classList.toggle("active", b.dataset.model === model));
   if (!SNAPSHOT) return;
-  renderBoard(SNAPSHOT, PREVIOUS_DAY); renderControl(SNAPSHOT, PREVIOUS_DAY); renderSeatChart(SNAPSHOT); renderSenateMap(SNAPSHOT, US_TOPO, PREVIOUS_DAY); renderSenateTables(SNAPSHOT, PREVIOUS_DAY); renderTexas(SNAPSHOT, PREVIOUS_DAY);
+  renderBoard(SNAPSHOT, PREVIOUS_DAY); renderControl(SNAPSHOT, PREVIOUS_DAY); renderSeatChart(SNAPSHOT); renderSenateMap(SNAPSHOT, US_TOPO, PREVIOUS_DAY); renderSenateTables(SNAPSHOT, PREVIOUS_DAY); renderTexas(SNAPSHOT, PREVIOUS_DAY); renderControlStrip(SNAPSHOT, PREVIOUS_DAY);
 }
 document.querySelectorAll("[data-model]").forEach((b) => b.addEventListener("click", () => setModel(b.dataset.model)));
 document.querySelectorAll("button.mode[data-senate-map]").forEach((b) => b.addEventListener("click", () => {
@@ -102,7 +103,7 @@ function renderHeader(s) {
 /** Hero board: the marquee Texas races as split probability bars, plus Senate control. */
 function renderBoard(s, prev) {
   const leads = [];
-  for (const id of ["tx-senate", "tx-governor"]) {
+  for (const id of ["tx-senate", "tx-governor", "tx-ltgov", "tx-ag"]) {
     const race = s.texas.races.find((r) => r.id === id);
     if (!race) continue;
     const sel = raceProbability(race);
@@ -115,17 +116,25 @@ function renderBoard(s, prev) {
       <p class="sub">Polling average <b>${marginText(race.pollingAverage?.margin)}</b> across ${race.pollingAverage?.pollCount ?? 0} polls. ${other.p != null ? `The ${other.label} say <b>${pct(other.p)}</b>.` : ""}</p>
     </div>`);
   }
-  const c = s.senateControl;
-  const control = MODEL === "polls" ? c.pollModel?.control?.D : c.derived?.control?.D;
-  const expected = MODEL === "polls" ? c.pollModel?.expected : c.derived?.expected;
-  const prevControl = MODEL === "polls" ? prev?.control?.pollModel : prev?.control?.derived;
-  leads.push(`<div class="lead">
-    <p class="race"><b>U.S. Senate control</b>, now ${c.current.democraticCaucus} D to ${c.current.republican} R</p>
-    <div class="big">${pct(control)}<small>chance Democrats control</small>${delta(control, prevControl)}</div>
-    ${splitBar(control)}
-    <p class="sub">Expected <b>${expected ? expected.D.toFixed(1) : "—"} Democratic-caucus seats</b>; 51 needed. Polymarket puts control at <b>${pct(c.polymarket?.D)}</b>.</p>
-  </div>`);
   document.getElementById("board").innerHTML = leads.join("");
+  renderControlStrip(s, prev);
+}
+
+/** Chamber-control strip under the board: U.S. Senate, U.S. House, Texas House, Texas Senate. */
+function renderControlStrip(s, prev) {
+  const c = s.senateControl;
+  const senateControl = MODEL === "polls" ? c.pollModel?.control?.D : c.derived?.control?.D;
+  const senateExpected = MODEL === "polls" ? c.pollModel?.expected : c.derived?.expected;
+  const prevSenate = MODEL === "polls" ? prev?.control?.pollModel : prev?.control?.derived;
+  const h = s.usHouse;
+  const houseControl = MODEL === "polls" ? h?.model?.control?.D : h?.markets?.polymarket?.D;
+  const items = [
+    { k: "U.S. Senate, Democratic control", v: pct(senateControl) + delta(senateControl, prevSenate), s: `${c.current.democraticCaucus} D to ${c.current.republican} R today; expected ${senateExpected ? senateExpected.D.toFixed(1) : "—"} D seats, 51 needed. ${MODEL === "polls" ? `Markets ${pct(c.polymarket?.D)}.` : `Polls model ${pct(c.pollModel?.control?.D)}.`}` },
+    { k: "U.S. House, Democratic control", v: pct(houseControl) + delta(houseControl, MODEL === "polls" ? prev?.usHouse?.control : prev?.usHouse?.polymarket), s: h ? `${h.composition.R} R to ${h.composition.D} D today; ${MODEL === "polls" ? `our model expects ${h.model.expected.D.toFixed(1)} D seats, 218 needed. Polymarket ${pct(h.markets?.polymarket?.D)}.` : `Polymarket; our model ${pct(h.model.control.D)}.`}` : "unavailable" },
+    { k: "Texas House, Democratic control", v: pct(s.txHouse.model?.control?.D) + delta(s.txHouse.model?.control?.D, prev?.txHouseModel?.control), s: `${s.txHouse.current.D} D to ${s.txHouse.current.R} R today; our model expects ${s.txHouse.model ? s.txHouse.model.expected.D.toFixed(1) : "—"} D seats, 76 needed.` },
+    { k: "Texas Senate, Democratic control", v: pct(s.txSenate.model?.control?.D) + delta(s.txSenate.model?.control?.D, prev?.txSenateModel?.control), s: `${s.txSenate.current.D} D to ${s.txSenate.current.R} R today; our model expects ${s.txSenate.model ? s.txSenate.model.expected.D.toFixed(1) : "—"} D seats, 16 needed.` },
+  ];
+  document.getElementById("control-strip").innerHTML = items.map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 }
 function splitBar(p) {
   if (p == null) return '<div class="split" aria-hidden="true"></div>';
@@ -438,14 +447,14 @@ function renderGenericBallot(legislature) {
     polls.slice(0, 8).map((poll) => { const w = weightFor(poll); return `<tr><td>${esc(poll.pollster)}${poll.partisan ? ` <span class="muted">(${esc(poll.partisan)})</span>` : ""}</td><td>${esc(poll.startDate ? `${fmtDate(poll.startDate)}–${fmtDate(poll.endDate)}` : fmtDate(poll.endDate))}</td><td class="num">${poll.sampleSize ? poll.sampleSize.toLocaleString() : "—"}${poll.population ? ` ${esc(poll.population)}` : ""}</td><td class="num">${poll.dem}%</td><td class="num">${poll.rep}%</td><td class="num"><b>${marginText(poll.dem - poll.rep)}</b></td><td>${w?.grade ? esc(w.grade) : '<span class="muted">unrated</span>'}</td><td class="num muted">${w ? w.weight.toFixed(2) : "—"}</td></tr>`; }).join("") +
     (average ? `<tr><td colspan="5"><b>Weighted average</b> (${average.pollCount} polls)</td><td class="num"><b>${marginText(average.margin)}</b></td><td colspan="2"></td></tr>` : "");
 }
-function renderChamberChart(kind, chamber) {
-  const model = chamber.model;
-  const container = document.getElementById(`tx-${kind}-chart`);
+function renderChamberChart(kind, chamber) { renderSeatHistogram(`tx-${kind}-chart`, `tx-${kind}-chart-title`, chamber.model, `Texas ${kind}`); }
+function renderSeatHistogram(containerId, titleId, model, chamberLabel) {
+  const container = document.getElementById(containerId);
   if (!container) return;
   if (!model) { container.innerHTML = '<p class="note">Model unavailable (no environment polls).</p>'; return; }
   const rows = model.histogram.filter((h) => h.probability >= 0.002);
   const width = 760, height = 190, margin = { top: 14, right: 12, bottom: 32, left: 38 };
-  const svg = d3.select(container).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Probability of each Democratic seat count in the Texas ${kind}`);
+  const svg = d3.select(container).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Probability of each Democratic seat count in the ${chamberLabel}`);
   const x = d3.scaleBand().domain(rows.map((r) => String(r.d))).range([margin.left, width - margin.right]).paddingInner(0.2);
   const yMax = Math.max(0.05, d3.max(rows, (r) => r.probability) * 1.15);
   const y = d3.scaleLinear().domain([0, yMax]).range([height - margin.bottom, margin.top]);
@@ -466,13 +475,82 @@ function renderChamberChart(kind, chamber) {
     svg.append("text").attr("class", "label").attr("x", width - margin.right).attr("y", margin.top + 10).attr("text-anchor", "end").text(`Majority line (${model.majority}) is off the chart; chance ${pct(model.control.D, 1)}`);
   }
   const notUpCount = model.notUp.D + model.notUp.R;
-  document.getElementById(`tx-${kind}-chart-title`).textContent = `Seat distribution: Democratic seats after the election, our model (expected ${model.expected.D.toFixed(1)}${notUpCount ? `; ${notUpCount} seats not up` : ""})`;
+  document.getElementById(titleId).textContent = `Seat distribution: Democratic seats after the election, our model (expected ${model.expected.D.toFixed(1)}${notUpCount ? `; ${notUpCount} seats ${chamberLabel === "U.S. House" ? "assumed to stay with the party holding them" : "not up"}` : ""})`;
 }
 function ratingScoreOf(label) { const i = RATING_ORDER.indexOf(label); return i === -1 ? 9 : i - 4; }
 function districtTooltip(kind, number, d) {
   const head = `<b>${kind === "house" ? "House" : "Senate"} District ${number}</b>`;
   if (!d) return `${head}<br>${kind === "senate" ? "Not up for election in 2026" : "No data"}`;
   return `${head}<hr><div class="row"><span>Incumbent</span><span>${esc(d.incumbent || "Open")}${d.retiring ? " (retiring)" : ""}</span></div><div class="row"><span>Held by</span><span>${esc(d.party || "—")}</span></div><div class="row"><span>2024 presidential</span><span>${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</span></div>${d.modelD != null ? `<div class="row"><span><b>Our model, D wins</b></span><span><b>${pct(d.modelD)}</b></span></div><div class="row"><span>Model margin</span><span>${marginText(d.modelBaseline?.margin)}</span></div><div class="row"><span>${esc(baselineText(d))}</span></div>` : ""}<div class="row"><span>Rating</span><span>${esc(d.rating || "not rated competitive")}${d.flip ? " (flip)" : ""}</span></div>`;
+}
+
+// ---------- U.S. House ----------
+function renderUsHouse(s, topo, prev) {
+  const h = s.usHouse;
+  if (!h) return;
+  const ga = h.genericBallot?.average;
+  const tiles = [
+    { k: "Today", v: `${h.composition.R} R, ${h.composition.D} D`, s: `${h.seats - h.composition.R - h.composition.D} vacant; ${h.majority} seats make a majority` },
+    { k: "Our model, Democratic control", v: pct(h.model.control.D) + delta(h.model.control.D, prev?.usHouse?.control), s: `expected ${h.model.expected.D.toFixed(1)} D, ${h.model.expected.R.toFixed(1)} R over ${h.model.ratedCount} rated seats`, primary: true },
+    { k: "Generic congressional ballot", v: ga ? marginText(ga.margin) : "—", s: ga ? `${ga.pollCount} polls in the window, quality-weighted${h.genericBallot.aggregates?.length ? `; published averages ${h.genericBallot.aggregates.map((a) => `${a.source} ${marginText(a.margin)}`).join(", ")}` : ""}` : "no polls" },
+    { k: "Polymarket, Democratic control", v: pct(h.markets?.polymarket?.D) + delta(h.markets?.polymarket?.D, prev?.usHouse?.polymarket), s: h.markets?.polymarket ? `$${compact(h.markets.polymarket.volumeUsd)} traded` : "unavailable" },
+    { k: "Kalshi seats market, 218 or more D", v: pct(h.markets?.kalshi?.controlD), s: h.markets?.kalshi ? `${compact(h.markets.kalshi.volumeContracts)} contracts traded` : "unavailable" },
+  ];
+  document.getElementById("us-house-tiles").innerHTML = tiles.map((t) => `<div class="figure${t.primary ? " primary" : ""}"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
+  renderSeatHistogram("us-house-chart", "us-house-chart-title", h.model, "U.S. House");
+
+  // Texas congressional map
+  const texas = h.districts.filter((d) => d.state === "TX");
+  const byDistrict = new Map(texas.map((d) => [d.district, d]));
+  if (topo) {
+    const width = 800, height = 760;
+    const svgRoot = d3.select("#tx-congress-map").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "Texas congressional districts");
+    const svg = svgRoot.append("g").attr("class", "zoom-root");
+    const features = topojson.feature(topo, topo.objects.districts).features;
+    const projection = d3.geoMercator().fitSize([width, height], { type: "FeatureCollection", features });
+    const path = d3.geoPath(projection);
+    const pScale = probabilityScale();
+    const fillFor = (d, mode) => (!d ? cssVar("--notup") : mode === "rating" ? ratingColor(d.consensus?.label) : d.modelD == null ? cssVar("--notup") : pScale(d.modelD));
+    const paths = svg.append("g").selectAll("path").data(features).join("path").attr("d", path).attr("class", (f) => (byDistrict.get(f.properties.district)?.nationallyRated ? "rated" : ""))
+      .on("mousemove", (event, f) => { const d = byDistrict.get(f.properties.district); showTooltip(event, d ? congressTooltip(d, h) : `<b>TX-${f.properties.district}</b><br>No data`); }).on("mouseleave", hideTooltip);
+    svg.append("g").selectAll("text").data(features.filter((f) => path.area(f) > 420)).join("text").attr("class", "state-label").attr("text-anchor", "middle").attr("transform", (f) => `translate(${path.centroid(f)})`).attr("dy", "0.35em").text((f) => f.properties.district);
+    const apply = (mode) => {
+      paths.attr("fill", (f) => fillFor(byDistrict.get(f.properties.district), mode));
+      document.getElementById("tx-congress-legend").innerHTML = mode === "rating"
+        ? RATING_ORDER.map((r) => `<span><i class="sw" style="background:${ratingColor(r)}"></i>${r}</span>`).join("")
+        : [0.02, 0.15, 0.3, 0.5, 0.7, 0.85, 0.98].map((p) => `<span><i class="sw" style="background:${pScale(p)}"></i>${p === 0.5 ? "50/50" : `${Math.round(p * 100)}% D`}</span>`).join("");
+    };
+    apply("model");
+    attachZoom(svgRoot, "tx-congress-map", { width, height });
+    document.querySelectorAll("button.mode[data-congress-mode]").forEach((button) => button.addEventListener("click", () => {
+      document.querySelectorAll("button.mode[data-congress-mode]").forEach((b) => b.classList.toggle("active", b === button));
+      apply(button.dataset.congressMode);
+    }));
+  }
+  const txRows = [...texas].sort((a, b) => a.district - b.district).map((d) => `<tr><td><b>TX-${d.district}</b></td><td>${esc(d.incumbent || (d.open ? "Open / new seat" : "—"))}</td><td>${esc(d.incumbentParty || "—")}</td><td>${ratingPill(d.consensus?.label)}${d.flip ? ' <span class="thin">flip</span>' : ""}</td><td class="ratings-cell">${Object.values(d.texasRatings || {}).map((r) => miniRating(r.label)).join("")}</td><td class="num">${d.pollingAverage ? `${marginText(d.pollingAverage.margin)}<span class="thin">n=${d.pollingAverage.pollCount}</span>` : '<span class="muted">—</span>'}</td><td class="num"><b>${pct(d.modelD)}</b></td></tr>`).join("");
+  document.getElementById("tx-congress-table").innerHTML = `<tr><th>District</th><th>Incumbent</th><th>Held by</th><th>Consensus</th><th>Ratings<span class="sub">Texas race pages</span></th><th class="num">District polls</th><th class="num">D wins<span class="sub">our model</span></th></tr>${txRows}`;
+
+  // Generic ballot table
+  const polls = h.genericBallot?.polls || [];
+  const weightFor = (poll) => (ga?.weights || []).find((w) => w.id === poll.id || (poll.alsoIds || []).includes(w.id));
+  document.getElementById("us-generic-table").innerHTML = polls.length
+    ? `<tr><th>Pollster</th><th>Dates</th><th class="num">Sample</th><th class="num">D</th><th class="num">R</th><th class="num">Margin</th><th>538 grade</th><th class="num">Weight</th></tr>` + polls.slice(0, 12).map((poll) => { const w = weightFor(poll); return `<tr><td>${esc(poll.pollster)}${poll.partisan ? ` <span class="muted">(${esc(poll.partisan)})</span>` : ""}</td><td>${esc(poll.startDate ? `${fmtDate(poll.startDate)}–${fmtDate(poll.endDate)}` : fmtDate(poll.endDate))}</td><td class="num">${poll.sampleSize ? poll.sampleSize.toLocaleString() : "—"}${poll.population ? ` ${esc(poll.population)}` : ""}</td><td class="num">${poll.dem}%</td><td class="num">${poll.rep}%</td><td class="num"><b>${marginText(poll.dem - poll.rep)}</b></td><td>${w?.grade ? esc(w.grade) : '<span class="muted">unrated</span>'}</td><td class="num muted">${w ? w.weight.toFixed(2) : "—"}</td></tr>`; }).join("") + (ga ? `<tr><td colspan="5"><b>Weighted average</b> (${ga.pollCount} polls)</td><td class="num"><b>${marginText(ga.margin)}</b></td><td colspan="2"></td></tr>` : "")
+    : '<tr><td class="muted">No generic-ballot polls found.</td></tr>';
+
+  // National battlegrounds
+  const head = `<tr><th>District</th><th>Incumbent</th><th>Held by</th><th>Consensus</th><th title="${esc(h.forecasters.map((f) => f.name).join(", "))}">Ratings<span class="sub">${h.forecasters.map((f) => esc(shortName(f.name))).join(", ")}</span></th><th class="num">D wins<span class="sub">our model</span></th></tr>`;
+  const row = (d) => `<tr><td><b>${esc(d.id)}</b>${d.state === "TX" ? '<span class="tx-mark">TX</span>' : ""}${d.pvi ? ` <span class="muted">${esc(d.pvi)}</span>` : ""}</td><td class="wrap">${esc(d.incumbent || (d.open ? "Open / new seat" : "—"))}</td><td>${esc(d.incumbentParty || "—")}</td><td>${ratingPill(d.consensus?.label)}${d.flip ? ' <span class="thin">flip</span>' : ""}</td><td class="ratings-cell">${h.forecasters.map((f) => miniRating(d.ratings[f.key])).join("")}</td><td class="num"><b>${pct(d.modelD)}</b></td></tr>`;
+  const rated = h.districts.filter((d) => d.nationallyRated);
+  document.getElementById("us-house-table").innerHTML = head + rated.slice(0, 40).map(row).join("");
+  document.getElementById("us-house-table-all").innerHTML = head + [...rated].sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })).map(row).join("");
+}
+function congressTooltip(d, h) {
+  const rows = [`<b>${esc(d.id)}</b>${d.incumbent ? ` · ${esc(d.incumbent)}` : d.open ? " · open or new seat" : ""}${d.incumbentParty ? ` (${esc(d.incumbentParty)}-held)` : ""}${d.pvi ? ` · PVI ${esc(d.pvi)}` : ""}`, "<hr>"];
+  rows.push(`<div class="row"><span><b>Our model, D wins</b></span><span><b>${pct(d.modelD)}</b></span></div>`);
+  rows.push(`<div class="row"><span>Consensus rating</span><span>${esc(d.consensus?.label || "—")}</span></div>`);
+  if (d.pollingAverage) rows.push(`<div class="row"><span>District polls (${d.pollingAverage.pollCount})</span><span>${marginText(d.pollingAverage.margin)}</span></div>`);
+  for (const [key, label] of Object.entries(d.ratings || {})) rows.push(`<div class="row"><span>${esc((h.forecasters.find((f) => f.key === key) || d.texasRatings?.[key] || { name: key }).name)}</span><span>${esc(label)}</span></div>`);
+  return rows.join("");
 }
 
 // ---------- sources ----------
@@ -482,6 +560,7 @@ function renderSources(s) {
     ["Kalshi public market data", "https://kalshi.com", s.sources.kalshi],
     ["VoteHub polls feed", "https://votehub.com", s.sources.votehub],
     ["Wikipedia (ratings, polls, districts)", "https://en.wikipedia.org/wiki/2026_United_States_Senate_elections", s.sources.wikipedia],
+    ["Wikipedia U.S. House ratings and Texas congressional races", "https://en.wikipedia.org/wiki/2026_United_States_House_of_Representatives_election_ratings", s.sources.wikipedia],
     ["Texas Legislative Council district plans", "https://data.capitol.texas.gov/", { ok: true }],
     ["U.S. state boundaries: us-atlas (U.S. Census)", "https://github.com/topojson/us-atlas", { ok: true }],
   ];
@@ -493,8 +572,7 @@ function attachZoom(svg, containerId, { width, height }) {
   const content = svg.select("g.zoom-root");
   const zoom = d3.zoom().scaleExtent([1, 14]).translateExtent([[0, 0], [width, height]]).extent([[0, 0], [width, height]])
     .filter((event) => {
-      if (event.type === "wheel") return event.ctrlKey || event.metaKey; // plain scrolling keeps scrolling the page
-      return !event.button;
+      return !event.button; // wheel, pinch, drag, and double-click all zoom or pan
     })
     .on("zoom", (event) => { content.attr("transform", event.transform); content.selectAll("path").attr("stroke-width", 0.8 / event.transform.k); content.selectAll("text").attr("font-size", 9 / Math.sqrt(event.transform.k)); });
   svg.call(zoom);
@@ -524,7 +602,7 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "senate", "texas", "house", "tx-senate", "sources"];
+const PANELS = ["overview", "senate", "texas", "house", "tx-senate", "us-house", "sources"];
 function showPanel(name, { push = true } = {}) {
   const panel = PANELS.includes(name) ? name : "overview";
   document.querySelectorAll(".panel").forEach((el) => el.classList.toggle("active", el.dataset.panel === panel));

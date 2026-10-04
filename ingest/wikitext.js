@@ -21,7 +21,7 @@ export function extractTables(text) {
   const openPattern = /^\{\|.*$/gm;
   let open;
   while ((open = openPattern.exec(text))) {
-    const closePattern = /^\|\}\s*$/gm;
+    const closePattern = /^\|\}/gm; // `|}` may share a line with trailing markup such as <section end=.../>
     closePattern.lastIndex = open.index;
     const close = closePattern.exec(text);
     if (!close) break;
@@ -173,7 +173,7 @@ function applySpans(rows) {
 
 /** Parse `{{USRaceRating|Lean|D|flip}}` / `{{USRaceRating|Tossup}}` into a normalized label like "Lean D". */
 export function parseRaceRating(cellText) {
-  const match = cellText.match(/\{\{\s*USRaceRating\s*\|([^}]*)\}\}/i);
+  const match = cellText.match(/\{\{\s*(?:USRaceRating|US political race rating)\s*\|([^}]*)\}\}/i);
   if (!match) return null;
   const parts = match[1].split("|").map((p) => p.trim()).filter(Boolean);
   const [level, party, flag] = parts;

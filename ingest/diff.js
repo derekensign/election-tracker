@@ -10,6 +10,7 @@ export function detectChanges(previous, current) {
   compareLegislature(previous, current, "txHouse", "TX House", changes);
   compareLegislature(previous, current, "txSenate", "TX Senate", changes);
   compareControl(previous, current, changes);
+  compareUsHouse(previous, current, changes);
   changes.sort((a, b) => b.severity - a.severity);
   return changes;
 }
@@ -124,6 +125,32 @@ function compareControl(previous, current, changes) {
     const aE = current.senateControl?.[key]?.expected?.D;
     if (bE != null && aE != null && Math.abs(aE - bE) >= THRESHOLDS.expectedSeats) {
       changes.push({ type: "control", severity: 70, text: `Expected Democratic-caucus seats (${name}) ${bE.toFixed(1)} → ${aE.toFixed(1)}` });
+    }
+  }
+}
+
+function compareUsHouse(previous, current, changes) {
+  const b = previous.usHouse, a = current.usHouse;
+  if (!b || !a) return;
+  const bc = b.model?.control?.D, ac = a.model?.control?.D;
+  if (bc != null && ac != null && Math.abs(ac - bc) * 100 >= THRESHOLDS.controlPoints) changes.push({ type: "control", severity: 85, text: `U.S. House control (our model): D ${pct(bc)} → ${pct(ac)}` });
+  const be = b.model?.expected?.D, ae = a.model?.expected?.D;
+  if (be != null && ae != null && Math.abs(ae - be) >= 1) changes.push({ type: "poll-model", severity: 60, text: `U.S. House expected Democratic seats ${be.toFixed(1)} → ${ae.toFixed(1)}` });
+  const bg = b.genericBallot?.average?.margin, ag = a.genericBallot?.average?.margin;
+  if (bg != null && ag != null && Math.abs(ag - bg) >= THRESHOLDS.pollMarginPoints) changes.push({ type: "poll-average", severity: 55, text: `Generic congressional ballot ${marginText(bg)} → ${marginText(ag)}` });
+  const before = new Map((b.districts || []).map((d) => [d.id, d]));
+  for (const d of a.districts || []) {
+    const prev = before.get(d.id);
+    if (!prev) continue;
+    for (const [key, label] of Object.entries(d.ratings || {})) {
+      if (prev.ratings?.[key] && prev.ratings[key] !== label) {
+        const name = (a.forecasters || []).find((f) => f.key === key)?.name || key;
+        changes.push({ type: "rating", severity: d.state === "TX" ? 75 : 50, raceId: d.id, text: `${d.id} (U.S. House): ${name} moved ${prev.ratings[key]} → ${label}` });
+      }
+    }
+    if (d.state === "TX") {
+      const knownIds = new Set((prev.polls || []).flatMap((p) => [p.id, ...(p.alsoIds || [])]));
+      for (const poll of (d.polls || []).filter((p) => !knownIds.has(p.id))) changes.push({ type: "poll", severity: 32, raceId: d.id, text: `${d.id} (U.S. House): new poll — ${poll.pollster}${poll.endDate ? ` (through ${poll.endDate})` : ""}: ${marginText(poll.dem - poll.rep)}` });
     }
   }
 }

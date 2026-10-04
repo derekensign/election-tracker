@@ -85,6 +85,78 @@ function normalizeDate(text) {
 }
 
 /**
+ * "2026 United States House of Representatives election ratings": one row per competitive district.
+ * Returns { forecasters, districts: [{ id: "TX-15", state, district, incumbentParty, incumbent, pvi, ratings }] }.
+ */
+export function parseHouseRatingsTable(wikitext) {
+  const section = findSection(wikitext, /Latest published ratings/i, { last: false }) || findSection(wikitext, /^Election ratings$/i, { last: false });
+  if (!section) throw new Error("House ratings page: ratings section not found");
+  const rows = parseTable(extractTables(section.body)[0]);
+  const headerRow = rows.find((row) => row.length >= 10 && row.every((c) => c.header) && /District/i.test(row[0].text));
+  if (!headerRow) throw new Error("House ratings page: header row not found");
+  const forecasters = headerRow.slice(4).map((cell) => parseForecasterHeader(cell.text));
+  const districts = [];
+  for (const row of rows) {
+    const match = (row[0]?.text || "").match(/\{\{\s*[Uu]shr\s*\|\s*([A-Z]{2})\s*\|\s*(\d+|AL)/);
+    if (!match) continue;
+    const ratings = {};
+    row.slice(4).forEach((cell, index) => { const rating = parseRaceRating(cell.text); if (rating && forecasters[index]) ratings[forecasters[index].key] = rating.label; });
+    const flip = row.slice(4).some((cell) => /flip/i.test(cell.text));
+    const incumbentParty = parsePartyShading(cellMarkup(row[2])) || parsePartyShading(cellMarkup(row[3]));
+    const pviText = plainText(row[1]?.text || "");
+    districts.push({
+      id: `${match[1]}-${match[2]}`, state: match[1], district: match[2] === "AL" ? "AL" : Number(match[2]),
+      incumbentParty, incumbent: plainText(row[2]?.text || "") || null, pvi: pviText || null, open: !incumbentParty, flip, ratings,
+    });
+  }
+  return { forecasters, districts };
+}
+
+/**
+ * "2026 United States House of Representatives elections in Texas": a section per district with
+ * ====Predictions==== and general-election ====Polling==== tables, plus a statewide congressional generic ballot.
+ */
+export function parseTexasCongressPage(wikitext) {
+  const districts = [];
+  const headingPattern = /^==\s*District (\d+)\s*==\s*$/gm;
+  const headings = [...wikitext.matchAll(headingPattern)].map((m) => ({ district: Number(m[1]), start: m.index, end: m.index + m[0].length }));
+  headings.forEach((heading, index) => {
+    const body = wikitext.slice(heading.end, headings[index + 1]?.start ?? wikitext.length);
+    const general = findSection(body, /^General election$/i, { last: false });
+    const scope = general ? general.body : body;
+    const predictions = findSection(scope, /^Predictions$/i, { last: true });
+    const ratings = {};
+    if (predictions) {
+      const table = extractTables(predictions.body)[0];
+      for (const row of parseTable(table || "")) {
+        if (row.length < 2 || row[0].header) continue;
+        const rating = parseRaceRating(row[1].text);
+        if (!rating) continue;
+        const name = plainText(row[0].text);
+        ratings[canonicalForecaster(name)] = { name: FORECASTER_NAMES[canonicalForecaster(name)] || name, label: rating.label, asOf: row[2] ? normalizeDate(plainText(row[2].text)) : null };
+      }
+    }
+    const polling = general ? findSection(general.body, /^Polling$/i, { last: true }) : null;
+    const polls = polling ? parseRacePolling(wikitext, { sectionBody: polling.body, partyFromHeader: true }).polls : [];
+    districts.push({ district: heading.district, ratings, polls });
+  });
+  const statewide = findSection(wikitext, /^Statewide polling$/i, { last: false });
+  const statewidePolls = statewide ? parseRacePolling(wikitext, { democrat: "Democratic", republican: "Republican", sectionBody: statewide.body }).polls : [];
+  return { districts, statewidePolls };
+}
+
+/** National House page: "Generic congressional ballot aggregate polls" table -> aggregator averages, and the infobox seat counts. */
+export function parseHouseNationalPage(wikitext) {
+  const section = findSection(wikitext, /Generic congressional ballot aggregate polls/i, { last: false });
+  const aggregates = section ? parseRacePolling(wikitext, { democrat: "Democrats", republican: "Republicans", sectionBody: section.body }).aggregates : [];
+  const seats = (key) => { const m = wikitext.match(new RegExp(`^\\|\\s*${key}\\s*=\\s*(\\d+)`, "m")); return m ? Number(m[1]) : null; };
+  const party1 = (wikitext.match(/^\|\s*party1\s*=\s*(.+)$/m) || [])[1] || "";
+  const first = seats("seats_before1"), second = seats("seats_before2");
+  const composition = first !== null && second !== null ? (/Republican/i.test(party1) ? { R: first, D: second } : { D: first, R: second }) : null;
+  return { aggregates, composition };
+}
+
+/**
  * A race page's "Predictions" table (Source | Ranking | As of) -> { cook: { label, asOf }, ... }.
  * Looks inside the General election section when present (primary pages have none).
  */
@@ -110,21 +182,30 @@ export function parseRacePredictions(wikitext) {
  * The general-election "Polling" section of a race page.
  * Returns { aggregates: [...], polls: [...] } with candidate columns mapped to D/R by candidate last names.
  */
-export function parseRacePolling(wikitext, { democrat, republican }) {
-  const general = findSection(wikitext, /^General election$/i, { last: false });
-  const section = findSection(wikitext, /^Polling$/i, { afterIndex: general ? general.start : 0, last: true });
-  if (!section) return { aggregates: [], polls: [] };
+export function parseRacePolling(wikitext, { democrat, republican, sectionBody = null, partyFromHeader = false }) {
+  let body = sectionBody;
+  if (body === null) {
+    const general = findSection(wikitext, /^General election$/i, { last: false });
+    const section = findSection(wikitext, /^Polling$/i, { afterIndex: general ? general.start : 0, last: true });
+    if (!section) return { aggregates: [], polls: [] };
+    body = section.body;
+  }
   const aggregates = [];
   const polls = [];
-  const demLast = lastName(democrat);
-  const repLast = lastName(republican);
-  for (const table of extractTables(section.body)) {
+  const demLast = democrat ? lastName(democrat) : null;
+  const repLast = republican ? lastName(republican) : null;
+  for (const table of extractTables(body)) {
     const rows = parseTable(table);
     const headerRow = rows.find((row) => row.filter((c) => c.header).length >= 4);
     if (!headerRow) continue;
     const headers = headerRow.map((cell) => plainText(cell.text).toLowerCase());
-    const demIndex = headers.findIndex((h) => h.includes(demLast));
-    const repIndex = headers.findIndex((h) => h.includes(repLast));
+    let demIndex = demLast ? headers.findIndex((h) => h.includes(demLast)) : -1;
+    let repIndex = repLast ? headers.findIndex((h) => h.includes(repLast)) : -1;
+    if ((demIndex === -1 || repIndex === -1) && partyFromHeader) {
+      // Candidate headers like "Monica De La Cruz (R)" / generic "Democratic" / "Democrats".
+      demIndex = headers.findIndex((h) => /\((d|dem)\)|^democrat/.test(h));
+      repIndex = headers.findIndex((h) => /\((r|rep|gop)\)|^republican/.test(h));
+    }
     if (demIndex === -1 || repIndex === -1) continue; // e.g., hypothetical matchup tables
     const dateIndex = headers.findIndex((h) => /date/.test(h));
     const isAggregate = headers.some((h) => /aggregat|source of poll/.test(h));

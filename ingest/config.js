@@ -109,6 +109,17 @@ export const TEXAS_STATEWIDE_RACES = [
   },
 ];
 
+export const US_HOUSE = {
+  wikipedia: "2026_United_States_House_of_Representatives_elections",
+  ratingsPage: "2026_United_States_House_of_Representatives_election_ratings",
+  texasPage: "2026_United_States_House_of_Representatives_elections_in_Texas",
+  seats: 435, majority: 218,
+  // Fallback if the infobox cannot be parsed: 218 R, 214 D, 3 vacancies (October 2026).
+  compositionFallback: { R: 218, D: 214 },
+  kalshiSeatsSeries: "KXDHOUSEWON",
+  texasDistricts: 38,
+};
+
 export const TEXAS_LEGISLATURE = {
   house: { wikipedia: "2026_Texas_House_of_Representatives_election", seats: 150, majority: 76, current: { D: 62, R: 88 } },
   senate: { wikipedia: "2026_Texas_Senate_election", seats: 31, majority: 16, current: { D: 12, R: 19 } },

@@ -42,6 +42,47 @@ export function estimateEnvironment({ genericBallotAverage, downBallotAverages }
   };
 }
 
+/** Margin (D-positive) a consensus rating implies; used where no district-level fundamentals are available. */
+export function ratingImpliedMargin(label) {
+  if (!label) return null;
+  const sign = /D$/.test(label) ? 1 : /R$/.test(label) ? -1 : 0;
+  const size = /Safe|Solid/.test(label) ? 17 : /Likely/.test(label) ? 10 : /Lean/.test(label) ? 5.5 : /Tilt/.test(label) ? 2.5 : 0;
+  return sign * size;
+}
+
+/**
+ * Chamber model for seats that already carry a forecast margin (e.g. rating-implied, optionally blended with
+ * district polls). Same two-level error structure as the Texas model; no swing or incumbency terms.
+ */
+export function runRatedChamberModel({ seats, notUp, majority, params = {} }) {
+  const p = { environmentSigma: 3.5, districtSigma: 5.5, degreesOfFreedom: 5, environmentGridPoints: 21, ...params };
+  const grid = Array.from({ length: p.environmentGridPoints }, (_, k) => studentTQuantile((k + 0.5) / p.environmentGridPoints, p.degreesOfFreedom) * p.environmentSigma);
+  const accumulator = seats.map(() => 0);
+  const mixed = new Map();
+  let controlD = 0;
+  let expectedD = 0;
+  for (const environmentError of grid) {
+    const races = seats.map((seat, index) => {
+      const pD = seat.margin === null || seat.margin === undefined ? (seat.party === "D" ? 0.97 : seat.party === "R" ? 0.03 : 0.5) : studentTCdf((seat.margin + environmentError) / p.districtSigma, p.degreesOfFreedom);
+      accumulator[index] += pD / grid.length;
+      return { pD, pR: 1 - pD, pI: 0 };
+    });
+    const dist = seatDistribution(races, { democraticCaucusNotUp: notUp.D, republicanNotUp: notUp.R });
+    for (const { d, probability } of dist.histogram) mixed.set(d, (mixed.get(d) || 0) + probability / grid.length);
+    controlD += dist.histogram.filter((h) => h.d >= majority).reduce((s, h) => s + h.probability, 0) / grid.length;
+    expectedD += dist.expected.D / grid.length;
+  }
+  const totalSeats = notUp.D + notUp.R + seats.length;
+  return {
+    params: p,
+    seats: seats.map((seat, index) => ({ id: seat.id, pD: Math.round(accumulator[index] * 1000) / 1000, margin: seat.margin })),
+    histogram: [...mixed.entries()].map(([d, probability]) => ({ d, probability })).sort((a, b) => a.d - b.d),
+    control: { D: Math.round(controlD * 1000) / 1000, R: Math.round((1 - controlD) * 1000) / 1000 },
+    expected: { D: Math.round(expectedD * 10) / 10, R: Math.round((totalSeats - expectedD) * 10) / 10 },
+    majority, totalSeats, notUp,
+  };
+}
+
 /** Deterministic part of a seat's forecast margin (D-positive), before any environment error. */
 export function seatBaseline(district, environment, params = LEGISLATURE_MODEL) {
   if (district.presidentialMargin2024 === null || district.presidentialMargin2024 === undefined) return null;
