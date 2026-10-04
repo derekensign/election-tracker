@@ -826,6 +826,7 @@ function setupVotePanel() {
   document.getElementById("open-vote").addEventListener("click", open);
   document.getElementById("vote-share").addEventListener("click", async () => { try { await navigator.clipboard.writeText("https://texas-race-tracker.vercel.app/"); document.getElementById("vote-shared").textContent = "Link copied."; } catch { document.getElementById("vote-shared").textContent = "texas-race-tracker.vercel.app"; } });
   document.getElementById("vote-locate").addEventListener("click", locateCounty);
+  document.getElementById("vote-outside").addEventListener("click", () => { document.getElementById("vote-county-card").innerHTML = outsideTexasCard(); document.getElementById("vote-county").value = ""; localStorage.removeItem("voteCounty"); });
   document.getElementById("vote-county").addEventListener("change", (event) => { if (event.target.value) showCounty(event.target.value, true); });
   // Strip under the masthead: the next key date, or the open early-voting window.
   const strip = document.getElementById("vote-strip");
@@ -866,7 +867,7 @@ async function locateCounty() {
   }, () => { card.textContent = "Location was not shared. Choose your county from the list instead."; }, { timeout: 10000, maximumAge: 600000 });
 }
 function outsideTexasCard() {
-  return `<div class="county">Outside Texas</div><div>Registration, deadlines, and polling places for every state:</div><ul class="vote-links"><li><a href="https://vote.gov/" rel="noopener">vote.gov</a>: register, check registration, state deadlines</li><li><a href="https://www.vote.org/polling-place-locator/" rel="noopener">Vote.org polling place locator</a>: by address</li><li><a href="https://www.usa.gov/election-office" rel="noopener">Find your state or local election office</a></li></ul>`;
+  return `<div class="county">Outside Texas</div><div>Every state votes November 3, 2026, but registration deadlines, early voting, and mail rules differ. Start here:</div><ul class="vote-links"><li><a href="https://vote.gov/" rel="noopener">vote.gov</a>: register, check your registration, see your state's deadlines</li><li><a href="https://www.vote.org/polling-place-locator/" rel="noopener">Vote.org polling place locator</a>: polling places by address, any state</li><li><a href="https://www.usa.gov/election-office" rel="noopener">usa.gov</a>: your state or local election office</li></ul>`;
 }
 function showCounty(fips, remember) {
   const county = (COUNTIES || []).find((c) => c.fips === fips);
