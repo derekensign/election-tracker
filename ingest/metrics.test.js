@@ -77,3 +77,40 @@ test("change detection flags rating moves and new polls", () => {
   assert.ok(changes.some((c) => c.type === "market"));
   assert.ok(changes.some((c) => c.type === "poll" && /Siena/.test(c.text)));
 });
+
+test("student-t cdf matches table values", async () => {
+  const { studentTCdf, pollWinProbability, qualityMultiplier } = await import("./metrics.js");
+  assert.ok(Math.abs(studentTCdf(0, 5) - 0.5) < 1e-9);
+  assert.ok(Math.abs(studentTCdf(2.015, 5) - 0.95) < 1e-3);
+  assert.ok(Math.abs(studentTCdf(-1.476, 5) - 0.1) < 1e-3);
+  const even = pollWinProbability({ margin: 0, effectiveN: 5 }, { daysToElection: 30 });
+  assert.equal(even.pD, 0.5);
+  const sparse = pollWinProbability({ margin: 4, effectiveN: 1 }, { daysToElection: 30 });
+  const dense = pollWinProbability({ margin: 4, effectiveN: 8 }, { daysToElection: 30 });
+  assert.ok(sparse.pD < dense.pD, "thin polling should be less confident");
+  assert.equal(qualityMultiplier({ numericGrade: 3 }), 1);
+  assert.equal(qualityMultiplier(null), 0.5);
+});
+
+test("pollster matcher avoids generic-word false positives", async () => {
+  const { ratePollster } = await import("./pollsters.js");
+  assert.equal(ratePollster("Emerson College").pollster, "Emerson College");
+  assert.equal(ratePollster("New York Times/Siena University").grade, "A+");
+  assert.equal(ratePollster("Texas Southern University").matched, null);
+  assert.equal(ratePollster("Nexus Strategies/Strategic Partners Solutions").matched, null);
+  assert.equal(ratePollster("Texas Public Opinion Research").matched, null);
+});
+
+test("quality weighting changes the average", () => {
+  const polls = [
+    { pollster: "Good", endDate: "2026-10-01", sampleSize: 800, dem: 52, rep: 44 },
+    { pollster: "Bad", endDate: "2026-10-01", sampleSize: 800, dem: 44, rep: 52 },
+    { pollster: "Mid", endDate: "2026-09-30", sampleSize: 800, dem: 48, rep: 48 },
+  ];
+  const ratings = { Good: { numericGrade: 3 }, Bad: { numericGrade: 0.3 }, Mid: { numericGrade: 1.5 } };
+  const weighted = pollingAverage(polls, { asOf: "2026-10-04", ratePollster: (name) => ratings[name] });
+  const flat = pollingAverage(polls, { asOf: "2026-10-04" });
+  assert.ok(weighted.margin > flat.margin);
+  assert.ok(weighted.effectiveN < 3 && weighted.effectiveN > 1);
+  assert.equal(weighted.weights.length, 3);
+});

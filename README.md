@@ -1,4 +1,4 @@
-# 2026 Race Tracker — Texas & U.S. Senate
+# Texas Polls Tracker
 
 A static dashboard, refreshed every morning, for the 2026 Texas statewide races, the Texas Legislature, and the national U.S. Senate map. It shows polls, forecaster ratings, prediction-market odds, and a seat-distribution forecast, and highlights what moved since the previous day.
 
@@ -8,8 +8,9 @@ Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from 
 
 | Section | Content |
 |---|---|
-| Big moves | Rating changes, market moves ≥ 3 pts, new polls, polling-average moves ≥ 1 pt, control-odds moves, since the previous snapshot |
-| U.S. Senate control | Current 47 D-caucus / 53 R; Polymarket control odds; Kalshi Democratic-seat distribution (caucus-counted); a derived Poisson-binomial distribution over per-race odds |
+| What moved | Rating changes, poll-model or market moves ≥ 3 pts, new polls, polling-average moves ≥ 1 pt, control-odds moves, since the previous snapshot |
+| Hero board | Texas U.S. Senate, Texas Governor, and U.S. Senate control as split probability bars under the selected model |
+| U.S. Senate control | Current 47 D-caucus / 53 R; polls-model and market-derived Poisson-binomial seat distributions; Polymarket control odds; Kalshi Democratic-seat distribution (caucus-counted) |
 | U.S. Senate map | All 35 seats shaded by the average of ten forecasters (Cook, DDHQ, Economist, FiftyPlusOne, Fox, Inside Elections, RCP, Sabato, Silver Bulletin, Split Ticket); battleground table with polls, odds, and trends |
 | Texas statewide | Senate, Governor, Lt. Governor, AG, Comptroller, Railroad Commissioner, Land Commissioner, Agriculture Commissioner: polling average, latest poll, ratings, Kalshi and Polymarket odds (thin markets flagged), per-race poll lists and published aggregates |
 | Texas House / Senate | District maps (TLC plans H2316 / S2168) colored by State Navigate rating or party held, or by 2024 presidential margin; rated-district tables; Kalshi chamber odds |
@@ -25,13 +26,27 @@ Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from 
 
 Sources are fetched independently; if one fails, the previous snapshot's values for that source are reused and the page says so.
 
+## Two probability models, one toggle
+
+The page header switches every win probability, the hero board, the seat distribution, and the map's probability mode between:
+
+- **Polls model** (default). Each race's quality-weighted polling average is converted to a Democratic win probability with a Student-t error model (5 degrees of freedom): σ = √(5.5² + (0.05 × days to election)² + 3² / effective polls). 5.5 points approximates the historical RMSE of final statewide polling averages; the time term adds about 1.5 points a month out; the sparsity term widens thinly polled races (effective polls is the Kish effective sample size of the weights). Races with no polls fall back to the forecaster-rating prior and are labelled.
+- **Prediction markets**. Polymarket first, then Kalshi, then the rating prior; thin markets (< $10k traded) are shown but not used as the primary number.
+
+`?model=markets` in the URL selects the market view; the choice is remembered in localStorage.
+
 ## Method notes
 
-- **Polling average**: recency-weighted (14-day half-life), sample-size weighted (√(n/600)), partisan/internal polls half-weighted, polls from the last 30 days with a minimum of three. VoteHub and Wikipedia copies of the same poll are merged.
+- **Polling average**: polls from the last 30 days (minimum three), weighted by recency (14-day half-life), sample size (√(n/600)), and pollster quality. Partisan/internal polls are halved. VoteHub and Wikipedia copies of the same poll are merged.
+- **Pollster quality**: FiveThirtyEight's pollster ratings (`ingest/data/pollster-ratings-538.csv`, 2024 methodology, vendored from github.com/fivethirtyeight/data). The 0–3 numeric grade maps to a 0.35×–1.0× weight; pollsters not in the file get 0.5×. Name matching lives in `ingest/pollsters.js` (aliases plus token overlap); each poll's grade and final weight are shown in the race detail tables. Silver Bulletin's newer ratings are paywalled and are not used.
 - **Consensus rating**: mean of forecaster ratings on a −4 (Safe R) … 0 (Tossup) … +4 (Safe D) scale, mapped back to a label.
-- **Per-race win probability** for the derived distribution: Polymarket (unless thin), then Kalshi, then a rating prior (Safe 98.5%, Likely 90%, Lean 75%, Tilt 60%, Tossup 50%).
-- **Derived seat distribution**: Poisson-binomial over the 35 races, assuming independence. Real outcomes are correlated, so the tails are understated; the Kalshi market distribution is shown alongside for comparison. Control: D needs 51; at 50–50 the Republican Vice President breaks the tie.
+- **Rating prior** (used where neither polls nor markets exist): Safe 98.5%, Likely 90%, Lean 75%, Tilt 60%, Tossup 50%.
+- **Seat distributions**: Poisson-binomial over the 35 races, assuming independence, for both models. Real outcomes are correlated, so the tails are understated; the Kalshi market distribution is shown alongside for comparison. Control: D needs 51; at 50–50 the Republican Vice President breaks the tie.
 - **Thin market**: under $10k traded. Odds from thin markets are shown but not used as the primary probability.
+
+## Design
+
+Archivo (variable width) for the nameplate, headings, figures, and tables; Source Serif 4 for running text. No cards: sections are separated by rules and whitespace, figures sit in a ruled strip, and deltas are colored by the party they move toward (blue toward Democrats, red toward Republicans). Rating colors were checked with a color-vision-deficiency validator.
 
 ## Running locally
 

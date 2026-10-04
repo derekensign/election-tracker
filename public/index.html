@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>2026 Race Tracker — Texas &amp; U.S. Senate</title>
+<title>Texas Polls Tracker: 2026 Texas races and the U.S. Senate</title>
 <meta name="description" content="Daily tracker for the 2026 Texas statewide races, Texas Legislature, and U.S. Senate: polls, forecaster ratings, prediction-market odds, and seat-distribution forecasts with day-over-day change detection.">
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
@@ -11,34 +11,43 @@
 <script src="app.js" defer></script>
 </head>
 <body>
-<header class="masthead">
-  <div class="wrap">
-    <h1>2026 Race Tracker</h1>
-    <p class="subtitle">Texas statewide races · Texas Legislature · U.S. Senate map</p>
-    <p class="asof" id="asof">Loading…</p>
+<header class="masthead wrap">
+  <div class="top">
+    <div>
+      <h1>Texas Polls Tracker</h1>
+      <p class="dek">Texas statewide races, the Legislature, and the U.S. Senate map, updated every morning. Win probabilities come from a quality-weighted polling model, or from prediction markets if you prefer.</p>
+      <p class="asof" id="asof">Loading the latest snapshot.</p>
+    </div>
+    <div class="segmented-wrap"><span class="segmented-label">Probabilities from</span><span class="segmented" role="group" aria-label="Probability source"><button class="active" data-model="polls" title="Quality-weighted polling average with a Student-t error model">Polls model</button><button data-model="markets" title="Polymarket, then Kalshi">Prediction markets</button></span></div>
   </div>
+  <div class="board" id="board"></div>
 </header>
 
 <main class="wrap">
-  <section id="big-moves" class="card moves">
-    <h2>Big moves since last update</h2>
+  <section id="big-moves" class="moves">
+    <h2>What moved since the last update</h2>
     <ul id="moves-list" class="moves-list"></ul>
   </section>
 
-  <section id="senate-control" class="card">
+  <section id="senate-control">
     <h2>U.S. Senate control</h2>
-    <div class="tiles" id="control-tiles"></div>
+    <div class="figures" id="control-tiles"></div>
     <div class="chart-head">
-      <h3>Seat distribution — Democratic caucus seats after the election</h3>
+      <h3 id="seat-chart-title">Seat distribution: Democratic caucus seats after the election</h3>
       <div class="legend" id="seat-legend"></div>
     </div>
     <div id="seat-chart" class="chart"></div>
     <p class="note" id="seat-note"></p>
   </section>
 
-  <section id="senate-map-section" class="card">
+  <section id="senate-map-section">
     <h2>U.S. Senate map</h2>
-    <p class="note">Shaded by the average of ten public forecaster ratings (Cook, Decision Desk HQ, The Economist, FiftyPlusOne, Fox, Inside Elections, RealClearPolitics, Sabato, Silver Bulletin, Split Ticket). Hover a state for details. Seats not up in 2026 are left blank.</p>
+    <p class="note">Hover a state for details. Seats not up in 2026 are left blank. Ratings are the average of ten public forecasters (Cook, Decision Desk HQ, The Economist, FiftyPlusOne, Fox, Inside Elections, RealClearPolitics, Sabato, Silver Bulletin, Split Ticket).</p>
+    <div class="mode-row">
+      <span>Color by:</span>
+      <button class="mode active" data-senate-map="rating">Forecaster ratings</button>
+      <button class="mode" data-senate-map="probability">Win probability (selected model)</button>
+    </div>
     <div class="legend rating-legend" id="rating-legend"></div>
     <div id="senate-map" class="map"></div>
     <h3>Battlegrounds</h3>
@@ -46,16 +55,16 @@
     <details><summary>All 35 seats</summary><div class="table-scroll"><table id="senate-table-all" class="data"></table></div></details>
   </section>
 
-  <section id="texas" class="card">
+  <section id="texas">
     <h2>Texas statewide</h2>
-    <p class="note">Polls and forecaster ratings come first; prediction-market odds are a secondary signal and are flagged when the market is thin. Polling average: recency-weighted (14-day half-life) over the last 30 days, minimum three polls, partisan/internal polls half-weighted.</p>
+    <p class="note">Polls and forecaster ratings come first; prediction-market odds are a secondary signal and are flagged when the market is thin. Polling average: last 30 days (minimum three polls), weighted by recency (14-day half-life), sample size, and pollster quality (FiveThirtyEight numeric grade: A+ = 1.0× down to 0.35×, unrated 0.5×), partisan/internal polls halved.</p>
     <div class="table-scroll"><table id="texas-table" class="data"></table></div>
     <div id="texas-detail"></div>
   </section>
 
-  <section id="tx-house" class="card">
+  <section id="tx-house">
     <h2>Texas House</h2>
-    <div class="tiles" id="tx-house-tiles"></div>
+    <div class="figures" id="tx-house-tiles"></div>
     <div class="mode-row">
       <span>Color by:</span>
       <button class="mode active" data-chamber="house" data-mode="rating">Rating / party held</button>
@@ -67,9 +76,9 @@
     <div class="table-scroll"><table id="tx-house-table" class="data"></table></div>
   </section>
 
-  <section id="tx-senate" class="card">
+  <section id="tx-senate">
     <h2>Texas Senate</h2>
-    <div class="tiles" id="tx-senate-tiles"></div>
+    <div class="figures" id="tx-senate-tiles"></div>
     <div class="mode-row">
       <span>Color by:</span>
       <button class="mode active" data-chamber="senate" data-mode="rating">Rating / party held</button>
@@ -81,13 +90,14 @@
     <div class="table-scroll"><table id="tx-senate-table" class="data"></table></div>
   </section>
 
-  <section id="sources" class="card">
-    <h2>Sources &amp; method</h2>
+  <section id="sources">
+    <h2>Sources and method</h2>
     <ul class="sources" id="sources-list"></ul>
-    <p class="note">Ratings tables, poll tables, and legislative district tables are read from Wikipedia (CC BY-SA 4.0), which cites each forecaster and pollster. Polls also come from VoteHub's public feed. Odds come from the Polymarket and Kalshi public APIs; a market is marked thin below $10k traded. The seat distribution labelled "derived" is a Poisson-binomial over per-race win probabilities (Polymarket, then Kalshi, then a rating-based prior) that assumes races are independent, so it understates the chance of a uniform swing. District boundaries: Texas Legislative Council plans H2316 and S2168. Not affiliated with any campaign, forecaster, or exchange.</p>
+    <p class="note"><b>Polls model.</b> Each race's quality-weighted polling average (D − R margin) is turned into a win probability with a Student-t error model (5 degrees of freedom, so misses of 2–3σ are not treated as freakish). σ = √(5.5² + (0.05 × days to election)² + 3²/effective polls): 5.5 points is roughly the historical root-mean-square error of final statewide polling averages, the time term adds ~1.5 points a month out, and the sparsity term widens thinly polled races. Pollster quality comes from FiveThirtyEight's pollster ratings (vendored copy, 2024 methodology); unrated pollsters get half weight. Races with no polls fall back to a forecaster-rating prior and say so.</p>
+<p class="note"><b>Markets.</b> Polymarket first, then Kalshi; a market is marked thin below $10k traded and is not used as the primary number. <b>Seat distributions</b> are Poisson-binomial over the 35 races and assume independence, so both understate the chance of a uniform swing; the Kalshi seats market is shown alongside for comparison. Ratings tables, poll tables, and legislative district tables are read from Wikipedia (CC BY-SA 4.0), which cites each forecaster and pollster; polls also come from VoteHub's public feed. District boundaries: Texas Legislative Council plans H2316 and S2168. Not affiliated with any campaign, forecaster, or exchange.</p>
   </section>
 </main>
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
-<footer class="wrap foot"><a href="https://github.com/derekensign/election-tracker">Source on GitHub</a> · Data refreshes every morning (Central time).</footer>
+<footer class="wrap foot"><a href="https://github.com/derekensign/election-tracker">Source code on GitHub</a>. Data refreshes every morning, Central time.</footer>
 </body>
 </html>

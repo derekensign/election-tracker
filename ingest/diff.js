@@ -20,7 +20,7 @@ function compareSenateRaces(previous, current, changes) {
     if (!before) continue;
     const label = `${race.stateName} Senate`;
     compareRatings(before.ratings, race.ratings, current.usSenate.forecasters, label, race.id, changes);
-    compareOdds(before.odds, race.odds, label, race.id, changes);
+    compareOdds({ ...before.odds, pollModel: before.pollModel }, { ...race.odds, pollModel: race.pollModel }, label, race.id, changes);
     comparePolls(before, race, label, race.id, changes);
   }
 }
@@ -31,7 +31,7 @@ function compareTexasRaces(previous, current, changes) {
     if (!before) continue;
     const label = `TX ${race.office}`;
     compareRatings(mapLabels(before.ratings), mapLabels(race.ratings), null, label, race.id, changes);
-    compareOdds(before.odds, race.odds, label, race.id, changes);
+    compareOdds({ ...before.odds, pollModel: before.pollModel }, { ...race.odds, pollModel: race.pollModel }, label, race.id, changes);
     comparePolls(before, race, label, race.id, changes);
   }
 }
@@ -50,6 +50,12 @@ function compareRatings(before, after, forecasters, label, raceId, changes) {
 }
 
 function compareOdds(before, after, label, raceId, changes) {
+  const bp = before?.pollModel?.pD;
+  const ap = after?.pollModel?.pD;
+  if (bp != null && ap != null && Math.abs(ap - bp) * 100 >= THRESHOLDS.marketPoints) {
+    const delta = (ap - bp) * 100;
+    changes.push({ type: "poll-model", severity: 55 + Math.min(30, Math.abs(delta)), raceId, text: `${label}: poll-model D win chance ${pct(bp)} → ${pct(ap)} (${signed(delta)} pts)` });
+  }
   for (const source of ["polymarket", "kalshi"]) {
     const b = before?.[source]?.D;
     const a = after?.[source]?.D;
@@ -94,17 +100,20 @@ function compareControl(previous, current, changes) {
   const pairs = [
     ["Polymarket Senate control", previous.senateControl?.polymarket?.D, current.senateControl?.polymarket?.D],
     ["Kalshi-implied Senate control", previous.senateControl?.kalshiSeats?.controlD, current.senateControl?.kalshiSeats?.controlD],
-    ["Derived Senate control", previous.senateControl?.derived?.control?.D, current.senateControl?.derived?.control?.D],
+    ["Market-derived Senate control", previous.senateControl?.derived?.control?.D, current.senateControl?.derived?.control?.D],
+    ["Poll-model Senate control", previous.senateControl?.pollModel?.control?.D, current.senateControl?.pollModel?.control?.D],
   ];
   for (const [name, b, a] of pairs) {
     if (b == null || a == null) continue;
     const delta = (a - b) * 100;
     if (Math.abs(delta) >= THRESHOLDS.controlPoints) changes.push({ type: "control", severity: 90, text: `${name}: D ${pct(b)} → ${pct(a)} (${signed(delta)} pts)` });
   }
-  const bE = previous.senateControl?.derived?.expected?.D;
-  const aE = current.senateControl?.derived?.expected?.D;
-  if (bE != null && aE != null && Math.abs(aE - bE) >= THRESHOLDS.expectedSeats) {
-    changes.push({ type: "control", severity: 70, text: `Expected Democratic-caucus seats ${bE.toFixed(1)} → ${aE.toFixed(1)}` });
+  for (const [name, key] of [["market-derived", "derived"], ["poll model", "pollModel"]]) {
+    const bE = previous.senateControl?.[key]?.expected?.D;
+    const aE = current.senateControl?.[key]?.expected?.D;
+    if (bE != null && aE != null && Math.abs(aE - bE) >= THRESHOLDS.expectedSeats) {
+      changes.push({ type: "control", severity: 70, text: `Expected Democratic-caucus seats (${name}) ${bE.toFixed(1)} → ${aE.toFixed(1)}` });
+    }
   }
 }
 

@@ -10,7 +10,10 @@ import * as polymarket from "./sources/polymarket.js";
 import * as kalshi from "./sources/kalshi.js";
 import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
-import { dedupePolls, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
+import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
+import { ratePollster } from "./pollsters.js";
+
+const ELECTION_DAY = "2026-11-03";
 import { detectChanges } from "./diff.js";
 import { sequential } from "./http.js";
 
@@ -52,19 +55,24 @@ export async function build() {
       : (sources.votehub.ok ? [] : previousRace?.polls ?? []);
     const polls = sortPolls(dedupePolls(rawPolls));
     const probabilities = raceProbabilities(odds, consensus?.label);
+    const average = pollingAverage(polls, { asOf, ratePollster });
     return {
       id: `us-senate-${state}`, state, stateName,
       special: Boolean(wikiRace?.special), incumbentParty: wikiRace?.incumbentParty ?? null, incumbent: wikiRace?.incumbent ?? null, pvi: wikiRace?.pvi ?? null,
       candidates, ratings, consensus, odds, polls: polls.slice(0, 40),
-      pollingAverage: pollingAverage(polls, { asOf }),
+      pollingAverage: average,
+      pollModel: pollModelFor(average, consensus?.label, asOf, { hasIndependent: Boolean(candidates.I && !candidates.D) }),
       ...probabilities,
     };
   });
 
   // ---- Senate control & seat distribution ------------------------------------------------------------------
-  const derived = seatDistribution(senateRaces.map((r) => ({ pD: r.pD, pR: r.pR, pI: r.pI })), {
-    democraticCaucusNotUp: SENATE_SEATS_NOT_UP.democraticCaucus, republicanNotUp: SENATE_SEATS_NOT_UP.republican,
-  });
+  const notUp = { democraticCaucusNotUp: SENATE_SEATS_NOT_UP.democraticCaucus, republicanNotUp: SENATE_SEATS_NOT_UP.republican };
+  const derived = seatDistribution(senateRaces.map((r) => ({ pD: r.pD, pR: r.pR, pI: r.pI })), notUp);
+  // Poll model: races with polls use the polling average; Nebraska-style independent races keep their market/prior split.
+  const pollModel = seatDistribution(senateRaces.map((r) => (r.pollModel?.pD != null && !(r.pI > 0)
+    ? { pD: r.pollModel.pD, pR: 1 - r.pollModel.pD, pI: 0 }
+    : { pD: r.pD, pR: r.pR, pI: r.pI })), notUp);
   const kalshiSeats = kalshiData?.senateSeats ?? (sources.kalshi.ok ? null : previous?.senateControl?.kalshiSeats ?? null);
   const senateControl = {
     current: { democraticCaucus: 47, republican: 53, note: "Democratic caucus includes independents Sanders (VT) and King (ME), neither up in 2026." },
@@ -73,6 +81,8 @@ export async function build() {
     usHousePolymarket: polymarketData?.houseControl ?? (sources.polymarket.ok ? null : previous?.senateControl?.usHousePolymarket ?? null),
     kalshiSeats,
     derived,
+    pollModel,
+    electionDay: ELECTION_DAY,
   };
 
   // ---- Texas statewide -------------------------------------------------------------------------------------
@@ -91,11 +101,13 @@ export async function build() {
       kalshi: kalshiData?.texas?.[race.id] ?? (sources.kalshi.ok ? null : previousRace?.odds?.kalshi ?? null),
     };
     const consensus = ratingConsensus(ratings);
+    const average = pollingAverage(polls, { asOf, ratePollster });
     return {
       id: race.id, office: race.office, democrat: race.democrat, republican: race.republican,
       wikipediaUrl: page?.url ?? previousRace?.wikipediaUrl ?? `https://en.wikipedia.org/wiki/${race.wikipedia}`,
       ratings, consensus, odds,
-      polls: polls.slice(0, 40), pollingAverage: pollingAverage(polls, { asOf }), aggregates: polling.aggregates,
+      polls: polls.slice(0, 40), pollingAverage: average, aggregates: polling.aggregates,
+      pollModel: pollModelFor(average, consensus?.label, asOf, { allowPrior: false }),
       ...raceProbabilities(odds, consensus?.label, { allowPrior: false }),
     };
   });
@@ -254,6 +266,21 @@ function kalshiWithFlags(probabilities, seriesTicker) {
   };
 }
 
+/**
+ * Poll-based win probability for a race. With no usable polls, fall back to the rating prior (flagged) or null.
+ * Independent-vs-Republican races (no Democrat) are left to the market/prior path.
+ */
+function pollModelFor(average, consensusLabel, asOf, { allowPrior = true, hasIndependent = false } = {}) {
+  const daysToElection = Math.max(0, Math.round((Date.parse(ELECTION_DAY) - Date.parse(asOf)) / 86_400_000));
+  if (average && !hasIndependent) {
+    const result = pollWinProbability(average, { daysToElection });
+    return { ...result, source: "polls", qualityWeighted: average.qualityWeighted };
+  }
+  if (!allowPrior || hasIndependent) return null;
+  const pD = priorFromRating(consensusLabel);
+  return { pD, sigma: null, margin: null, effectiveN: 0, daysToElection, source: "rating prior" };
+}
+
 /** Win probabilities for a race: Polymarket first, then Kalshi, then a rating-based prior. */
 function raceProbabilities(odds, consensusLabel, { allowPrior = true } = {}) {
   const pm = odds.polymarket;
@@ -308,12 +335,13 @@ function buildSeries() {
     const s = JSON.parse(readFileSync(join(HISTORY_DIR, file), "utf8"));
     const races = {};
     for (const race of [...s.usSenate.races, ...s.texas.races]) {
-      races[race.id] = { pm: race.odds?.polymarket?.D ?? null, ks: race.odds?.kalshi?.D ?? null, poll: race.pollingAverage?.margin ?? null, rating: race.consensus?.score ?? null };
+      races[race.id] = { pm: race.odds?.polymarket?.D ?? null, ks: race.odds?.kalshi?.D ?? null, poll: race.pollingAverage?.margin ?? null, pollModel: race.pollModel?.pD ?? null, rating: race.consensus?.score ?? null };
     }
     return {
       date: s.asOf,
-      control: { polymarket: s.senateControl?.polymarket?.D ?? null, kalshi: s.senateControl?.kalshiSeats?.controlD ?? null, derived: s.senateControl?.derived?.control?.D ?? null },
+      control: { polymarket: s.senateControl?.polymarket?.D ?? null, kalshi: s.senateControl?.kalshiSeats?.controlD ?? null, derived: s.senateControl?.derived?.control?.D ?? null, pollModel: s.senateControl?.pollModel?.control?.D ?? null },
       expectedD: s.senateControl?.derived?.expected?.D ?? null,
+      pollModelExpectedD: s.senateControl?.pollModel?.expected?.D ?? null,
       txHouseExpectedD: s.txHouse?.summary?.expectedD ?? null,
       races,
     };
