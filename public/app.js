@@ -837,9 +837,14 @@ function setupVotePanel() {
   else if (toEnd >= 0) message = `<b>Early voting is open</b> through Friday, October 30 (${voteCountdown(toEnd)} left). Vote at any polling place your county lists.`;
   else if (toElection > 0) message = `<b>Election Day is ${voteCountdown(toElection)}</b>, Tuesday, November 3. Early voting has ended; vote in person on Election Day.`;
   if (message) { strip.innerHTML = `<span>${message} The polls above are not votes.</span><button id="strip-open">Where to vote</button>`; strip.hidden = false; document.getElementById("strip-open").addEventListener("click", open); }
-  // First visit: show once per phase (before early voting, during, Election Day).
+  // Auto-open after a short delay so the page renders first; at most once a week, plus once more when the
+  // phase changes (early voting opens, Election Day).
   const phase = toElection === 0 ? "eday" : toEarly > 0 ? "pre" : "early";
-  if (localStorage.getItem("voteSeen") !== phase) { localStorage.setItem("voteSeen", phase); open(); }
+  let seen = null;
+  try { seen = JSON.parse(localStorage.getItem("voteSeen") || "null"); } catch { seen = null; }
+  const weekMs = 7 * 86_400_000;
+  const due = !seen || seen.phase !== phase || Date.now() - (seen.at || 0) > weekMs;
+  if (due) setTimeout(() => { if (!dialog.open) { localStorage.setItem("voteSeen", JSON.stringify({ phase, at: Date.now() })); open(); } }, 2500);
   const saved = localStorage.getItem("voteCounty");
   if (saved) loadCounties().then(() => showCounty(saved, false));
 }
