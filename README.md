@@ -72,6 +72,10 @@ See `DESIGN.md` for the type, color tokens, and layout rules.
 
 Archivo (variable width) for the nameplate, headings, figures, and tables; Source Serif 4 for running text. No cards: sections are separated by rules and whitespace, figures sit in a ruled strip, and deltas are colored by the party they move toward (blue toward Democrats, red toward Republicans). Rating colors were checked with a color-vision-deficiency validator.
 
+## Vote panel
+
+A first-visit dialog (shown once per phase: before early voting, during it, and on Election Day) and a permanent "Where and when to vote" button carry the message that polls are not votes, the key Texas dates with countdowns, and a county election-office finder. `scripts/build-counties.mjs` parses the Secretary of State's county directory (all 254 offices: title, official, address, phone, email) and extracts Texas county boundaries from us-atlas so "Use my location" resolves to a county entirely in the browser. The 22 largest counties link to their own voter sites; the rest link to the SOS listing. Visitors outside Texas get vote.gov, Vote.org, and usa.gov links. A strip under the masthead shows the next key date or the open early-voting window.
+
 ## Early vote data entry
 
 `public/data/early-vote.json` holds `days` (one object per early-voting day: `{ "date": "2026-10-19", "inPerson": 0, "mail": 0 }`) and `benchmarks` for 2024 and 2022 in the same shape, plus `registeredVoters`. Paste the Secretary of State's statewide daily totals; the tab draws cumulative curves and same-day comparisons once the first day is in. The SOS site is behind a bot wall, so this is deliberately manual.

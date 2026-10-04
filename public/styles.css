@@ -47,6 +47,36 @@ p.note, .meta, .foot, .sources, .seat-note, .moves-list { font-family: var(--ser
 .board .sub { font-family: var(--serif); font-size: 13.5px; color: var(--ink-2); margin: 0; }
 .board .sub b { color: var(--ink); font-weight: 600; }
 
+/* ---- vote panel ---- */
+.vote-button { font: inherit; font-size: 13.5px; font-weight: 700; border: 2px solid var(--ink); background: var(--ink); color: var(--paper); border-radius: 6px; padding: 7px 14px; cursor: pointer; margin-right: 18px; }
+.vote-button:hover { background: var(--paper); color: var(--ink); }
+.vote-strip { margin-top: 18px; padding: 10px 14px; border: 1px solid var(--ink); border-left-width: 6px; font-family: var(--serif); font-size: 15px; display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.vote-strip b { font-family: var(--sans); }
+.vote-strip button { font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 600; border: 1px solid var(--ink); background: var(--paper); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.vote-dialog { border: 2px solid var(--ink); border-radius: 8px; padding: 26px 28px 22px; max-width: 860px; width: calc(100% - 32px); color: var(--ink); background: var(--paper); font-family: var(--sans); }
+.vote-dialog::backdrop { background: rgba(34, 37, 42, 0.55); }
+.vote-dialog h2 { border: 0; padding: 0; margin: 0 0 8px; font-size: 32px; font-stretch: 110%; }
+.vote-dialog h3 { margin: 14px 0 8px; font-size: 15px; }
+.vote-lede { font-family: var(--serif); font-size: 17px; line-height: 1.5; margin: 0 0 10px; max-width: 70ch; }
+.vote-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 10px 32px; }
+.vote-dates { list-style: none; padding: 0; margin: 0; }
+.vote-dates li { padding: 7px 0; border-top: 1px solid var(--rule-soft); display: grid; grid-template-columns: 1fr auto; gap: 10px; font-size: 14.5px; }
+.vote-dates li:first-child { border-top: 0; }
+.vote-dates .when { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+.vote-dates li.past { color: var(--ink-3); text-decoration: line-through; }
+.vote-dates li.today { font-weight: 700; }
+.vote-find { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13.5px; color: var(--ink-2); }
+.vote-select select { font: inherit; font-size: 13.5px; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); color: var(--ink); max-width: 220px; }
+.vote-card { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--rule); border-radius: 6px; font-size: 14px; min-height: 1.5em; }
+.vote-card .county { font-weight: 700; font-size: 16px; }
+.vote-card a { font-weight: 600; }
+.vote-links { margin: 6px 0 0; padding-left: 18px; font-family: var(--serif); font-size: 14.5px; line-height: 1.5; }
+.vote-small { font-family: var(--serif); font-size: 13px; color: var(--ink-2); margin: 8px 0 0; }
+.vote-close-form { float: right; margin: -6px -8px 0 0; }
+.vote-close { font: inherit; font-size: 13px; border: 1px solid var(--rule); background: var(--paper); border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+.vote-actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; font-size: 13px; }
+@media (max-width: 700px) { .vote-grid { grid-template-columns: 1fr; } .vote-button { margin: 0 0 8px; } .vote-dialog h2 { font-size: 26px; } }
+
 /* ---- tabs & panels ---- */
 .tabs { position: sticky; top: 0; z-index: 5; background: var(--paper); display: flex; flex-wrap: wrap; gap: 0 2px; border-bottom: 2px solid var(--ink); margin-top: 22px; }
 .tabs::-webkit-scrollbar { display: none; }

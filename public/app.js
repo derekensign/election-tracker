@@ -806,6 +806,78 @@ function formatParam(name, value) {
   return `${value}`;
 }
 
+// ---------- vote panel: dates, county finder, strip ----------
+const VOTE_DATES = [
+  { date: "2026-10-05", label: "Last day to register to vote" },
+  { date: "2026-10-19", label: "Early voting begins" },
+  { date: "2026-10-23", label: "Last day to apply for a ballot by mail (received, not postmarked)" },
+  { date: "2026-10-30", label: "Early voting ends" },
+  { date: "2026-11-03", label: "Election Day, polls open 7 a.m. to 7 p.m." },
+];
+let COUNTIES = null, COUNTY_FEATURES = null;
+function todayChicago() { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
+function daysUntil(iso) { return Math.round((Date.parse(iso) - Date.parse(todayChicago())) / 86_400_000); }
+function voteCountdown(days) { return days === 0 ? "today" : days === 1 ? "tomorrow" : days > 1 ? `in ${days} days` : `${-days} day${days === -1 ? "" : "s"} ago`; }
+function setupVotePanel() {
+  const dialog = document.getElementById("vote-dialog");
+  if (!dialog || typeof dialog.showModal !== "function") return;
+  document.getElementById("vote-dates").innerHTML = VOTE_DATES.map((d) => { const days = daysUntil(d.date); return `<li class="${days < 0 ? "past" : days === 0 ? "today" : ""}"><span>${esc(d.label)}</span><span class="when">${new Date(`${d.date}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}, ${voteCountdown(days)}</span></li>`; }).join("");
+  const open = () => { dialog.showModal(); loadCounties(); };
+  document.getElementById("open-vote").addEventListener("click", open);
+  document.getElementById("vote-share").addEventListener("click", async () => { try { await navigator.clipboard.writeText("https://texas-race-tracker.vercel.app/"); document.getElementById("vote-shared").textContent = "Link copied."; } catch { document.getElementById("vote-shared").textContent = "texas-race-tracker.vercel.app"; } });
+  document.getElementById("vote-locate").addEventListener("click", locateCounty);
+  document.getElementById("vote-county").addEventListener("change", (event) => { if (event.target.value) showCounty(event.target.value, true); });
+  // Strip under the masthead: the next key date, or the open early-voting window.
+  const strip = document.getElementById("vote-strip");
+  const toEarly = daysUntil("2026-10-19"), toEnd = daysUntil("2026-10-30"), toElection = daysUntil("2026-11-03");
+  let message = null;
+  if (toElection === 0) message = "<b>Election Day.</b> Polls are open until 7 p.m.; if you are in line by then, you can vote.";
+  else if (toEarly > 0) message = `<b>Early voting starts ${voteCountdown(toEarly)}</b>, October 19 through October 30. Registration closes ${daysUntil("2026-10-05") >= 0 ? voteCountdown(daysUntil("2026-10-05")) : "October 5"}.`;
+  else if (toEnd >= 0) message = `<b>Early voting is open</b> through Friday, October 30 (${voteCountdown(toEnd)} left). Vote at any polling place your county lists.`;
+  else if (toElection > 0) message = `<b>Election Day is ${voteCountdown(toElection)}</b>, Tuesday, November 3. Early voting has ended; vote in person on Election Day.`;
+  if (message) { strip.innerHTML = `<span>${message} The polls above are not votes.</span><button id="strip-open">Where to vote</button>`; strip.hidden = false; document.getElementById("strip-open").addEventListener("click", open); }
+  // First visit: show once per phase (before early voting, during, Election Day).
+  const phase = toElection === 0 ? "eday" : toEarly > 0 ? "pre" : "early";
+  if (localStorage.getItem("voteSeen") !== phase) { localStorage.setItem("voteSeen", phase); open(); }
+  const saved = localStorage.getItem("voteCounty");
+  if (saved) loadCounties().then(() => showCounty(saved, false));
+}
+async function loadCounties() {
+  if (COUNTIES) return;
+  const [data, topo] = await Promise.all([fetchJson("data/tx-counties.json"), fetchJson("geo/tx-counties.json")]);
+  COUNTIES = data.counties;
+  COUNTY_FEATURES = topojson.feature(topo, topo.objects.counties).features;
+  const select = document.getElementById("vote-county");
+  select.innerHTML = '<option value="">a county</option>' + [...COUNTIES].sort((a, b) => a.name.localeCompare(b.name)).map((c) => `<option value="${esc(c.fips)}">${esc(c.name)}</option>`).join("");
+  const saved = localStorage.getItem("voteCounty");
+  if (saved) select.value = saved;
+}
+async function locateCounty() {
+  const card = document.getElementById("vote-county-card");
+  if (!navigator.geolocation) { card.textContent = "Your browser does not share location; choose your county from the list."; return; }
+  card.textContent = "Finding your county…";
+  await loadCounties();
+  navigator.geolocation.getCurrentPosition((position) => {
+    const point = [position.coords.longitude, position.coords.latitude];
+    const feature = COUNTY_FEATURES.find((f) => d3.geoContains(f, point));
+    if (!feature) { card.innerHTML = outsideTexasCard(); return; }
+    showCounty(feature.properties.fips, true);
+    document.getElementById("vote-county").value = feature.properties.fips;
+  }, () => { card.textContent = "Location was not shared. Choose your county from the list instead."; }, { timeout: 10000, maximumAge: 600000 });
+}
+function outsideTexasCard() {
+  return `<div class="county">Outside Texas</div><div>Registration, deadlines, and polling places for every state:</div><ul class="vote-links"><li><a href="https://vote.gov/" rel="noopener">vote.gov</a>: register, check registration, state deadlines</li><li><a href="https://www.vote.org/polling-place-locator/" rel="noopener">Vote.org polling place locator</a>: by address</li><li><a href="https://www.usa.gov/election-office" rel="noopener">Find your state or local election office</a></li></ul>`;
+}
+function showCounty(fips, remember) {
+  const county = (COUNTIES || []).find((c) => c.fips === fips);
+  const card = document.getElementById("vote-county-card");
+  if (!county) { card.textContent = ""; return; }
+  if (remember) localStorage.setItem("voteCounty", fips);
+  const phone = county.phone ? `<a href="tel:${esc(county.phone.replace(/[^\d+]/g, ""))}">${esc(county.phone)}</a>` : "";
+  card.innerHTML = `<div class="county">${esc(county.name)} County</div><div>${esc(county.title || "Election office")}${county.official ? `, ${esc(county.official)}` : ""}</div>${county.address ? `<div class="muted">${esc(county.address)}</div>` : ""}<div>${phone}${county.email ? `${phone ? " · " : ""}<a href="mailto:${esc(county.email)}">${esc(county.email)}</a>` : ""}</div>${county.website ? `<div><a href="${esc(county.website)}" rel="noopener">County voting site: polling places and hours</a></div>` : `<div><a href="https://www.sos.state.tx.us/elections/voter/county.shtml#${esc(county.name[0])}" rel="noopener">County office listing at the Secretary of State</a></div>`}`;
+}
+setupVotePanel();
+
 // ---------- sources ----------
 function renderSources(s) {
   const items = [

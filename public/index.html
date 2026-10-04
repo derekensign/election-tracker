@@ -18,9 +18,10 @@
       <p class="dek">Texas statewide races, the Texas Legislature, and the U.S. Senate and House, updated every morning. Win probabilities come from a quality-weighted polling model, or from prediction markets if you prefer.</p>
       <p class="asof" id="asof">Loading the latest snapshot.</p>
     </div>
-    <div class="segmented-wrap"><span class="segmented-label">Probabilities from</span><span class="segmented" role="group" aria-label="Probability source"><button class="active" data-model="polls" title="Quality-weighted polling average with a Student-t error model">Polls model</button><button data-model="markets" title="Polymarket, then Kalshi">Prediction markets</button></span></div>
+    <div class="segmented-wrap"><button class="vote-button" id="open-vote">Where and when to vote</button><span class="segmented-label">Probabilities from</span><span class="segmented" role="group" aria-label="Probability source"><button class="active" data-model="polls" title="Quality-weighted polling average with a Student-t error model">Polls model</button><button data-model="markets" title="Polymarket, then Kalshi">Prediction markets</button></span></div>
   </div>
 </header>
+<div class="vote-strip wrap" id="vote-strip" hidden></div>
 <nav class="tabs wrap" aria-label="Sections">
   <a href="#overview" data-tab="overview" class="active">Overview</a>
   <a href="#digest" data-tab="digest">Morning digest</a>
@@ -280,6 +281,33 @@
   </section>
 </div>
 </main>
+<dialog id="vote-dialog" class="vote-dialog" aria-labelledby="vote-title">
+  <form method="dialog" class="vote-close-form"><button class="vote-close" aria-label="Close">Close</button></form>
+  <h2 id="vote-title">Polls aren't votes.</h2>
+  <p class="vote-lede">A poll is a snapshot of the people who answered a survey. The only numbers that decide anything are ballots. In the 2022 midterm, about 46 percent of registered Texans voted. A race that looks settled in the polls is settled by whoever shows up.</p>
+  <div class="vote-grid">
+    <div>
+      <h3>Key dates</h3>
+      <ul class="vote-dates" id="vote-dates"></ul>
+      <p class="vote-small">Early voting hours vary by county; Election Day polls are open 7 a.m. to 7 p.m. Anyone in line at 7 p.m. can vote.</p>
+    </div>
+    <div>
+      <h3>Your county election office</h3>
+      <div class="vote-find">
+        <button class="mode" id="vote-locate">Use my location</button>
+        <label class="vote-select">or choose <select id="vote-county"><option value="">a county</option></select></label>
+      </div>
+      <div id="vote-county-card" class="vote-card"></div>
+      <ul class="vote-links">
+        <li><a href="https://teamrv-mvp.sos.texas.gov/MVP/mvp.do" rel="noopener">Check your registration and find your polling place</a> (Texas Secretary of State)</li>
+        <li><a href="https://www.votetexas.gov/" rel="noopener">VoteTexas.gov</a>: ID rules, mail ballots, what's on your ballot</li>
+        <li><a href="https://www.vote.org/state/texas/" rel="noopener">Vote.org Texas</a>: address-based polling place lookup</li>
+      </ul>
+      <p class="vote-small">Many Texas counties let you vote at any polling place in the county during early voting and on Election Day; your county's site will say. Not in Texas? <a href="https://vote.gov/" rel="noopener">vote.gov</a> has every state's deadlines and registration, and <a href="https://www.vote.org/polling-place-locator/" rel="noopener">Vote.org</a> finds polling places by address.</p>
+    </div>
+  </div>
+  <div class="vote-actions"><button class="mode" id="vote-share">Copy a link to this page</button><span class="muted" id="vote-shared"></span></div>
+</dialog>
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 <footer class="wrap foot"><a href="https://github.com/derekensign/election-tracker">Source code on GitHub</a>. Data refreshes every morning, Central time.</footer>
 </body>
