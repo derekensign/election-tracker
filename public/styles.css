@@ -62,6 +62,23 @@ p.note, .meta, .foot, .sources, .seat-note, .moves-list { font-family: var(--ser
 .control-strip .figure .v { font-size: 26px; }
 .tx-mark { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 0 5px; border: 1px solid var(--ink); border-radius: 3px; margin-left: 6px; vertical-align: 1px; }
 
+.digest { font-family: var(--serif); max-width: 78ch; font-size: 16px; line-height: 1.55; }
+.digest .headline { font-size: 19px; margin: 6px 0 18px; color: var(--ink); }
+.digest h4 { font-family: var(--sans); font-size: 15px; margin: 18px 0 6px; font-weight: 600; }
+.digest ul { margin: 0; padding-left: 20px; }
+.digest li { margin: 4px 0; }
+.digest-actions { display: flex; gap: 10px; align-items: center; margin: 6px 0 10px; font-size: 13px; }
+.archive { list-style: none; padding: 0; margin: 0; max-width: 78ch; font-family: var(--serif); }
+.archive li { padding: 8px 0; border-top: 1px solid var(--rule-soft); display: grid; grid-template-columns: 110px 1fr; gap: 12px; }
+.archive li a { font-family: var(--sans); font-weight: 600; text-decoration: none; }
+.trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px 28px; margin: 12px 0 10px; }
+.trend h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; }
+.trend .legend { margin: 2px 0 6px; }
+.changelog-day { border-top: 1px solid var(--rule-soft); padding: 8px 0; }
+.changelog-day .d { font-weight: 600; font-size: 14px; }
+.changelog-day ul { margin: 4px 0 0; padding-left: 18px; font-family: var(--serif); }
+.lean-d { color: var(--to-d); font-weight: 600; } .lean-r { color: var(--to-r); font-weight: 600; }
+
 /* ---- sections ---- */
 main { padding-bottom: 48px; }
 section { margin-top: 56px; }

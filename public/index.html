@@ -23,12 +23,15 @@
 </header>
 <nav class="tabs wrap" aria-label="Sections">
   <a href="#overview" data-tab="overview" class="active">Overview</a>
+  <a href="#digest" data-tab="digest">Morning digest</a>
   <a href="#texas" data-tab="texas">Texas statewide</a>
   <a href="#house" data-tab="house">Texas House</a>
   <a href="#tx-senate" data-tab="tx-senate">Texas Senate</a>
   <a href="#senate" data-tab="senate">U.S. Senate</a>
   <a href="#us-house" data-tab="us-house">U.S. House</a>
-  <a href="#sources" data-tab="sources">Sources and method</a>
+  <a href="#trends" data-tab="trends">Trends</a>
+  <a href="#pollsters" data-tab="pollsters">Pollsters</a>
+  <a href="#sources" data-tab="sources">Method</a>
 </nav>
 
 <main class="wrap">
@@ -42,6 +45,35 @@
 
   <section id="overview-notes">
     <p class="note">The board above and the "What moved" list are the daily read. Use the tabs for every Texas statewide race with its polls, district-by-district views of the Texas House, Texas Senate, and Texas congressional delegation, and the national Senate and House maps.</p>
+  </section>
+</div>
+
+<div class="panel" data-panel="digest">
+  <section id="digest-section">
+    <h2 id="digest-title">Morning digest</h2>
+    <div class="digest-actions"><button class="mode" id="digest-copy">Copy as text</button><span class="muted" id="digest-copied"></span></div>
+    <div class="digest" id="digest-body"></div>
+    <h3>Past digests</h3>
+    <ul class="archive" id="digest-archive"></ul>
+  </section>
+</div>
+
+<div class="panel" data-panel="trends">
+  <section id="trends-section">
+    <h2>Trends</h2>
+    <p class="note">One point per daily snapshot. Lines fill in as the archive grows; the first snapshot was October 4, 2026.</p>
+    <div class="trend-grid" id="trend-charts"></div>
+    <h3>Rating and model changes, by day</h3>
+    <div id="changelog"></div>
+  </section>
+</div>
+
+<div class="panel" data-panel="pollsters">
+  <section id="pollsters-section">
+    <h2>Pollsters</h2>
+    <p class="note">Every pollster seen in the tracked races. The 538 grade drives the weight each poll gets in the averages. "Lean" is the pollster's average deviation from the quality-weighted average of the race it polled, so a D+2 lean means its margins run two points more Democratic than the consensus. Partisan sponsors are noted; those polls are half-weighted.</p>
+    <div class="mode-row"><span>Show:</span><button class="mode active" data-pollster-filter="texas">Texas pollsters</button><button class="mode" data-pollster-filter="all">All pollsters</button></div>
+    <div class="table-scroll"><table id="pollsters-table" class="data"></table></div>
   </section>
 </div>
 

@@ -13,6 +13,8 @@ import * as wikipedia from "./sources/wikipedia.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
 import { ratePollster } from "./pollsters.js";
 import { estimateEnvironment, ratingImpliedMargin, runChamberModel, runRatedChamberModel } from "./legislature.js";
+import { buildDigest } from "./digest.js";
+import { buildPollsterReport } from "./pollsters-report.js";
 
 const ELECTION_DAY = "2026-11-03";
 import { detectChanges } from "./diff.js";
@@ -144,6 +146,8 @@ export async function build() {
   };
   snapshot.changes = detectChanges(previous, snapshot);
   snapshot.previousAsOf = previous?.asOf ?? null;
+  snapshot.digest = buildDigest(snapshot);
+  snapshot.pollsters = buildPollsterReport(snapshot);
 
   if (DRY_RUN) {
     log(`dry run: ${snapshot.changes.length} changes; not writing`);
@@ -153,6 +157,8 @@ export async function build() {
   writeFileSync(join(HISTORY_DIR, `${asOf}.json`), JSON.stringify(snapshot));
   writeFileSync(join(DATA_DIR, "latest.json"), JSON.stringify(snapshot));
   writeFileSync(join(DATA_DIR, "series.json"), JSON.stringify(buildSeries()));
+  writeFileSync(join(DATA_DIR, "changelog.json"), JSON.stringify(buildChangelog()));
+  writeFileSync(join(DATA_DIR, "digest.txt"), snapshot.digest.text);
   log(`wrote snapshot ${asOf} (${snapshot.changes.length} changes)`);
   return snapshot;
 }
@@ -454,6 +460,15 @@ function buildSeries() {
       usHouse: { control: s.usHouse?.model?.control?.D ?? null, expectedD: s.usHouse?.model?.expected?.D ?? null, generic: s.usHouse?.genericBallot?.average?.margin ?? null, polymarket: s.usHouse?.markets?.polymarket?.D ?? null },
       races,
     };
+  });
+}
+
+/** Every day's digest headline and change list, oldest first, for the Trends and Digest archive views. */
+function buildChangelog() {
+  const files = readdirSync(HISTORY_DIR).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f)).sort();
+  return files.map((file) => {
+    const s = JSON.parse(readFileSync(join(HISTORY_DIR, file), "utf8"));
+    return { date: s.asOf, headline: s.digest?.headline ?? null, changes: (s.changes || []).filter((c) => c.type !== "baseline").map((c) => ({ type: c.type, text: c.text, raceId: c.raceId ?? null })) };
   });
 }
 

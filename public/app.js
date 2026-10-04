@@ -19,6 +19,9 @@
   renderChamber("house", snapshot.txHouse, houseTopo, snapshot);
   renderChamber("senate", snapshot.txSenate, senateTopo, snapshot);
   renderUsHouse(snapshot, congressTopo, previousDay);
+  renderDigest(snapshot);
+  renderPollsters(snapshot);
+  renderTrends(snapshot, series);
   renderSources(snapshot);
 })().catch((error) => {
   document.getElementById("asof").textContent = `Failed to load data: ${error.message}`;
@@ -553,6 +556,85 @@ function congressTooltip(d, h) {
   return rows.join("");
 }
 
+// ---------- morning digest ----------
+function renderDigest(s, digest = s.digest, { archive = true } = {}) {
+  if (!digest) return;
+  document.getElementById("digest-title").textContent = `Morning digest, ${digest.dayName}`;
+  document.getElementById("digest-body").innerHTML = `<p class="headline">${esc(digest.headline)}</p>` +
+    digest.sections.map((section) => `<h4>${esc(section.title)}</h4><ul>${section.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`).join("") +
+    (digest.notes?.length ? `<p class="muted">${digest.notes.map(esc).join(" ")}</p>` : "");
+  const copy = document.getElementById("digest-copy");
+  copy.onclick = async () => { try { await navigator.clipboard.writeText(digest.text); document.getElementById("digest-copied").textContent = "Copied."; setTimeout(() => { document.getElementById("digest-copied").textContent = ""; }, 2000); } catch { document.getElementById("digest-copied").textContent = "Copy failed; select the text instead."; } };
+  if (!archive) return;
+  fetchJson("data/changelog.json").then((log) => {
+    const list = document.getElementById("digest-archive");
+    const days = [...log].reverse();
+    list.innerHTML = days.length ? days.map((d) => `<li><a href="#digest" data-digest-date="${esc(d.date)}">${fmtDate(d.date)}</a><span>${esc(d.headline || "")}</span></li>`).join("") : '<li><span class="muted">No archive yet.</span></li>';
+    list.querySelectorAll("[data-digest-date]").forEach((a) => a.addEventListener("click", async (event) => {
+      event.preventDefault();
+      const date = a.dataset.digestDate;
+      if (date === s.asOf) { renderDigest(s, s.digest, { archive: false }); return; }
+      try { const old = await fetchJson(`data/history/${date}.json`); renderDigest(s, old.digest || { date, dayName: fmtDate(date), headline: "No digest was generated for this day.", sections: [], text: "" }, { archive: false }); } catch { /* keep current */ }
+      window.scrollTo({ top: document.querySelector(".tabs").offsetTop });
+    }));
+  }).catch(() => {});
+}
+
+// ---------- pollsters ----------
+let POLLSTER_FILTER = "texas";
+function renderPollsters(s) {
+  const rows = (s.pollsters || []).filter((p) => POLLSTER_FILTER === "all" || p.texasPolls > 0);
+  const lean = (v) => (v == null ? '<span class="muted">—</span>' : Math.abs(v) < 0.05 ? "Even" : `<span class="${v > 0 ? "lean-d" : "lean-r"}">${v > 0 ? "D" : "R"}+${Math.abs(v).toFixed(1)}</span>`);
+  document.getElementById("pollsters-table").innerHTML = `<tr><th>Pollster</th><th>538 grade</th><th class="num">Polls<span class="sub">Texas / all</span></th><th class="num">Lean<span class="sub">vs. race average</span></th><th>Latest poll</th><th>Races polled</th></tr>` +
+    rows.map((p) => `<tr><td class="wrap"><b>${esc(p.pollster)}</b>${p.partisanPolls ? ` <span class="thin">${p.partisanPolls} partisan</span>` : ""}</td><td title="${esc(p.ratedAs ? `rated as ${p.ratedAs}` : "not in FiveThirtyEight's ratings")}">${p.grade ? `<b>${esc(p.grade)}</b> <span class="muted">${p.numericGrade}</span>` : '<span class="muted">unrated (0.5× weight)</span>'}</td><td class="num">${p.texasPolls} / ${p.polls}</td><td class="num">${lean(p.lean)}</td><td class="wrap">${p.latest ? `${esc(p.latest.race)}, ${fmtDate(p.latest.endDate)}: <b>${marginText(p.latest.margin)}</b>` : "—"}</td><td class="wrap muted">${esc(p.races.slice(0, 6).join(", "))}${p.races.length > 6 ? `, +${p.races.length - 6} more` : ""}</td></tr>`).join("");
+  document.querySelectorAll("button.mode[data-pollster-filter]").forEach((b) => { b.classList.toggle("active", b.dataset.pollsterFilter === POLLSTER_FILTER); b.onclick = () => { POLLSTER_FILTER = b.dataset.pollsterFilter; renderPollsters(s); }; });
+}
+
+// ---------- trends ----------
+function renderTrends(s, series) {
+  const grid = document.getElementById("trend-charts");
+  const charts = [
+    { title: "Texas U.S. Senate: Talarico win chance", lines: [{ name: "Polls model", color: cssVar("--d3"), get: (d) => d.races?.["tx-senate"]?.pollModel }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.races?.["tx-senate"]?.pm }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+    { title: "Texas Governor: Hinojosa win chance", lines: [{ name: "Polls model", color: cssVar("--d3"), get: (d) => d.races?.["tx-governor"]?.pollModel }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.races?.["tx-governor"]?.pm }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+    { title: "Texas polling averages, D margin", lines: [{ name: "U.S. Senate", color: cssVar("--d3"), get: (d) => d.races?.["tx-senate"]?.poll }, { name: "Governor", color: "#5b5b5b", get: (d) => d.races?.["tx-governor"]?.poll }], format: (v) => marginText(v), domain: null },
+    { title: "U.S. Senate: Democratic control", lines: [{ name: "Polls model", color: cssVar("--d3"), get: (d) => d.control?.pollModel }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.control?.polymarket }, { name: "Kalshi seats", color: "#b58a00", get: (d) => d.control?.kalshi }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+    { title: "Texas House: expected Democratic seats, our model", lines: [{ name: "Expected seats", color: cssVar("--d3"), get: (d) => d.txHouseModel?.expectedD }], format: (v) => v.toFixed(1), domain: null },
+    { title: "U.S. House: Democratic control", lines: [{ name: "Our model", color: cssVar("--d3"), get: (d) => d.usHouse?.control }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.usHouse?.polymarket }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+  ];
+  grid.innerHTML = "";
+  for (const chart of charts) {
+    const box = document.createElement("div"); box.className = "trend";
+    box.innerHTML = `<h4>${esc(chart.title)}</h4><div class="legend">${chart.lines.map((l) => `<span><i class="sw" style="background:${l.color}"></i>${esc(l.name)}</span>`).join("")}</div>`;
+    grid.appendChild(box);
+    drawTrend(box, series, chart);
+  }
+  fetchJson("data/changelog.json").then((log) => {
+    const days = [...log].reverse().filter((d) => d.changes.length);
+    document.getElementById("changelog").innerHTML = days.length ? days.map((d) => `<div class="changelog-day"><div class="d">${fmtDate(d.date)}</div><ul>${d.changes.slice(0, 20).map((c) => `<li>${esc(c.text)}</li>`).join("")}</ul></div>`).join("") : '<p class="note">No changes recorded yet; the first comparison happens with the second snapshot.</p>';
+  }).catch(() => {});
+}
+function drawTrend(box, series, chart) {
+  const width = 520, height = 200, margin = { top: 12, right: 14, bottom: 26, left: 44 };
+  const points = series.map((d) => ({ date: d.date, values: chart.lines.map((l) => l.get(d)) }));
+  const allValues = points.flatMap((p) => p.values).filter((v) => v != null);
+  if (!allValues.length) { box.insertAdjacentHTML("beforeend", '<p class="note">No data yet.</p>'); return; }
+  const svg = d3.select(box).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("class", "chart").attr("role", "img").attr("aria-label", chart.title);
+  const x = d3.scalePoint().domain(points.map((p) => p.date)).range([margin.left, width - margin.right]).padding(0.5);
+  const domain = chart.domain || d3.extent(allValues);
+  const pad = chart.domain ? 0 : Math.max(1, (domain[1] - domain[0]) * 0.2);
+  const y = d3.scaleLinear().domain([domain[0] - pad, domain[1] + pad]).nice().range([height - margin.bottom, margin.top]);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(4)).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (d) => y(d)).attr("y2", (d) => y(d));
+  const every = Math.max(1, Math.ceil(points.length / 8));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x).tickSize(0).tickValues(x.domain().filter((_, i) => i % every === 0 || i === points.length - 1)).tickFormat((d) => fmtDate(d))).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(chart.format).tickSize(0)).select(".domain").remove();
+  chart.lines.forEach((line, index) => {
+    const data = points.map((p) => ({ date: p.date, value: p.values[index] })).filter((p) => p.value != null);
+    svg.append("path").datum(data).attr("fill", "none").attr("stroke", line.color).attr("stroke-width", 2).attr("d", d3.line().x((p) => x(p.date)).y((p) => y(p.value)));
+    svg.append("g").selectAll("circle").data(data).join("circle").attr("cx", (p) => x(p.date)).attr("cy", (p) => y(p.value)).attr("r", 3.5).attr("fill", line.color).attr("stroke", "#fff").attr("stroke-width", 1.5)
+      .on("mousemove", (event, p) => showTooltip(event, `<b>${esc(line.name)}</b>, ${fmtDate(p.date)}<div class="row"><span>Value</span><span>${chart.format(p.value)}</span></div>`)).on("mouseleave", hideTooltip);
+  });
+}
+
 // ---------- sources ----------
 function renderSources(s) {
   const items = [
@@ -602,7 +684,7 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "senate", "texas", "house", "tx-senate", "us-house", "sources"];
+const PANELS = ["overview", "digest", "senate", "texas", "house", "tx-senate", "us-house", "trends", "pollsters", "sources"];
 function showPanel(name, { push = true } = {}) {
   const panel = PANELS.includes(name) ? name : "overview";
   document.querySelectorAll(".panel").forEach((el) => el.classList.toggle("active", el.dataset.panel === panel));
