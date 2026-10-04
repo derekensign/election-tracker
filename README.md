@@ -74,7 +74,7 @@ Archivo (variable width) for the nameplate, headings, figures, and tables; Sourc
 
 ## Vote panel
 
-A dialog that opens about 2.5 seconds after load, at most once a week per browser and once more when the phase changes (early voting opening, Election Day), and a permanent "Where and when to vote" button carry the message that polls are not votes, the key Texas dates with countdowns, and a county election-office finder. `scripts/build-counties.mjs` parses the Secretary of State's county directory (all 254 offices: title, official, address, phone, email) and extracts Texas county boundaries from us-atlas so "Use my location" resolves to a county entirely in the browser. The 22 largest counties link to their own voter sites; the rest link to the SOS listing. Visitors outside Texas get vote.gov, Vote.org, and usa.gov links. A strip under the masthead shows the next key date or the open early-voting window.
+A dialog that opens 12 seconds after load, at most once a week per browser and once more when the phase changes (early voting opening, Election Day), and a permanent "Where and when to vote" button carry the message that polls are not votes, the key Texas dates with countdowns, and a county election-office finder. `scripts/build-counties.mjs` parses the Secretary of State's county directory (all 254 offices: title, official, address, phone, email) and extracts Texas county boundaries from us-atlas so "Use my location" resolves to a county entirely in the browser. The 22 largest counties link to their own voter sites; the rest link to the SOS listing. Visitors outside Texas get vote.gov, Vote.org, and usa.gov links. A strip under the masthead shows the next key date or the open early-voting window.
 
 ## Early vote data entry
 
