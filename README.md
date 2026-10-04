@@ -2,7 +2,7 @@
 
 A static dashboard, refreshed every morning, for the 2026 Texas statewide races, the Texas Legislature, and the national U.S. Senate map. It shows polls, forecaster ratings, prediction-market odds, and a seat-distribution forecast, and highlights what moved since the previous day.
 
-Live site: deployed on Vercel from this repo. Data snapshots are committed to `public/data/` by a GitHub Actions cron.
+Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from `main`). Data snapshots are committed to `public/data/` by a GitHub Actions cron.
 
 ## What it tracks
 
