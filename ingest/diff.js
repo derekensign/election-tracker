@@ -11,6 +11,14 @@ export function detectChanges(previous, current) {
   compareLegislature(previous, current, "txSenate", "TX Senate", changes);
   compareControl(previous, current, changes);
   compareUsHouse(previous, current, changes);
+  for (const race of current.governors?.races || []) {
+    const before = previous.governors?.races?.find((r) => r.state === race.state);
+    if (!before) continue;
+    const label = `${race.stateName} Governor`;
+    compareRatings(before.ratings, race.ratings, current.governors.forecasters, label, race.id, changes);
+    compareOdds({ ...before.odds, pollModel: before.pollModel }, { ...race.odds, pollModel: race.pollModel }, label, race.id, changes);
+    if (race.state !== "TX") comparePolls(before, race, label, race.id, changes);
+  }
   changes.sort((a, b) => b.severity - a.severity);
   return changes;
 }

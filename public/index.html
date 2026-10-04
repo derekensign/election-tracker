@@ -25,10 +25,14 @@
   <a href="#overview" data-tab="overview" class="active">Overview</a>
   <a href="#digest" data-tab="digest">Morning digest</a>
   <a href="#texas" data-tab="texas">Texas statewide</a>
+  <a href="#courts" data-tab="courts">Courts and SBOE</a>
   <a href="#house" data-tab="house">Texas House</a>
   <a href="#tx-senate" data-tab="tx-senate">Texas Senate</a>
   <a href="#senate" data-tab="senate">U.S. Senate</a>
   <a href="#us-house" data-tab="us-house">U.S. House</a>
+  <a href="#governors" data-tab="governors">Governors</a>
+  <a href="#early-vote" data-tab="early-vote">Early vote</a>
+  <a href="#scenarios" data-tab="scenarios">Scenarios</a>
   <a href="#trends" data-tab="trends">Trends</a>
   <a href="#pollsters" data-tab="pollsters">Pollsters</a>
   <a href="#sources" data-tab="sources">Method</a>
@@ -55,6 +59,80 @@
     <div class="digest" id="digest-body"></div>
     <h3>Past digests</h3>
     <ul class="archive" id="digest-archive"></ul>
+  </section>
+</div>
+
+<div class="panel" data-panel="courts">
+  <section id="courts-section">
+    <h2>Texas courts and State Board of Education</h2>
+    <p class="note">Statewide judicial races have no public polling and usually land within a point or two of the generic down-ballot vote, so each Supreme Court and Court of Criminal Appeals seat is shown with the statewide-environment baseline from the Legislature model. Kalshi carries markets on two Supreme Court seats; both are thin. SBOE districts list nominees only.</p>
+    <div class="figures" id="courts-figures"></div>
+    <div class="table-scroll"><table id="courts-table" class="data"></table></div>
+    <h3>State Board of Education</h3>
+    <div class="table-scroll"><table id="sboe-table" class="data"></table></div>
+  </section>
+</div>
+
+<div class="panel" data-panel="early-vote">
+  <section id="early-vote-section">
+    <h2>Early vote</h2>
+    <p class="note">Texas early voting runs October 19 through October 30, 2026. The Secretary of State publishes daily turnout, but its site sits behind a bot wall that this tracker will not bypass, so the daily series is entered by hand into <code>public/data/early-vote.json</code> (a paste from the SOS daily report). Benchmarks for 2022 and 2024 use the same file. Charts appear once the first day of data is in.</p>
+    <div class="figures" id="early-vote-figures"></div>
+    <div class="trend-grid" id="early-vote-charts"></div>
+    <div class="table-scroll"><table id="early-vote-table" class="data"></table></div>
+  </section>
+</div>
+
+<div class="panel" data-panel="governors">
+  <section id="governors-section">
+    <h2>Governors</h2>
+    <p class="note">The 36 governorships on the ballot. Ratings from Cook, Inside Elections, Sabato, RealClearPolitics, Fox, Silver Bulletin, and Decision Desk HQ via Wikipedia; polls from VoteHub; party odds from Kalshi. The Texas race uses the fuller poll set from the Texas statewide tab.</p>
+    <div class="mode-row">
+      <span>Color by:</span>
+      <button class="mode active" data-governor-map="rating">Forecaster ratings</button>
+      <button class="mode" data-governor-map="probability">Win probability (selected model)</button>
+      <span class="zoom-controls" data-zoom-for="governor-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span>
+    </div>
+    <div class="legend" id="governor-legend"></div>
+    <div id="governor-map" class="map zoomable" tabindex="0"></div>
+    <h3>Battlegrounds</h3>
+    <div class="table-scroll"><table id="governor-table" class="data"></table></div>
+    <details><summary>All 36 races</summary><div class="table-scroll"><table id="governor-table-all" class="data"></table></div></details>
+  </section>
+</div>
+
+<div class="panel" data-panel="scenarios">
+  <section id="scenarios-section">
+    <h2>Scenarios</h2>
+    <p class="note">Move the assumptions and the models re-run in your browser with today's data. Nothing here is saved or published; reload to reset.</p>
+    <h3>Texas Legislature</h3>
+    <div class="controls" id="tx-scenario-controls">
+      <label>Statewide environment, D margin <output data-out="env"></output><input type="range" data-param="env" min="-14" max="6" step="0.5"></label>
+      <label>Share of the swing reaching districts <output data-out="elasticity"></output><input type="range" data-param="elasticity" min="0.4" max="1.2" step="0.05"></label>
+      <label>Incumbency bonus, points <output data-out="incumbency"></output><input type="range" data-param="incumbency" min="0" max="8" step="0.5"></label>
+      <label>Weight on State Navigate ratings <output data-out="ratingWeight"></output><input type="range" data-param="ratingWeight" min="0" max="1" step="0.1"></label>
+      <button class="mode" data-reset="tx">Reset to today's values</button>
+    </div>
+    <div class="figures" id="tx-scenario-figures"></div>
+    <div class="trend-grid">
+      <div><h4 id="tx-house-scenario-title" class="trend-title">Texas House</h4><div id="tx-house-scenario-chart" class="chart chart-small"></div></div>
+      <div><h4 id="tx-senate-scenario-title" class="trend-title">Texas Senate</h4><div id="tx-senate-scenario-chart" class="chart chart-small"></div></div>
+    </div>
+    <h3>U.S. Senate</h3>
+    <div class="controls" id="senate-scenario-controls">
+      <label>Uniform polling error, points toward Democrats <output data-out="shift"></output><input type="range" data-param="shift" min="-8" max="8" step="0.5"></label>
+      <label>Final polling error scale <output data-out="finalError"></output><input type="range" data-param="finalError" min="3" max="9" step="0.5"></label>
+      <button class="mode" data-reset="senate">Reset to today's values</button>
+    </div>
+    <div class="figures" id="senate-scenario-figures"></div>
+    <div class="trend-grid"><div><h4 id="senate-scenario-title" class="trend-title">Democratic-caucus seats</h4><div id="senate-scenario-chart" class="chart chart-small"></div></div></div>
+    <h3>U.S. House</h3>
+    <div class="controls" id="house-scenario-controls">
+      <label>National shift applied to every rated seat, points toward Democrats <output data-out="shift"></output><input type="range" data-param="shift" min="-8" max="8" step="0.5"></label>
+      <button class="mode" data-reset="house">Reset to today's values</button>
+    </div>
+    <div class="figures" id="house-scenario-figures"></div>
+    <div class="trend-grid"><div><h4 id="house-scenario-title" class="trend-title">Democratic seats</h4><div id="house-scenario-chart" class="chart chart-small"></div></div></div>
   </section>
 </div>
 

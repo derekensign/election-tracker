@@ -19,8 +19,12 @@
   renderChamber("house", snapshot.txHouse, houseTopo, snapshot);
   renderChamber("senate", snapshot.txSenate, senateTopo, snapshot);
   renderUsHouse(snapshot, congressTopo, previousDay);
+  renderGovernors(snapshot, usTopo, previousDay);
+  renderCourts(snapshot);
+  renderEarlyVote().catch(() => {});
   renderDigest(snapshot);
   renderPollsters(snapshot);
+  setupScenarios(snapshot).catch((error) => { document.getElementById("tx-scenario-figures").innerHTML = `<p class="note">Scenario models could not load: ${esc(error.message)}</p>`; });
   renderTrends(snapshot, series);
   renderSources(snapshot);
 })().catch((error) => {
@@ -52,7 +56,7 @@ function setModel(model) {
   MODEL = model; localStorage.setItem("model", model);
   document.querySelectorAll("[data-model]").forEach((b) => b.classList.toggle("active", b.dataset.model === model));
   if (!SNAPSHOT) return;
-  renderBoard(SNAPSHOT, PREVIOUS_DAY); renderControl(SNAPSHOT, PREVIOUS_DAY); renderSeatChart(SNAPSHOT); renderSenateMap(SNAPSHOT, US_TOPO, PREVIOUS_DAY); renderSenateTables(SNAPSHOT, PREVIOUS_DAY); renderTexas(SNAPSHOT, PREVIOUS_DAY); renderControlStrip(SNAPSHOT, PREVIOUS_DAY);
+  renderBoard(SNAPSHOT, PREVIOUS_DAY); renderControl(SNAPSHOT, PREVIOUS_DAY); renderSeatChart(SNAPSHOT); renderSenateMap(SNAPSHOT, US_TOPO, PREVIOUS_DAY); renderSenateTables(SNAPSHOT, PREVIOUS_DAY); renderTexas(SNAPSHOT, PREVIOUS_DAY); renderControlStrip(SNAPSHOT, PREVIOUS_DAY); renderGovernors(SNAPSHOT, US_TOPO, PREVIOUS_DAY);
 }
 document.querySelectorAll("[data-model]").forEach((b) => b.addEventListener("click", () => setModel(b.dataset.model)));
 document.querySelectorAll("button.mode[data-senate-map]").forEach((b) => b.addEventListener("click", () => {
@@ -76,7 +80,7 @@ const pct = (p, digits = 0) => (p === null || p === undefined ? "—" : `${(p * 
 const marginText = (m) => (m === null || m === undefined ? "—" : Math.abs(m) < 0.05 ? "Even" : `${m > 0 ? "D" : "R"}+${Math.abs(m).toFixed(1)}`);
 const compact = (n) => new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "");
+const fmtDate = (iso) => (!iso ? "" : /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : String(iso));
 async function fetchJson(url) { const r = await fetch(url, { cache: "no-cache" }); if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
 
 function ratingPill(label) {
@@ -556,6 +560,103 @@ function congressTooltip(d, h) {
   return rows.join("");
 }
 
+// ---------- Texas courts and SBOE ----------
+function renderCourts(s) {
+  const c = s.txCourts;
+  if (!c) return;
+  const judicial = c.races.filter((r) => r.body !== "State Board of Education");
+  const sboe = c.races.filter((r) => r.body === "State Board of Education");
+  const baseline = judicial.find((r) => r.pollModel)?.pollModel?.pD;
+  document.getElementById("courts-figures").innerHTML = [
+    { k: "Statewide judicial baseline, Democrat wins", v: pct(baseline), s: `from a statewide environment of ${marginText(c.environment)} with a 6-point error scale` },
+    { k: "Seats on the ballot", v: String(judicial.length), s: `${judicial.filter((r) => r.body === "Texas Supreme Court").length} Supreme Court, ${judicial.filter((r) => r.body === "Court of Criminal Appeals").length} Court of Criminal Appeals` },
+    { k: "SBOE districts up", v: String(sboe.length), s: "nominees only; no district model" },
+  ].map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
+  const nomineeCell = (r) => r.nominees.length ? r.nominees.map((n) => `${esc(n.name)} <span class="muted">(${esc(n.party || "?")})</span>`).join(" vs ") : '<span class="muted">nominees not listed</span>';
+  document.getElementById("courts-table").innerHTML = `<tr><th>Court</th><th>Seat</th><th>Matchup</th><th>Incumbent</th><th class="num">D wins<span class="sub">statewide baseline</span></th><th class="num">Kalshi D</th></tr>` +
+    judicial.map((r) => `<tr><td>${esc(r.body)}</td><td><b>${esc(r.race)}</b></td><td class="wrap">${nomineeCell(r)}</td><td class="wrap">${esc(r.incumbent || "Open")}${r.incumbentParty ? ` <span class="muted">(${esc(r.incumbentParty)})</span>` : ""}</td><td class="num"><b>${pct(r.pollModel?.pD)}</b></td><td class="num">${r.odds?.kalshi ? `${pct(r.odds.kalshi.D)}${r.odds.kalshi.thin ? '<span class="thin">thin</span>' : ""}` : '<span class="muted">—</span>'}</td></tr>`).join("");
+  document.getElementById("sboe-table").innerHTML = `<tr><th>District</th><th>Matchup</th><th>Incumbent</th></tr>` + sboe.map((r) => `<tr><td><b>${esc(r.race)}</b></td><td class="wrap">${nomineeCell(r)}</td><td class="wrap">${esc(r.incumbent || "Open")}${r.incumbentParty ? ` <span class="muted">(${esc(r.incumbentParty)})</span>` : ""}</td></tr>`).join("");
+}
+
+// ---------- early vote (hand-entered data file) ----------
+async function renderEarlyVote() {
+  const data = await fetchJson("data/early-vote.json");
+  const days = data.days || [];
+  const figures = document.getElementById("early-vote-figures");
+  if (!days.length) {
+    figures.innerHTML = `<div class="figure"><div class="k">Status</div><div class="v text">Waiting for October 19</div><div class="s">Early voting has not started. The first daily report will appear here once entered.</div></div>`;
+    document.getElementById("early-vote-table").innerHTML = "";
+    return;
+  }
+  const last = days[days.length - 1];
+  const cumulative = (series) => series.reduce((sum, d) => sum + (d.inPerson || 0) + (d.mail || 0), 0);
+  const total = cumulative(days);
+  const bench = (year) => { const b = data.benchmarks?.[year]?.days || []; return b.length >= days.length ? cumulative(b.slice(0, days.length)) : null; };
+  figures.innerHTML = [
+    { k: `Through ${fmtDate(last.date)}, day ${days.length}`, v: total.toLocaleString(), s: data.registeredVoters ? `${(100 * total / data.registeredVoters).toFixed(1)}% of ${data.registeredVoters.toLocaleString()} registered voters` : "ballots cast statewide" },
+    { k: "Same day in 2024", v: bench("2024") == null ? "—" : bench("2024").toLocaleString(), s: bench("2024") == null ? "benchmark not entered" : `${total >= bench("2024") ? "ahead" : "behind"} by ${Math.abs(total - bench("2024")).toLocaleString()}` },
+    { k: "Same day in 2022", v: bench("2022") == null ? "—" : bench("2022").toLocaleString(), s: bench("2022") == null ? "benchmark not entered" : `${total >= bench("2022") ? "ahead" : "behind"} by ${Math.abs(total - bench("2022")).toLocaleString()}` },
+  ].map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
+  let running = 0;
+  document.getElementById("early-vote-table").innerHTML = `<tr><th>Day</th><th>Date</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Cumulative</th></tr>` + days.map((d, i) => { running += (d.inPerson || 0) + (d.mail || 0); return `<tr><td>${i + 1}</td><td>${fmtDate(d.date)}</td><td class="num">${(d.inPerson || 0).toLocaleString()}</td><td class="num">${(d.mail || 0).toLocaleString()}</td><td class="num"><b>${running.toLocaleString()}</b></td></tr>`; }).join("");
+  const grid = document.getElementById("early-vote-charts");
+  grid.innerHTML = "";
+  const box = document.createElement("div"); box.className = "trend"; box.innerHTML = `<h4>Cumulative ballots by early-voting day</h4><div class="legend"><span><i class="sw" style="background:${cssVar("--d3")}"></i>2026</span><span><i class="sw" style="background:#5b5b5b"></i>2024</span><span><i class="sw" style="background:#b58a00"></i>2022</span></div>`;
+  grid.appendChild(box);
+  const series = [];
+  const cum = (list) => { let r = 0; return list.map((d, i) => ({ date: String(i + 1), value: (r += (d.inPerson || 0) + (d.mail || 0)) })); };
+  const lines = [{ name: "2026", color: cssVar("--d3"), data: cum(days) }, { name: "2024", color: "#5b5b5b", data: cum(data.benchmarks?.["2024"]?.days || []) }, { name: "2022", color: "#b58a00", data: cum(data.benchmarks?.["2022"]?.days || []) }].filter((l) => l.data.length);
+  const maxLen = Math.max(...lines.map((l) => l.data.length));
+  for (let i = 0; i < maxLen; i += 1) series.push({ date: String(i + 1), ...Object.fromEntries(lines.map((l) => [l.name, l.data[i]?.value ?? null])) });
+  drawTrend(box, series, { title: "Cumulative ballots", lines: lines.map((l) => ({ name: l.name, color: l.color, get: (d) => d[l.name] })), format: (v) => compact(v), domain: null });
+}
+
+// ---------- governors ----------
+let GOVERNOR_MAP_MODE = "rating";
+function renderGovernors(s, topo, prev) {
+  const g = s.governors;
+  if (!g || !topo) return;
+  const byState = new Map(g.races.map((r) => [r.state, r]));
+  const width = 960, height = 560;
+  const svgRoot = d3.select("#governor-map").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "Governor race ratings by state");
+  const svg = svgRoot.append("g").attr("class", "zoom-root");
+  const features = topojson.feature(topo, topo.objects.states).features.filter((f) => FIPS_TO_STATE[f.id] && FIPS_TO_STATE[f.id] !== "DC");
+  const projection = d3.geoAlbersUsa().fitSize([width, height], { type: "FeatureCollection", features });
+  const path = d3.geoPath(projection);
+  const scale = probabilityScale();
+  const fillFor = (race) => { if (!race) return cssVar("--notup"); if (GOVERNOR_MAP_MODE === "probability") { const { p } = raceProbability(race); return p == null ? cssVar("--notup") : scale(p); } return ratingColor(race.consensus?.label); };
+  const paths = svg.append("g").selectAll("path").data(features).join("path").attr("d", path).attr("class", (f) => (byState.has(FIPS_TO_STATE[f.id]) ? "rated" : ""))
+    .on("mousemove", (event, f) => { const race = byState.get(FIPS_TO_STATE[f.id]); showTooltip(event, race ? governorTooltip(race, g) : `<b>${esc(f.properties.name)}</b><br>No governor's race in 2026`); }).on("mouseleave", hideTooltip);
+  svg.append("g").selectAll("text").data(features.filter((f) => byState.has(FIPS_TO_STATE[f.id]))).join("text").attr("class", "state-label").attr("text-anchor", "middle").attr("transform", (f) => `translate(${path.centroid(f)})`).attr("dy", "0.35em")
+    .attr("fill", (f) => { const race = byState.get(FIPS_TO_STATE[f.id]); return (GOVERNOR_MAP_MODE === "probability" ? Math.abs((raceProbability(race).p ?? 0.5) - 0.5) > 0.2 : DARK_RATINGS.has(race.consensus?.label)) ? "#fff" : "#111"; }).text((f) => FIPS_TO_STATE[f.id]);
+  const applyLegend = () => { document.getElementById("governor-legend").innerHTML = GOVERNOR_MAP_MODE === "probability" ? [0.02, 0.15, 0.3, 0.5, 0.7, 0.85, 0.98].map((p) => `<span><i class="sw" style="background:${scale(p)}"></i>${p === 0.5 ? "50/50" : `${Math.round(p * 100)}% D`}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--notup")}"></i>No race / no data</span>` : RATING_ORDER.map((r) => `<span><i class="sw" style="background:${ratingColor(r)}"></i>${r}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--notup")}"></i>No race in 2026</span>`; };
+  paths.attr("fill", (f) => fillFor(byState.get(FIPS_TO_STATE[f.id])));
+  applyLegend();
+  attachZoom(svgRoot, "governor-map", { width, height });
+  document.querySelectorAll("button.mode[data-governor-map]").forEach((b) => { b.classList.toggle("active", b.dataset.governorMap === GOVERNOR_MAP_MODE); b.onclick = () => { GOVERNOR_MAP_MODE = b.dataset.governorMap; renderGovernors(s, topo, prev); }; });
+
+  const races = [...g.races];
+  const competitiveness = (r) => Math.abs(r.consensus?.score ?? 4) + (raceProbability(r).p != null ? Math.abs(raceProbability(r).p - 0.5) : 0.4);
+  races.sort((a, b) => competitiveness(a) - competitiveness(b));
+  const battlegrounds = races.filter((r) => Math.abs(r.consensus?.score ?? 4) <= 3 || (raceProbability(r).p != null && Math.abs(raceProbability(r).p - 0.5) < 0.35));
+  const head = `<tr><th>State</th><th>Matchup</th><th>Consensus</th><th title="${esc(g.forecasters.map((f) => f.name).join(", "))}">Ratings<span class="sub">${g.forecasters.map((f) => esc(shortName(f.name))).join(", ")}</span></th><th class="num">Poll average</th><th class="num">D wins<span class="sub">${esc(modelName())}</span></th><th class="num">Kalshi D</th></tr>`;
+  const row = (r) => { const p = prev?.races?.[r.id]; return `<tr><td><b>${esc(r.state)}</b> <span class="muted">${esc(r.incumbentParty || "")}</span></td><td class="wrap">${r.candidates?.D ? `${esc(r.candidates.D)} <span class="muted">(D)</span>` : '<span class="muted">Democrat</span>'} / ${r.candidates?.R ? `${esc(r.candidates.R)} <span class="muted">(R)</span>` : '<span class="muted">Republican</span>'}</td><td>${ratingPill(r.consensus?.label)}</td><td class="ratings-cell">${g.forecasters.map((f) => miniRating(r.ratings[f.key])).join("")}</td><td class="num">${marginText(r.pollingAverage?.margin)}${r.pollingAverage ? `<span class="thin">n=${r.pollingAverage.pollCount}</span>` : ""}${delta(r.pollingAverage?.margin, p?.poll, { scale: 1, unit: "" })}</td><td class="num"><b>${pct(raceProbability(r).p)}</b>${raceProbability(r).source && !["polls", "polymarket", "kalshi"].includes(raceProbability(r).source) ? `<span class="thin">${esc(raceProbability(r).source)}</span>` : ""}${delta(raceProbability(r).p, previousRaceProbability(prev, r.id))}</td><td class="num">${pct(r.odds?.kalshi?.D)}${r.odds?.kalshi?.thin ? '<span class="thin">thin</span>' : ""}${delta(r.odds?.kalshi?.D, p?.ks)}</td></tr>`; };
+  document.getElementById("governor-table").innerHTML = head + battlegrounds.map(row).join("");
+  document.getElementById("governor-table-all").innerHTML = head + [...g.races].sort((a, b) => a.stateName.localeCompare(b.stateName)).map(row).join("");
+}
+function governorTooltip(race, g) {
+  const rows = [`<b>${esc(race.stateName)} Governor</b>${race.incumbentParty ? ` · ${race.incumbentParty}-held` : ""}${race.incumbent ? ` · ${esc(race.incumbent)}` : ""}`];
+  if (race.candidates?.D || race.candidates?.R) rows.push(`${esc(race.candidates.D || "Democrat")} (D) vs ${esc(race.candidates.R || "Republican")} (R)`);
+  rows.push("<hr>");
+  const sel = raceProbability(race);
+  rows.push(`<div class="row"><span><b>D wins, ${modelName()}</b></span><span><b>${pct(sel.p)}</b></span></div>`);
+  rows.push(`<div class="row"><span>Consensus rating</span><span>${esc(race.consensus?.label || "—")}</span></div>`);
+  for (const f of g.forecasters) if (race.ratings[f.key]) rows.push(`<div class="row"><span>${esc(f.name)}</span><span>${esc(race.ratings[f.key])}</span></div>`);
+  if (race.pollingAverage) rows.push(`<div class="row"><span>Polling avg (${race.pollingAverage.pollCount})</span><span>${marginText(race.pollingAverage.margin)}</span></div>`);
+  if (race.odds?.kalshi) rows.push(`<div class="row"><span>Kalshi D win</span><span>${pct(race.odds.kalshi.D)}</span></div>`);
+  return rows.join("");
+}
+
 // ---------- morning digest ----------
 function renderDigest(s, digest = s.digest, { archive = true } = {}) {
   if (!digest) return;
@@ -635,6 +736,76 @@ function drawTrend(box, series, chart) {
   });
 }
 
+// ---------- scenarios (client-side re-runs of the models) ----------
+async function setupScenarios(s) {
+  const [legislature, metrics] = await Promise.all([import("./model/legislature.js"), import("./model/metrics.js")]);
+  const { LEGISLATURE_MODEL, runChamberModel, runRatedChamberModel } = legislature;
+  const { pollWinProbability, seatDistribution, priorFromRating } = metrics;
+  const todayEnv = s.txLegislature?.environment;
+  const txDefaults = { env: todayEnv?.margin ?? -5, elasticity: LEGISLATURE_MODEL.swingElasticity, incumbency: LEGISLATURE_MODEL.incumbencyBonus, ratingWeight: LEGISLATURE_MODEL.ratingWeight };
+  const senateDefaults = { shift: 0, finalError: 5.5 };
+  const houseDefaults = { shift: 0 };
+  const bind = (containerId, defaults, onChange) => {
+    const container = document.getElementById(containerId);
+    const state = { ...defaults };
+    const inputs = [...container.querySelectorAll("input[data-param]")];
+    const render = () => { inputs.forEach((input) => { input.value = state[input.dataset.param]; container.querySelector(`output[data-out="${input.dataset.param}"]`).textContent = formatParam(input.dataset.param, state[input.dataset.param]); }); onChange(state); };
+    inputs.forEach((input) => input.addEventListener("input", () => { state[input.dataset.param] = Number(input.value); render(); }));
+    container.querySelector("[data-reset]").addEventListener("click", () => { Object.assign(state, defaults); render(); });
+    render();
+  };
+  const figure = (k, v, sub, primary = false) => `<div class="figure${primary ? " primary" : ""}"><div class="k">${esc(k)}</div><div class="v">${v}</div><div class="s">${esc(sub)}</div></div>`;
+
+  bind("tx-scenario-controls", txDefaults, (state) => {
+    const environment = { ...(todayEnv || {}), margin: state.env };
+    const params = { ...LEGISLATURE_MODEL, swingElasticity: state.elasticity, incumbencyBonus: state.incumbency, ratingWeight: state.ratingWeight };
+    const house = runChamberModel({ districts: s.txHouse.districts, notUp: s.txHouse.model?.notUp || { D: 0, R: 0 }, majority: 76, environment, params });
+    const senate = runChamberModel({ districts: s.txSenate.districts, notUp: s.txSenate.model?.notUp || { D: 7, R: 8 }, majority: 16, environment, params });
+    document.getElementById("tx-scenario-figures").innerHTML =
+      figure("Texas House, Democratic control", pct(house.control.D), `expected ${house.expected.D.toFixed(1)} D seats; today's model says ${pct(s.txHouse.model?.control?.D)} and ${s.txHouse.model?.expected?.D?.toFixed(1)}`, true) +
+      figure("Texas Senate, Democratic control", pct(senate.control.D), `expected ${senate.expected.D.toFixed(1)} D seats; today ${pct(s.txSenate.model?.control?.D)} and ${s.txSenate.model?.expected?.D?.toFixed(1)}`) +
+      figure("Swing from 2024", `${state.env - LEGISLATURE_MODEL.statewidePresidentialMargin2024 >= 0 ? "D" : "R"}+${Math.abs(state.env - LEGISLATURE_MODEL.statewidePresidentialMargin2024).toFixed(1)}`, "statewide environment minus Trump's 13.7-point 2024 margin") +
+      figure("House seats flipping", String(house.seats.filter((x) => { const d = s.txHouse.districts.find((q) => q.district === x.district); return d && ((d.party === "R" && x.pD > 0.5) || (d.party === "D" && x.pD < 0.5)); }).length), "seats where the model now favors the other party");
+    renderSeatHistogram("tx-house-scenario-chart", "tx-house-scenario-title", { ...house, notUp: house.notUp }, "Texas house");
+    renderSeatHistogram("tx-senate-scenario-chart", "tx-senate-scenario-title", { ...senate, notUp: senate.notUp }, "Texas senate");
+  });
+
+  bind("senate-scenario-controls", senateDefaults, (state) => {
+    const daysToElection = s.usSenate.races.find((r) => r.pollModel?.daysToElection != null)?.pollModel.daysToElection ?? 30;
+    const races = s.usSenate.races.map((r) => {
+      if (r.pI > 0 || !r.pollingAverage) return { pD: r.pD ?? priorFromRating(r.consensus?.label), pR: r.pR ?? 1 - (r.pD ?? 0.5), pI: r.pI ?? 0 };
+      const shifted = pollWinProbability({ margin: r.pollingAverage.margin + state.shift, effectiveN: r.pollingAverage.effectiveN }, { daysToElection, finalError: state.finalError });
+      return { pD: shifted.pD, pR: 1 - shifted.pD, pI: 0 };
+    });
+    const dist = seatDistribution(races, { democraticCaucusNotUp: s.senateControl.notUp.democraticCaucus, republicanNotUp: s.senateControl.notUp.republican });
+    const flips = s.usSenate.races.filter((r, i) => (r.incumbentParty === "R" && races[i].pD > 0.5) || (r.incumbentParty === "D" && races[i].pD < 0.5)).map((r) => r.state);
+    document.getElementById("senate-scenario-figures").innerHTML =
+      figure("Democratic control", pct(dist.control.D), `today's polls model says ${pct(s.senateControl.pollModel?.control?.D)}`, true) +
+      figure("Expected Democratic-caucus seats", dist.expected.D.toFixed(1), `today ${s.senateControl.pollModel?.expected?.D?.toFixed(1)}; 51 needed`) +
+      figure("Seats favored to flip", String(flips.length), flips.join(", ") || "none") +
+      figure("No majority for either side", pct(dist.control.none), "independents hold the balance");
+    renderSeatHistogram("senate-scenario-chart", "senate-scenario-title", { histogram: dist.histogram, control: dist.control, expected: dist.expected, majority: 51, notUp: { D: s.senateControl.notUp.democraticCaucus, R: s.senateControl.notUp.republican } }, "U.S. Senate");
+  });
+
+  bind("house-scenario-controls", houseDefaults, (state) => {
+    const h = s.usHouse;
+    if (!h) return;
+    const seats = h.districts.map((d) => ({ id: d.id, margin: d.margin === null || d.margin === undefined ? null : d.margin + state.shift, party: d.incumbentParty }));
+    const model = runRatedChamberModel({ seats, notUp: h.model.notUp, majority: 218 });
+    document.getElementById("house-scenario-figures").innerHTML =
+      figure("Democratic control", pct(model.control.D), `today's model says ${pct(h.model.control.D)}`, true) +
+      figure("Expected Democratic seats", model.expected.D.toFixed(1), `today ${h.model.expected.D.toFixed(1)}; 218 needed`) +
+      figure("Texas seats favored for Democrats", String(model.seats.filter((x) => x.id.startsWith("TX-") && x.pD > 0.5).length), `of 38; today ${h.districts.filter((d) => d.state === "TX" && d.modelD > 0.5).length}`);
+    renderSeatHistogram("house-scenario-chart", "house-scenario-title", { ...model, seats: undefined }, "U.S. House");
+  });
+}
+function formatParam(name, value) {
+  if (name === "env" || name === "shift") return value === 0 ? "Even" : `${value > 0 ? "D" : "R"}+${Math.abs(value).toFixed(1)}`;
+  if (name === "elasticity" || name === "ratingWeight") return `${Math.round(value * 100)}%`;
+  if (name === "finalError") return `${value.toFixed(1)} pts`;
+  return `${value}`;
+}
+
 // ---------- sources ----------
 function renderSources(s) {
   const items = [
@@ -684,7 +855,7 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "digest", "senate", "texas", "house", "tx-senate", "us-house", "trends", "pollsters", "sources"];
+const PANELS = ["overview", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
 function showPanel(name, { push = true } = {}) {
   const panel = PANELS.includes(name) ? name : "overview";
   document.querySelectorAll(".panel").forEach((el) => el.classList.toggle("active", el.dataset.panel === panel));

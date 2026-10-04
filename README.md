@@ -14,6 +14,13 @@ Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from 
 | U.S. Senate map | All 35 seats shaded by the average of ten forecasters (Cook, DDHQ, Economist, FiftyPlusOne, Fox, Inside Elections, RCP, Sabato, Silver Bulletin, Split Ticket); battleground table with polls, odds, and trends |
 | Texas statewide | Senate, Governor, Lt. Governor, AG, Comptroller, Railroad Commissioner, Land Commissioner, Agriculture Commissioner: polling average, latest poll, ratings, Kalshi and Polymarket odds (thin markets flagged), per-race poll lists and published aggregates |
 | U.S. House | National competitive-district ratings (ten forecasters, ~144 seats), our rated-seat model for control and expected seats, the generic congressional ballot (VoteHub polls plus published aggregates), Polymarket and Kalshi odds, and a zoomable Texas congressional map (2025 Plan C2333) with ratings for all 38 districts and district polls where they exist |
+| Governors | All 36 governorships: Wikipedia ratings table (seven forecasters), VoteHub polls, Kalshi party odds, polls model, map and tables |
+| Texas courts and SBOE | Supreme Court, Court of Criminal Appeals, and State Board of Education nominees; a statewide-environment baseline for judicial seats; Kalshi odds where markets exist |
+| Early vote | Scaffold for daily Texas early-voting turnout against 2022 and 2024, fed by a hand-entered `public/data/early-vote.json` (the Secretary of State's site is bot-walled and is not scraped) |
+| Morning digest | Templated daily briefing with an archive and copy-as-text; `public/data/digest.txt` is the plain-text version for a future chat or email post |
+| Scenarios | Browser-side re-runs of the Texas Legislature, U.S. Senate, and U.S. House models with sliders for environment, elasticity, incumbency, rating weight, and uniform polling error |
+| Trends | Daily series for the marquee numbers plus a dated log of every rating and model change |
+| Pollsters | Scorecard: 538 grade, volume, house lean against the race averages, latest poll |
 | Texas House / Senate | Our own seat model (fundamentals + statewide environment + incumbency, blended with State Navigate ratings), chamber seat distributions and control odds, zoomable district maps (TLC plans H2316 / S2168) colored by model probability, rating, or 2024 margin; the legislative generic-ballot poll table |
 
 ## Sources
@@ -46,7 +53,7 @@ The page header switches every win probability, the hero board, the seat distrib
 
 ## Navigation
 
-Seven hash-routed tabs (`#overview`, `#texas`, `#house`, `#tx-senate`, `#senate`, `#us-house`, `#sources`). Maps pan by drag and zoom with the scroll wheel, pinch, double-click, or the +/− buttons.
+Hash-routed tabs: `#overview`, `#digest`, `#texas`, `#courts`, `#house`, `#tx-senate`, `#senate`, `#us-house`, `#governors`, `#early-vote`, `#scenarios`, `#trends`, `#pollsters`, `#sources`. Maps pan by drag and zoom with the scroll wheel, pinch, double-click, or the +/− buttons.
 
 ## Design
 
@@ -64,6 +71,10 @@ See `DESIGN.md` for the type, color tokens, and layout rules.
 ## Design
 
 Archivo (variable width) for the nameplate, headings, figures, and tables; Source Serif 4 for running text. No cards: sections are separated by rules and whitespace, figures sit in a ruled strip, and deltas are colored by the party they move toward (blue toward Democrats, red toward Republicans). Rating colors were checked with a color-vision-deficiency validator.
+
+## Early vote data entry
+
+`public/data/early-vote.json` holds `days` (one object per early-voting day: `{ "date": "2026-10-19", "inPerson": 0, "mail": 0 }`) and `benchmarks` for 2024 and 2022 in the same shape, plus `registeredVoters`. Paste the Secretary of State's statewide daily totals; the tab draws cumulative curves and same-day comparisons once the first day is in. The SOS site is behind a bot wall, so this is deliberately manual.
 
 ## Running locally
 

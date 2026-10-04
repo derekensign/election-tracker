@@ -17,18 +17,18 @@ export async function fetchWikitext(pageTitle) {
  * National Senate page, "Predictions" table: one row per seat, one column per forecaster.
  * Returns { forecasters: [{ key, name, asOf }], races: { "Texas": { incumbentParty, pvi, ratings: { Cook: "Tossup", ... }, special } } }
  */
-export function parseSenateRatingsTable(wikitext) {
+export function parseSenateRatingsTable(wikitext, { rowPattern = /^\s*\[\[2026 United States Senate (?:special )?election in/, pageLabel = "Senate page" } = {}) {
   const section = findSection(wikitext, /^Predictions$/i, { last: false });
-  if (!section) throw new Error("Senate page: Predictions section not found");
+  if (!section) throw new Error(`${pageLabel}: Predictions section not found`);
   const table = extractTables(section.body)[0];
   const rows = parseTable(table);
   // Header: two rows; the second lists State, PVI, Senator, Last election, then forecasters.
-  const headerRow = rows.find((row) => row.length >= 10 && row.every((cell) => cell.header) && /State/i.test(row[0].text));
-  if (!headerRow) throw new Error("Senate page: header row not found");
+  const headerRow = rows.find((row) => row.length >= 8 && row.every((cell) => cell.header) && /State/i.test(row[0].text));
+  if (!headerRow) throw new Error(`${pageLabel}: header row not found`);
   const forecasters = headerRow.slice(4).map((cell) => parseForecasterHeader(cell.text));
   const races = {};
   for (const row of rows) {
-    if (row.some((cell) => cell.header && /^\s*\[\[2026 United States Senate (?:special )?election in/.test(cell.text))) {
+    if (row.some((cell) => cell.header && rowPattern.test(cell.text))) {
       const stateCell = row[0].text;
       const stateName = plainText(stateCell).replace(/\s*\(special\)\s*/i, "").trim();
       const special = /special/i.test(stateCell);
@@ -82,6 +82,11 @@ export function canonicalForecaster(name) {
 function normalizeDate(text) {
   const parsed = parseDateRange(text);
   return parsed ? parsed.end : null;
+}
+
+/** National governors page: same table shape as the Senate page, rows link to "2026 <State> gubernatorial election". */
+export function parseGovernorRatingsTable(wikitext) {
+  return parseSenateRatingsTable(wikitext, { rowPattern: /^\s*\[\[2026 [A-Za-z ]+ gubernatorial election/, pageLabel: "Governors page" });
 }
 
 /**
@@ -143,6 +148,67 @@ export function parseTexasCongressPage(wikitext) {
   const statewide = findSection(wikitext, /^Statewide polling$/i, { last: false });
   const statewidePolls = statewide ? parseRacePolling(wikitext, { democrat: "Democratic", republican: "Republican", sectionBody: statewide.body }).polls : [];
   return { districts, statewidePolls };
+}
+
+/**
+ * Texas judicial / State Board of Education pages: one `== Place N ==` / `== District N ==` / `== Chief Justice ==`
+ * section per race, each with an {{Infobox election}} naming the nominees. Returns [{ race, nominees: [{ name, party }], incumbent }].
+ */
+export function parseInfoboxRaces(wikitext, { sectionPattern = /^==\s*(Chief Justice|Place \d+|District \d+(?: \(special\))?)\s*==\s*$/gm } = {}) {
+  const headings = [...wikitext.matchAll(sectionPattern)].map((m) => ({ race: m[1], start: m.index, end: m.index + m[0].length }));
+  return headings.map((heading, index) => {
+    const body = wikitext.slice(heading.end, headings[index + 1]?.start ?? wikitext.length);
+    const field = (name) => { const m = body.match(new RegExp(`^\\|\\s*${name}\\s*=\\s*(.*)$`, "m")); return m ? plainText(m[1]).trim() : ""; };
+    const nominees = [];
+    for (let i = 1; i <= 4; i += 1) {
+      const name = field(`nominee${i}`);
+      if (!name) continue;
+      const party = field(`party${i}`);
+      nominees.push({ name, party: /Republican/i.test(party) ? "R" : /Democrat/i.test(party) ? "D" : /Libertarian/i.test(party) ? "L" : /Green/i.test(party) ? "G" : party || null });
+    }
+    if (nominees.length === 0) nominees.push(...nomineesFromPrimaries(body));
+    const incumbent = field("before_election") || nominees.find((n) => /incumbent/i.test(n.note || ""))?.name || "";
+    const incumbentParty = /Republican/i.test(field("before_party")) ? "R" : /Democrat/i.test(field("before_party")) ? "D" : (nominees.find((n) => /incumbent/i.test(n.note || ""))?.party ?? null);
+    const predictions = findSection(body, /^Predictions$/i, { last: true });
+    const ratings = {};
+    if (predictions) for (const row of parseTable(extractTables(predictions.body)[0] || "")) { const rating = row[1] ? parseRaceRating(row[1].text) : null; if (rating) ratings[canonicalForecaster(plainText(row[0].text))] = rating.label; }
+    return { race: heading.race, nominees, incumbent: incumbent || null, incumbentParty, ratings };
+  });
+}
+
+/** Nominees from "<Party> primary" → "Nominee" bullet lists, at whatever heading depth the page uses. */
+export function nomineesFromPrimaries(body) {
+  const nominees = [];
+  const headingPattern = /^(={3,6})\s*(.+?)\s*=+\s*$/gm;
+  const headings = [...body.matchAll(headingPattern)].map((m) => ({ level: m[1].length, title: m[2].trim(), start: m.index, end: m.index + m[0].length }));
+  headings.forEach((h, index) => {
+    const partyMatch = h.title.match(/^(Republican|Democratic|Libertarian|Green) primary$/i);
+    if (!partyMatch) return;
+    const partyEnd = headings.slice(index + 1).find((x) => x.level <= h.level);
+    const partyBody = body.slice(h.end, partyEnd ? partyEnd.start : undefined);
+    const nomineeHeading = [...partyBody.matchAll(/^(={4,6})\s*Nominee\s*=+\s*$/gm)][0];
+    if (!nomineeHeading) return;
+    const after = partyBody.slice(nomineeHeading.index + nomineeHeading[0].length);
+    const bullet = after.match(/^\*\s*(.+)$/m);
+    if (!bullet) return;
+    const text = plainText(bullet[1]);
+    const [name, ...rest] = text.split(",");
+    nominees.push({ name: name.trim(), party: partyMatch[1][0], note: rest.join(",").trim() || null });
+  });
+  return nominees;
+}
+
+/** Court of Criminal Appeals nominees live only on the "2026 Texas elections" page as bullet lists under each Place. */
+export function parseCriminalAppeals(wikitext) {
+  const section = findSection(wikitext, /^Texas Court of Criminal Appeals$/i, { last: false });
+  if (!section) return [];
+  const places = [...section.body.matchAll(/^====\s*(Place \d+)\s*====\s*$/gm)].map((m) => ({ race: m[1], start: m.index, end: m.index + m[0].length }));
+  return places.map((place, index) => {
+    const body = section.body.slice(place.end, places[index + 1]?.start ?? undefined);
+    const nominees = nomineesFromPrimaries(body);
+    const incumbentNominee = nominees.find((n) => /incumbent/i.test(n.note || ""));
+    return { race: place.race, nominees, incumbent: incumbentNominee?.name || null, incumbentParty: incumbentNominee?.party ?? "R", ratings: {} };
+  });
 }
 
 /** National House page: "Generic congressional ballot aggregate polls" table -> aggregator averages, and the infobox seat counts. */

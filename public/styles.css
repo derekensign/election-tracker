@@ -48,7 +48,7 @@ p.note, .meta, .foot, .sources, .seat-note, .moves-list { font-family: var(--ser
 .board .sub b { color: var(--ink); font-weight: 600; }
 
 /* ---- tabs & panels ---- */
-.tabs { position: sticky; top: 0; z-index: 5; background: var(--paper); display: flex; gap: 2px; overflow-x: auto; border-bottom: 2px solid var(--ink); margin-top: 22px; scrollbar-width: none; }
+.tabs { position: sticky; top: 0; z-index: 5; background: var(--paper); display: flex; flex-wrap: wrap; gap: 0 2px; border-bottom: 2px solid var(--ink); margin-top: 22px; }
 .tabs::-webkit-scrollbar { display: none; }
 .tabs a { flex: none; text-decoration: none; padding: 12px 16px 10px; font-size: 14.5px; font-weight: 600; color: var(--ink-2); border-bottom: 3px solid transparent; margin-bottom: -2px; }
 .tabs a:hover { color: var(--ink); }
@@ -78,6 +78,13 @@ p.note, .meta, .foot, .sources, .seat-note, .moves-list { font-family: var(--ser
 .changelog-day .d { font-weight: 600; font-size: 14px; }
 .changelog-day ul { margin: 4px 0 0; padding-left: 18px; font-family: var(--serif); }
 .lean-d { color: var(--to-d); font-weight: 600; } .lean-r { color: var(--to-r); font-weight: 600; }
+
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; margin: 8px 0 14px; align-items: end; }
+.controls label { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--ink-2); }
+.controls output { font-weight: 600; color: var(--ink); font-size: 15px; }
+.controls input[type="range"] { width: 100%; accent-color: var(--ink); }
+.controls button { justify-self: start; }
+.trend-title { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; }
 
 /* ---- sections ---- */
 main { padding-bottom: 48px; }

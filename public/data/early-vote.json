@@ -1,0 +1,16 @@
+{
+  "updated": null,
+  "note": "Daily statewide early-voting totals. Fill `days` from the Texas Secretary of State daily report (in-person and mail ballots, cumulative). `benchmarks` hold the same series for past general elections, indexed by early-voting day number.",
+  "registeredVoters": null,
+  "days": [],
+  "benchmarks": {
+    "2024": {
+      "registeredVoters": null,
+      "days": []
+    },
+    "2022": {
+      "registeredVoters": null,
+      "days": []
+    }
+  }
+}
