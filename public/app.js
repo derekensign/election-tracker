@@ -217,7 +217,7 @@ function renderSeatChart(s) {
 const sum = (arr) => arr.reduce((a, b) => a + b, 0);
 
 // ---------- senate map ----------
-const probabilityScale = () => d3.scaleDiverging().domain([0, 0.5, 1]).interpolator((t) => d3.interpolateRgbBasis([cssVar("--r4"), cssVar("--r3"), cssVar("--r2"), "#e9e9e6", cssVar("--d2"), cssVar("--d3"), cssVar("--d4")])(t));
+const probabilityScale = () => d3.scaleDiverging().domain([0, 0.5, 1]).interpolator((t) => d3.interpolateRgbBasis([cssVar("--r3"), cssVar("--r2"), "#e9e9e6", cssVar("--d2"), cssVar("--d3")])(t));
 function renderRatingLegend() {
   const el = document.getElementById("rating-legend");
   if (SENATE_MAP_MODE === "probability") {
@@ -230,7 +230,8 @@ function renderRatingLegend() {
 function renderSenateMap(s, topo, prev) {
   const byState = new Map(s.usSenate.races.map((r) => [r.state, r]));
   const width = 960, height = 560;
-  const svg = d3.select("#senate-map").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "U.S. Senate race ratings by state");
+  const svgRoot = d3.select("#senate-map").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "U.S. Senate race ratings by state");
+  const svg = svgRoot.append("g").attr("class", "zoom-root");
   const features = topojson.feature(topo, topo.objects.states).features.filter((f) => FIPS_TO_STATE[f.id] && FIPS_TO_STATE[f.id] !== "DC");
   const projection = d3.geoAlbersUsa().fitSize([width, height], { type: "FeatureCollection", features });
   const path = d3.geoPath(projection);
@@ -251,6 +252,7 @@ function renderSenateMap(s, topo, prev) {
     .attr("class", "state-label").attr("text-anchor", "middle").attr("transform", (f) => `translate(${path.centroid(f)})`).attr("dy", "0.35em")
     .attr("fill", (f) => (darkFill(byState.get(FIPS_TO_STATE[f.id])) ? "#fff" : "#111"))
     .text((f) => FIPS_TO_STATE[f.id]);
+  attachZoom(svgRoot, "senate-map", { width, height });
 }
 function senateTooltip(race, s, prev) {
   const prevRace = prev?.races?.[race.id];
@@ -360,24 +362,29 @@ function renderChamber(kind, chamber, topo, s) {
   const current = chamber.current;
   const counts = chamber.summary.ratingCounts || {};
   const rated = Object.entries(counts).sort((a, b) => RATING_ORDER.indexOf(a[0]) - RATING_ORDER.indexOf(b[0])).map(([k, v]) => `${v} ${k}`).join(", ");
+  const model = chamber.model;
+  const env = model?.environment;
   const tiles = [
     { k: "Today", v: `${current.D} D, ${current.R} R`, s: `${chamber.majority} seats make a majority; ${chamber.upForElection} seats are up` },
+    { k: "Our model, Democratic control", v: model ? pct(model.control.D) : "—", s: model ? `expected ${model.expected.D.toFixed(1)} D, ${model.expected.R.toFixed(1)} R${chamber.control?.kalshi ? `; Kalshi market ${pct(chamber.control.kalshi.D)}${chamber.control.kalshi.thin ? " (thin)" : ""}` : ""}` : "unavailable", primary: true },
+    { k: "Statewide environment", v: env ? marginText(env.margin) : "—", s: env ? `generic ballot ${marginText(env.genericBallot)} over ${env.genericBallotPolls} polls; down-ballot races ${marginText(env.downBallotMean)}; swing ${env.swingFrom2024 > 0 ? "D" : "R"}+${Math.abs(env.swingFrom2024).toFixed(1)} from 2024` : "no polls" },
     { k: `Seats rated by ${chamber.ratingSource?.name || "State Navigate"}`, v: String(Object.values(counts).reduce((a, b) => a + b, 0)), s: rated || "none" },
-    { k: "Rating-implied Democratic seats", v: chamber.summary.expectedD?.toFixed(1) ?? "—", s: "Safe 98.5%, Likely 90%, Lean 75%, Tilt 60%; unrated seats stay put" },
   ];
-  if (chamber.control?.kalshi) tiles.push({ k: "Kalshi, Democratic control", v: pct(chamber.control.kalshi.D), s: `${chamber.control.kalshi.volumeContracts.toLocaleString()} contracts traded${chamber.control.kalshi.thin ? ", a thin market" : ""}` });
   const preds = Object.values(chamber.chamberPredictions || {});
   if (preds.length) tiles.push({ k: "Chamber ratings", v: preds.map((p) => p.label).join(", "), s: preds.map((p) => `${p.name}${p.asOf ? ` (${p.asOf})` : ""}`).join("; ") });
   document.getElementById(`${prefix}-tiles`).innerHTML = tiles.map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v${/^[\d.,% ]+$|^\d+ D, \d+ R$/.test(t.v) ? "" : " text"}">${esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 
   const width = 800, height = 760;
-  const svg = d3.select(`#${prefix}-map`).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Texas ${kind} districts`);
+  const svgRoot = d3.select(`#${prefix}-map`).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Texas ${kind} districts`);
+  const svg = svgRoot.append("g").attr("class", "zoom-root");
   const features = topojson.feature(topo, topo.objects.districts).features;
   const projection = d3.geoMercator().fitSize([width, height], { type: "FeatureCollection", features });
   const path = d3.geoPath(projection);
   const marginScale = d3.scaleDiverging().domain([-60, 0, 60]).interpolator((t) => d3.interpolateRgbBasis([cssVar("--r4"), cssVar("--r2"), "#f2f2f0", cssVar("--d2"), cssVar("--d4")])(t));
+  const pScale = probabilityScale();
   const fillFor = (district, mode) => {
     if (!district) return cssVar("--notup");
+    if (mode === "model") return district.modelD == null ? cssVar("--notup") : pScale(district.modelD);
     if (mode === "margin") return district.presidentialMargin2024 == null ? cssVar("--notup") : marginScale(district.presidentialMargin2024);
     if (district.rating) return ratingColor(district.rating);
     return district.party === "D" ? cssVar("--d-held") : district.party === "R" ? cssVar("--r-held") : cssVar("--notup");
@@ -386,29 +393,86 @@ function renderChamber(kind, chamber, topo, s) {
     .attr("class", (f) => (districts.get(f.properties.district)?.rating ? "rated" : ""))
     .on("mousemove", (event, f) => showTooltip(event, districtTooltip(kind, f.properties.district, districts.get(f.properties.district))))
     .on("mouseleave", hideTooltip);
-  const labelled = features.filter((f) => districts.get(f.properties.district)?.rating && path.area(f) > 420);
+  const labelled = features.filter((f) => { const d = districts.get(f.properties.district); return d && (d.rating || (d.modelD != null && Math.abs(d.modelD - 0.5) < 0.3)) && path.area(f) > 420; });
   svg.append("g").selectAll("text").data(labelled).join("text").attr("class", "state-label").attr("text-anchor", "middle").attr("transform", (f) => `translate(${path.centroid(f)})`).attr("dy", "0.35em").text((f) => f.properties.district);
   const apply = (mode) => {
     paths.attr("fill", (f) => fillFor(districts.get(f.properties.district), mode));
+    if (mode === "model") {
+      document.getElementById(`${prefix}-legend`).innerHTML = [0.02, 0.15, 0.3, 0.5, 0.7, 0.85, 0.98].map((p) => `<span><i class="sw" style="background:${pScale(p)}"></i>${p === 0.5 ? "50/50" : `${Math.round(p * 100)}% D`}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--notup")}"></i>Not up / no data</span>`;
+      return;
+    }
     document.getElementById(`${prefix}-legend`).innerHTML = mode === "margin"
       ? [-60, -30, -10, 0, 10, 30, 60].map((m) => `<span><i class="sw" style="background:${marginScale(m)}"></i>${m === 0 ? "Even" : `${m > 0 ? "Harris" : "Trump"} +${Math.abs(m)}`}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--notup")}"></i>Not up / no data</span>`
       : RATING_ORDER.filter((r) => counts[r]).map((r) => `<span><i class="sw" style="background:${ratingColor(r)}"></i>${r}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--d-held")}"></i>D-held, unrated</span><span><i class="sw" style="background:${cssVar("--r-held")}"></i>R-held, unrated</span>` + (kind === "senate" ? `<span><i class="sw" style="background:${cssVar("--notup")}"></i>Not up in 2026</span>` : "");
   };
-  apply("rating");
+  apply("model");
+  attachZoom(svgRoot, `${prefix}-map`, { width, height });
+  renderChamberChart(kind, chamber);
   document.querySelectorAll(`button.mode[data-chamber="${kind}"]`).forEach((button) => button.addEventListener("click", () => {
     document.querySelectorAll(`button.mode[data-chamber="${kind}"]`).forEach((b) => b.classList.toggle("active", b === button));
     apply(button.dataset.mode);
   }));
 
-  const list = chamber.districts.filter((d) => d.rating || kind === "senate").sort((a, b) => (Math.abs(ratingScoreOf(a.rating)) - Math.abs(ratingScoreOf(b.rating))) || a.district - b.district);
-  document.getElementById(`${prefix}-table`).innerHTML = `<tr><th>District</th><th>Incumbent</th><th>Held by</th><th class="num">2024 Pres.</th><th>Rating${chamber.ratingSource?.asOf ? ` <span class="muted">(${esc(chamber.ratingSource.name)}, ${esc(chamber.ratingSource.asOf)})</span>` : ""}</th></tr>` +
-    list.map((d) => `<tr><td><b>${kind === "house" ? "HD" : "SD"}-${d.district}</b></td><td>${esc(d.incumbent || "Open")}${d.retiring ? ' <span class="muted">retiring</span>' : ""}${d.defeatedInPrimary ? ' <span class="muted">lost primary</span>' : ""}</td><td>${esc(d.party || "—")}</td><td class="num">${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</td><td>${ratingPill(d.rating)}${d.flip ? ' <span class="thin">flip</span>' : ""}</td></tr>`).join("");
+  const byCompetitiveness = [...chamber.districts].sort((a, b) => Math.abs((a.modelD ?? 0.5) - 0.5) - Math.abs((b.modelD ?? 0.5) - 0.5) || a.district - b.district);
+  const closest = kind === "house" ? byCompetitiveness.slice(0, 24) : byCompetitiveness;
+  const headRow = `<tr><th>District</th><th>Incumbent</th><th>Held by</th><th class="num">2024 Pres.</th><th class="num">Model margin</th><th class="num">D wins<span class="sub">our model</span></th><th>Rating${chamber.ratingSource?.asOf ? `<span class="sub">${esc(chamber.ratingSource.name)}, ${esc(chamber.ratingSource.asOf)}</span>` : ""}</th></tr>`;
+  const rowFor = (d) => `<tr><td><b>${kind === "house" ? "HD" : "SD"}-${d.district}</b></td><td class="wrap">${esc(d.incumbent || "Open")}${d.retiring ? ' <span class="muted">retiring</span>' : ""}${d.defeatedInPrimary ? ' <span class="muted">lost primary</span>' : ""}</td><td>${esc(d.party || "—")}</td><td class="num">${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</td><td class="num" title="${esc(baselineText(d))}">${d.modelBaseline ? marginText(d.modelBaseline.margin) : "—"}</td><td class="num"><b>${pct(d.modelD)}</b></td><td>${ratingPill(d.rating)}${d.flip ? ' <span class="thin">flip</span>' : ""}</td></tr>`;
+  document.getElementById(`${prefix}-table`).innerHTML = headRow + closest.map(rowFor).join("");
+  const allTable = document.getElementById(`${prefix}-table-all`);
+  if (allTable) allTable.innerHTML = headRow + [...chamber.districts].sort((a, b) => a.district - b.district).map(rowFor).join("");
+  if (kind === "house") renderGenericBallot(s.txLegislature);
+}
+function baselineText(d) {
+  const b = d.modelBaseline;
+  if (!b) return "";
+  return `2024 presidential ${marginText(b.presidential)}, swing ${b.swing >= 0 ? "+" : ""}${b.swing}, incumbency ${b.incumbency >= 0 ? "+" : ""}${b.incumbency}${b.incumbentRunning ? "" : " (open seat)"}`;
+}
+function renderGenericBallot(legislature) {
+  const table = document.getElementById("tx-generic-table");
+  if (!table) return;
+  const polls = legislature?.genericBallot?.polls || [];
+  const average = legislature?.genericBallot?.average;
+  if (!polls.length) { table.innerHTML = '<tr><td class="muted">No legislative generic-ballot polls found.</td></tr>'; return; }
+  const weightFor = (poll) => (average?.weights || []).find((w) => w.id === poll.id || (poll.alsoIds || []).includes(w.id));
+  table.innerHTML = `<tr><th>Pollster</th><th>Dates</th><th class="num">Sample</th><th class="num">D</th><th class="num">R</th><th class="num">Margin</th><th>538 grade</th><th class="num">Weight</th></tr>` +
+    polls.slice(0, 8).map((poll) => { const w = weightFor(poll); return `<tr><td>${esc(poll.pollster)}${poll.partisan ? ` <span class="muted">(${esc(poll.partisan)})</span>` : ""}</td><td>${esc(poll.startDate ? `${fmtDate(poll.startDate)}–${fmtDate(poll.endDate)}` : fmtDate(poll.endDate))}</td><td class="num">${poll.sampleSize ? poll.sampleSize.toLocaleString() : "—"}${poll.population ? ` ${esc(poll.population)}` : ""}</td><td class="num">${poll.dem}%</td><td class="num">${poll.rep}%</td><td class="num"><b>${marginText(poll.dem - poll.rep)}</b></td><td>${w?.grade ? esc(w.grade) : '<span class="muted">unrated</span>'}</td><td class="num muted">${w ? w.weight.toFixed(2) : "—"}</td></tr>`; }).join("") +
+    (average ? `<tr><td colspan="5"><b>Weighted average</b> (${average.pollCount} polls)</td><td class="num"><b>${marginText(average.margin)}</b></td><td colspan="2"></td></tr>` : "");
+}
+function renderChamberChart(kind, chamber) {
+  const model = chamber.model;
+  const container = document.getElementById(`tx-${kind}-chart`);
+  if (!container) return;
+  if (!model) { container.innerHTML = '<p class="note">Model unavailable (no environment polls).</p>'; return; }
+  const rows = model.histogram.filter((h) => h.probability >= 0.002);
+  const width = 760, height = 190, margin = { top: 14, right: 12, bottom: 32, left: 38 };
+  const svg = d3.select(container).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Probability of each Democratic seat count in the Texas ${kind}`);
+  const x = d3.scaleBand().domain(rows.map((r) => String(r.d))).range([margin.left, width - margin.right]).paddingInner(0.2);
+  const yMax = Math.max(0.05, d3.max(rows, (r) => r.probability) * 1.15);
+  const y = d3.scaleLinear().domain([0, yMax]).range([height - margin.bottom, margin.top]);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(3)).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (d) => y(d)).attr("y2", (d) => y(d));
+  const tickEvery = Math.max(1, Math.ceil(rows.length / 14));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x).tickSize(0).tickValues(x.domain().filter((_, i) => i % tickEvery === 0))).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(3).tickFormat((d) => `${Math.round(d * 100)}%`).tickSize(0)).select(".domain").remove();
+  svg.append("g").selectAll("rect").data(rows).join("rect").attr("class", "bar").attr("x", (r) => x(String(r.d))).attr("width", x.bandwidth()).attr("y", (r) => y(r.probability)).attr("height", (r) => y(0) - y(r.probability)).attr("rx", 2)
+    .attr("fill", (r) => (r.d >= model.majority ? cssVar("--d3") : cssVar("--r2")))
+    .on("mousemove", (event, r) => showTooltip(event, `<b>${r.d} Democratic seats</b><div class="row"><span>Probability</span><span>${pct(r.probability, 1)}</span></div>`)).on("mouseleave", hideTooltip);
+  const majorityIndex = rows.findIndex((r) => r.d === model.majority);
+  if (majorityIndex > 0) {
+    const xLine = x(String(rows[majorityIndex].d)) - (x.step() - x.bandwidth()) / 2;
+    const labelOnLeft = xLine > width * 0.6;
+    svg.append("line").attr("x1", xLine).attr("x2", xLine).attr("y1", margin.top).attr("y2", height - margin.bottom).attr("stroke", "#111").attr("stroke-dasharray", "3 3");
+    svg.append("text").attr("class", "label").attr("x", xLine + (labelOnLeft ? -4 : 4)).attr("y", margin.top + 10).attr("text-anchor", labelOnLeft ? "end" : "start").text(`${model.majority} seats: Democratic majority (${pct(model.control.D)})`);
+  } else if (majorityIndex === -1 && rows.length && rows[rows.length - 1].d < model.majority) {
+    svg.append("text").attr("class", "label").attr("x", width - margin.right).attr("y", margin.top + 10).attr("text-anchor", "end").text(`Majority line (${model.majority}) is off the chart; chance ${pct(model.control.D, 1)}`);
+  }
+  const notUpCount = model.notUp.D + model.notUp.R;
+  document.getElementById(`tx-${kind}-chart-title`).textContent = `Seat distribution: Democratic seats after the election, our model (expected ${model.expected.D.toFixed(1)}${notUpCount ? `; ${notUpCount} seats not up` : ""})`;
 }
 function ratingScoreOf(label) { const i = RATING_ORDER.indexOf(label); return i === -1 ? 9 : i - 4; }
 function districtTooltip(kind, number, d) {
   const head = `<b>${kind === "house" ? "House" : "Senate"} District ${number}</b>`;
   if (!d) return `${head}<br>${kind === "senate" ? "Not up for election in 2026" : "No data"}`;
-  return `${head}<hr><div class="row"><span>Incumbent</span><span>${esc(d.incumbent || "Open")}${d.retiring ? " (retiring)" : ""}</span></div><div class="row"><span>Held by</span><span>${esc(d.party || "—")}</span></div><div class="row"><span>2024 presidential</span><span>${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</span></div><div class="row"><span>Rating</span><span>${esc(d.rating || "not rated competitive")}${d.flip ? " (flip)" : ""}</span></div>`;
+  return `${head}<hr><div class="row"><span>Incumbent</span><span>${esc(d.incumbent || "Open")}${d.retiring ? " (retiring)" : ""}</span></div><div class="row"><span>Held by</span><span>${esc(d.party || "—")}</span></div><div class="row"><span>2024 presidential</span><span>${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</span></div>${d.modelD != null ? `<div class="row"><span><b>Our model, D wins</b></span><span><b>${pct(d.modelD)}</b></span></div><div class="row"><span>Model margin</span><span>${marginText(d.modelBaseline?.margin)}</span></div><div class="row"><span>${esc(baselineText(d))}</span></div>` : ""}<div class="row"><span>Rating</span><span>${esc(d.rating || "not rated competitive")}${d.flip ? " (flip)" : ""}</span></div>`;
 }
 
 // ---------- sources ----------
@@ -424,6 +488,28 @@ function renderSources(s) {
   document.getElementById("sources-list").innerHTML = items.map(([name, url, status]) => `<li><a href="${url}" rel="noopener">${esc(name)}</a>${status?.ok === false ? ` <span class="muted">— fetch failed this run (${esc(status.error || "")}); showing previous values</span>` : ""}</li>`).join("");
 }
 
+// ---------- zoom (maps) ----------
+function attachZoom(svg, containerId, { width, height }) {
+  const content = svg.select("g.zoom-root");
+  const zoom = d3.zoom().scaleExtent([1, 14]).translateExtent([[0, 0], [width, height]]).extent([[0, 0], [width, height]])
+    .filter((event) => {
+      if (event.type === "wheel") return event.ctrlKey || event.metaKey; // plain scrolling keeps scrolling the page
+      return !event.button;
+    })
+    .on("zoom", (event) => { content.attr("transform", event.transform); content.selectAll("path").attr("stroke-width", 0.8 / event.transform.k); content.selectAll("text").attr("font-size", 9 / Math.sqrt(event.transform.k)); });
+  svg.call(zoom);
+  const controls = document.querySelector(`.zoom-controls[data-zoom-for="${containerId}"]`);
+  if (controls) {
+    controls.querySelectorAll("[data-zoom]").forEach((button) => {
+      button.onclick = () => {
+        if (button.dataset.zoom === "in") svg.transition().duration(200).call(zoom.scaleBy, 1.8);
+        else if (button.dataset.zoom === "out") svg.transition().duration(200).call(zoom.scaleBy, 1 / 1.8);
+        else svg.transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+      };
+    });
+  }
+}
+
 // ---------- tooltip ----------
 const tooltip = document.getElementById("tooltip");
 function showTooltip(event, html) {
@@ -436,3 +522,16 @@ function showTooltip(event, html) {
   tooltip.style.left = `${Math.max(4, x)}px`; tooltip.style.top = `${Math.max(4, y)}px`;
 }
 function hideTooltip() { tooltip.hidden = true; }
+
+// ---------- tabs (hash-routed panels) ----------
+const PANELS = ["overview", "senate", "texas", "house", "tx-senate", "sources"];
+function showPanel(name, { push = true } = {}) {
+  const panel = PANELS.includes(name) ? name : "overview";
+  document.querySelectorAll(".panel").forEach((el) => el.classList.toggle("active", el.dataset.panel === panel));
+  document.querySelectorAll(".tabs a").forEach((a) => { const on = a.dataset.tab === panel; a.classList.toggle("active", on); a.setAttribute("aria-current", on ? "page" : "false"); });
+  if (push && location.hash !== `#${panel}`) history.replaceState(null, "", `#${panel}${location.search ? "" : ""}`);
+  hideTooltip();
+}
+document.querySelectorAll(".tabs a").forEach((a) => a.addEventListener("click", (event) => { event.preventDefault(); showPanel(a.dataset.tab); window.scrollTo({ top: Math.min(window.scrollY, document.querySelector(".tabs").offsetTop), behavior: "auto" }); }));
+window.addEventListener("hashchange", () => showPanel(location.hash.slice(1), { push: false }));
+showPanel(location.hash.slice(1) || "overview", { push: false });

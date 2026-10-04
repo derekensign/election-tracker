@@ -13,7 +13,7 @@ Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from 
 | U.S. Senate control | Current 47 D-caucus / 53 R; polls-model and market-derived Poisson-binomial seat distributions; Polymarket control odds; Kalshi Democratic-seat distribution (caucus-counted) |
 | U.S. Senate map | All 35 seats shaded by the average of ten forecasters (Cook, DDHQ, Economist, FiftyPlusOne, Fox, Inside Elections, RCP, Sabato, Silver Bulletin, Split Ticket); battleground table with polls, odds, and trends |
 | Texas statewide | Senate, Governor, Lt. Governor, AG, Comptroller, Railroad Commissioner, Land Commissioner, Agriculture Commissioner: polling average, latest poll, ratings, Kalshi and Polymarket odds (thin markets flagged), per-race poll lists and published aggregates |
-| Texas House / Senate | District maps (TLC plans H2316 / S2168) colored by State Navigate rating or party held, or by 2024 presidential margin; rated-district tables; Kalshi chamber odds |
+| Texas House / Senate | Our own seat model (fundamentals + statewide environment + incumbency, blended with State Navigate ratings), chamber seat distributions and control odds, zoomable district maps (TLC plans H2316 / S2168) colored by model probability, rating, or 2024 margin; the legislative generic-ballot poll table |
 
 ## Sources
 
@@ -34,6 +34,14 @@ The page header switches every win probability, the hero board, the seat distrib
 - **Prediction markets**. Polymarket first, then Kalshi, then the rating prior; thin markets (< $10k traded) are shown but not used as the primary number.
 
 `?model=markets` in the URL selects the market view; the choice is remembered in localStorage.
+
+## Texas Legislature model
+
+`ingest/legislature.js`. For every seat: margin = 2024 presidential margin + 0.75 × (statewide environment − Trump's 2024 margin of 13.67) + 3 points for an incumbent who is running again. The environment is a 60/40 blend of the legislative generic-ballot polling average (parsed from the Texas House Wikipedia page, 45-day half-life) and the mean of the down-ballot statewide race averages. Errors: a shared statewide Student-t (scale 4.5) integrated over a 21-point quantile grid, and an independent district Student-t (scale 6). Where State Navigate rates a seat, its implied probability is averaged with the fundamentals in log-odds (50/50). Control is P(Democratic seats ≥ majority). No district-level public polls exist yet. The Kalshi Texas House market is shown only for comparison.
+
+## Navigation
+
+Six hash-routed tabs (`#overview`, `#senate`, `#texas`, `#house`, `#tx-senate`, `#sources`). Maps pan by drag and zoom by pinch, double-click, Ctrl/⌘-scroll, or the +/− buttons.
 
 ## Method notes
 

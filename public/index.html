@@ -20,15 +20,30 @@
     </div>
     <div class="segmented-wrap"><span class="segmented-label">Probabilities from</span><span class="segmented" role="group" aria-label="Probability source"><button class="active" data-model="polls" title="Quality-weighted polling average with a Student-t error model">Polls model</button><button data-model="markets" title="Polymarket, then Kalshi">Prediction markets</button></span></div>
   </div>
-  <div class="board" id="board"></div>
 </header>
+<nav class="tabs wrap" aria-label="Sections">
+  <a href="#overview" data-tab="overview" class="active">Overview</a>
+  <a href="#senate" data-tab="senate">U.S. Senate</a>
+  <a href="#texas" data-tab="texas">Texas statewide</a>
+  <a href="#house" data-tab="house">Texas House</a>
+  <a href="#tx-senate" data-tab="tx-senate">Texas Senate</a>
+  <a href="#sources" data-tab="sources">Sources and method</a>
+</nav>
 
 <main class="wrap">
+<div class="panel active" data-panel="overview">
+  <div class="board" id="board"></div>
   <section id="big-moves" class="moves">
     <h2>What moved since the last update</h2>
     <ul id="moves-list" class="moves-list"></ul>
   </section>
 
+  <section id="overview-notes">
+    <p class="note">The board above and the "What moved" list are the daily read. Use the tabs for the full U.S. Senate map and battleground table, every Texas statewide race with its polls, and district-by-district views of the Texas House and Senate.</p>
+  </section>
+</div>
+
+<div class="panel" data-panel="senate">
   <section id="senate-control">
     <h2>U.S. Senate control</h2>
     <div class="figures" id="control-tiles"></div>
@@ -49,53 +64,81 @@
       <button class="mode" data-senate-map="probability">Win probability (selected model)</button>
     </div>
     <div class="legend rating-legend" id="rating-legend"></div>
-    <div id="senate-map" class="map"></div>
+    <div class="mode-row"><span class="zoom-controls" data-zoom-for="senate-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span></div>
+    <div id="senate-map" class="map zoomable" tabindex="0"></div>
     <h3>Battlegrounds</h3>
     <div class="table-scroll"><table id="senate-table" class="data"></table></div>
     <details><summary>All 35 seats</summary><div class="table-scroll"><table id="senate-table-all" class="data"></table></div></details>
   </section>
 
-  <section id="texas">
+</div>
+
+<div class="panel" data-panel="texas">
+  <section id="texas-statewide">
     <h2>Texas statewide</h2>
     <p class="note">Polls and forecaster ratings come first; prediction-market odds are a secondary signal and are flagged when the market is thin. Polling average: last 30 days (minimum three polls), weighted by recency (14-day half-life), sample size, and pollster quality (FiveThirtyEight numeric grade: A+ = 1.0× down to 0.35×, unrated 0.5×), partisan/internal polls halved.</p>
     <div class="table-scroll"><table id="texas-table" class="data"></table></div>
     <div id="texas-detail"></div>
   </section>
 
-  <section id="tx-house">
+</div>
+
+<div class="panel" data-panel="house">
+  <section id="tx-house-section">
     <h2>Texas House</h2>
     <div class="figures" id="tx-house-tiles"></div>
+    <div class="chart-head"><h3 id="tx-house-chart-title">Seat distribution: Democratic seats after the election, our model</h3></div>
+    <div id="tx-house-chart" class="chart chart-small"></div>
     <div class="mode-row">
       <span>Color by:</span>
-      <button class="mode active" data-chamber="house" data-mode="rating">Rating / party held</button>
+      <button class="mode active" data-chamber="house" data-mode="model">Model win probability</button>
+      <button class="mode" data-chamber="house" data-mode="rating">Rating / party held</button>
       <button class="mode" data-chamber="house" data-mode="margin">2024 presidential margin</button>
+      <span class="zoom-controls" data-zoom-for="tx-house-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span>
     </div>
     <div class="legend" id="tx-house-legend"></div>
-    <div id="tx-house-map" class="map"></div>
-    <h3>Rated districts</h3>
+    <div id="tx-house-map" class="map zoomable" tabindex="0"></div>
+    <p class="note hint">Drag to pan. Pinch, double-click, or hold Ctrl (⌘ on Mac) while scrolling to zoom. Hover or tap a district for its numbers.</p>
+    <h3>Legislative generic ballot</h3>
+    <div class="table-scroll"><table id="tx-generic-table" class="data"></table></div>
+    <h3>Closest districts</h3>
     <div class="table-scroll"><table id="tx-house-table" class="data"></table></div>
+    <details><summary>All 150 districts</summary><div class="table-scroll"><table id="tx-house-table-all" class="data"></table></div></details>
   </section>
 
-  <section id="tx-senate">
+</div>
+
+<div class="panel" data-panel="tx-senate">
+  <section id="tx-senate-section">
     <h2>Texas Senate</h2>
     <div class="figures" id="tx-senate-tiles"></div>
+    <div class="chart-head"><h3 id="tx-senate-chart-title">Seat distribution: Democratic seats after the election, our model</h3></div>
+    <div id="tx-senate-chart" class="chart chart-small"></div>
     <div class="mode-row">
       <span>Color by:</span>
-      <button class="mode active" data-chamber="senate" data-mode="rating">Rating / party held</button>
+      <button class="mode active" data-chamber="senate" data-mode="model">Model win probability</button>
+      <button class="mode" data-chamber="senate" data-mode="rating">Rating / party held</button>
       <button class="mode" data-chamber="senate" data-mode="margin">2024 presidential margin</button>
+      <span class="zoom-controls" data-zoom-for="tx-senate-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span>
     </div>
     <div class="legend" id="tx-senate-legend"></div>
-    <div id="tx-senate-map" class="map"></div>
+    <div id="tx-senate-map" class="map zoomable" tabindex="0"></div>
+    <p class="note hint">Drag to pan. Pinch, double-click, or hold Ctrl (⌘ on Mac) while scrolling to zoom. Hover or tap a district for its numbers.</p>
     <h3>Seats up in 2026</h3>
     <div class="table-scroll"><table id="tx-senate-table" class="data"></table></div>
   </section>
 
+</div>
+
+<div class="panel" data-panel="sources">
   <section id="sources">
     <h2>Sources and method</h2>
     <ul class="sources" id="sources-list"></ul>
     <p class="note"><b>Polls model.</b> Each race's quality-weighted polling average (D − R margin) is turned into a win probability with a Student-t error model (5 degrees of freedom, so misses of 2–3σ are not treated as freakish). σ = √(5.5² + (0.05 × days to election)² + 3²/effective polls): 5.5 points is roughly the historical root-mean-square error of final statewide polling averages, the time term adds ~1.5 points a month out, and the sparsity term widens thinly polled races. Pollster quality comes from FiveThirtyEight's pollster ratings (vendored copy, 2024 methodology); unrated pollsters get half weight. Races with no polls fall back to a forecaster-rating prior and say so.</p>
+<p class="note"><b>Texas Legislature model.</b> Every seat starts from its district's 2024 presidential margin, shifted by three-quarters of the statewide swing implied by today's environment (a 60/40 blend of the legislative generic-ballot polling average and the mean of the down-ballot statewide race averages, measured against Trump's 13.7-point 2024 margin), plus 3 points for an incumbent who is running again. Uncertainty has two parts: a shared statewide error (Student-t, scale 4.5) and an independent district error (scale 6). Where State Navigate rates a district, its implied probability is averaged with the fundamentals in log-odds. Chamber control is the probability that Democratic seats reach the majority line, integrating over the statewide error. No district-level public polls exist yet; if any appear on the race pages they will be folded in.</p>
 <p class="note"><b>Markets.</b> Polymarket first, then Kalshi; a market is marked thin below $10k traded and is not used as the primary number. <b>Seat distributions</b> are Poisson-binomial over the 35 races and assume independence, so both understate the chance of a uniform swing; the Kalshi seats market is shown alongside for comparison. Ratings tables, poll tables, and legislative district tables are read from Wikipedia (CC BY-SA 4.0), which cites each forecaster and pollster; polls also come from VoteHub's public feed. District boundaries: Texas Legislative Council plans H2316 and S2168. Not affiliated with any campaign, forecaster, or exchange.</p>
   </section>
+</div>
 </main>
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 <footer class="wrap foot"><a href="https://github.com/derekensign/election-tracker">Source code on GitHub</a>. Data refreshes every morning, Central time.</footer>

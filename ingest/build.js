@@ -12,6 +12,7 @@ import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
 import { ratePollster } from "./pollsters.js";
+import { estimateEnvironment, runChamberModel } from "./legislature.js";
 
 const ELECTION_DAY = "2026-11-03";
 import { detectChanges } from "./diff.js";
@@ -117,16 +118,26 @@ export async function build() {
   };
 
   // ---- Texas Legislature -----------------------------------------------------------------------------------
+  // Legislative generic ballot ("which party's candidate for the Texas House") lives on the House page.
+  const genericBallotPolls = wikiPages?.txHouse
+    ? sortPolls(dedupePolls(wikipedia.parseRacePolling(wikiPages.txHouse.wikitext, { democrat: "Democratic", republican: "Republican" }).polls))
+    : previous?.txLegislature?.genericBallot?.polls ?? [];
+  // The generic ballot is polled every few months, so it gets a slower decay and a wider window than candidate races.
+  const genericBallotAverage = pollingAverage(genericBallotPolls, { asOf, ratePollster, windowDays: 120, halfLifeDays: 45 });
+  const downBallotAverages = texasRaces.filter((r) => !["tx-senate", "tx-governor"].includes(r.id)).map((r) => r.pollingAverage);
+  const environment = estimateEnvironment({ genericBallotAverage, downBallotAverages });
+  const txLegislature = { genericBallot: { polls: genericBallotPolls.slice(0, 20), average: genericBallotAverage }, environment };
   const txHouse = buildChamber("house", wikiPages?.txHouse, previous?.txHouse, {
     control: kalshiData?.txHouseControl ?? (sources.kalshi.ok ? null : previous?.txHouse?.control?.kalshi ?? null),
     demSeats: kalshiData?.txHouseDemSeats ?? (sources.kalshi.ok ? null : previous?.txHouse?.demSeats ?? null),
+    environment,
   });
-  const txSenate = buildChamber("senate", wikiPages?.txSenate, previous?.txSenate, {});
+  const txSenate = buildChamber("senate", wikiPages?.txSenate, previous?.txSenate, { environment });
 
   const snapshot = {
     version: 1, generatedAt: generatedAt.toISOString(), asOf, sources,
     usSenate: { forecasters, races: senateRaces },
-    senateControl, texas, txHouse, txSenate,
+    senateControl, texas, txLegislature, txHouse, txSenate,
   };
   snapshot.changes = detectChanges(previous, snapshot);
   snapshot.previousAsOf = previous?.asOf ?? null;
@@ -295,7 +306,7 @@ function raceProbabilities(odds, consensusLabel, { allowPrior = true } = {}) {
   return { pD, pR: 1 - pD, pI: 0, probabilitySource: "rating prior" };
 }
 
-function buildChamber(kind, page, previousChamber, { control, demSeats }) {
+function buildChamber(kind, page, previousChamber, { control, demSeats, environment }) {
   const config = TEXAS_LEGISLATURE[kind];
   const parsed = page ? wikipedia.parseLegislativeChamber(page.wikitext) : null;
   const districts = parsed?.districts?.length ? parsed.districts : previousChamber?.districts ?? [];
@@ -309,6 +320,14 @@ function buildChamber(kind, page, previousChamber, { control, demSeats }) {
     else expectedD += district.party === "D" ? 1 : 0;
   }
   const notUpD = kind === "senate" ? config.current.D - districts.filter((d) => d.party === "D").length : 0;
+  const notUpR = kind === "senate" ? config.current.R - districts.filter((d) => d.party === "R").length : 0;
+  const model = runChamberModel({ districts, notUp: { D: Math.max(0, notUpD), R: Math.max(0, notUpR) }, majority: config.majority, environment });
+  const modelBySeat = new Map((model?.seats || []).map((seat) => [seat.district, seat]));
+  for (const district of districts) {
+    const seat = modelBySeat.get(district.district);
+    district.modelD = seat?.pD ?? null;
+    district.modelBaseline = seat?.baseline ?? null;
+  }
   return {
     seats: config.seats, majority: config.majority, current: config.current, upForElection,
     wikipediaUrl: page?.url ?? previousChamber?.wikipediaUrl ?? `https://en.wikipedia.org/wiki/${config.wikipedia}`,
@@ -318,6 +337,7 @@ function buildChamber(kind, page, previousChamber, { control, demSeats }) {
     summary: { ratingCounts, expectedD: Math.round((expectedD + Math.max(0, notUpD)) * 10) / 10, competitive: districts.filter((d) => d.rating && ratingScore(d.rating) !== null && Math.abs(ratingScore(d.rating)) <= 2).length },
     control: control ? { kalshi: control } : previousChamber?.control ?? null,
     demSeats: demSeats ?? null,
+    model: model ? { environment: model.environment, params: model.params, histogram: model.histogram, control: model.control, expected: model.expected, majority: model.majority, totalSeats: model.totalSeats, notUp: model.notUp } : null,
   };
 }
 
@@ -343,6 +363,9 @@ function buildSeries() {
       expectedD: s.senateControl?.derived?.expected?.D ?? null,
       pollModelExpectedD: s.senateControl?.pollModel?.expected?.D ?? null,
       txHouseExpectedD: s.txHouse?.summary?.expectedD ?? null,
+      txHouseModel: { control: s.txHouse?.model?.control?.D ?? null, expectedD: s.txHouse?.model?.expected?.D ?? null },
+      txSenateModel: { control: s.txSenate?.model?.control?.D ?? null, expectedD: s.txSenate?.model?.expected?.D ?? null },
+      txEnvironment: s.txLegislature?.environment?.margin ?? null,
       races,
     };
   });

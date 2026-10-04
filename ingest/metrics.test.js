@@ -114,3 +114,25 @@ test("quality weighting changes the average", () => {
   assert.ok(weighted.effectiveN < 3 && weighted.effectiveN > 1);
   assert.equal(weighted.weights.length, 3);
 });
+
+test("chamber model: environment blend and control probability behave", async () => {
+  const { estimateEnvironment, runChamberModel, seatBaseline } = await import("./legislature.js");
+  const env = estimateEnvironment({ genericBallotAverage: { margin: -4, pollCount: 3 }, downBallotAverages: [{ margin: -6 }, { margin: -2 }] });
+  assert.equal(env.margin, -4); // 0.6×(−4) + 0.4×(−4)
+  assert.equal(env.swingFrom2024, 9.7);
+  const districts = [
+    { district: 1, party: "R", presidentialMargin2024: -3, incumbent: "A" },
+    { district: 2, party: "R", presidentialMargin2024: -40, incumbent: "B" },
+    { district: 3, party: "D", presidentialMargin2024: 20, incumbent: "C", retiring: true },
+  ];
+  const base = seatBaseline(districts[0], env);
+  assert.equal(base.incumbency, -3);
+  const result = runChamberModel({ districts, notUp: { D: 0, R: 0 }, majority: 2, environment: env });
+  const byDistrict = Object.fromEntries(result.seats.map((s) => [s.district, s.pD]));
+  assert.ok(byDistrict[1] > 0.4 && byDistrict[1] < 0.8, `competitive seat ${byDistrict[1]}`);
+  assert.ok(byDistrict[2] < 0.05, "deep-red seat stays red");
+  assert.ok(byDistrict[3] > 0.95, "deep-blue open seat stays blue");
+  const total = result.histogram.reduce((s, h) => s + h.probability, 0);
+  assert.ok(Math.abs(total - 1) < 1e-6);
+  assert.ok(result.control.D > 0.4 && result.control.D < 0.8);
+});

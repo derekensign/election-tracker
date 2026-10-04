@@ -94,6 +94,17 @@ function compareLegislature(previous, current, key, label, changes) {
   if (b != null && a != null && Math.abs(a - b) * 100 >= THRESHOLDS.controlPoints) {
     changes.push({ type: "market", severity: 45, text: `${label} control: Kalshi D ${pct(b)} → ${pct(a)}` });
   }
+  const bm = previous[key]?.model?.expected?.D;
+  const am = current[key]?.model?.expected?.D;
+  if (bm != null && am != null && Math.abs(am - bm) >= 0.5) {
+    changes.push({ type: "poll-model", severity: 55, text: `${label}: model expected Democratic seats ${bm.toFixed(1)} → ${am.toFixed(1)}` });
+  }
+  for (const district of current[key]?.districts || []) {
+    const before = beforeDistricts.get(district.district);
+    if (before?.modelD != null && district.modelD != null && Math.abs(district.modelD - before.modelD) * 100 >= 10) {
+      changes.push({ type: "poll-model", severity: 35, raceId: `${key}-${district.district}`, text: `${label} District ${district.district}: model D win chance ${pct(before.modelD)} → ${pct(district.modelD)}` });
+    }
+  }
 }
 
 function compareControl(previous, current, changes) {
