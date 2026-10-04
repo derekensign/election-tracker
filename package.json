@@ -1,0 +1,20 @@
+{
+  "name": "election-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Daily tracker for the 2026 Texas statewide races, the Texas Legislature, and the U.S. Senate map: polls, forecaster ratings, prediction-market odds, and a seat-distribution forecast with day-over-day change detection.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build:data": "node ingest/build.js",
+    "build:geo": "node scripts/build-geo.mjs",
+    "test": "node --test ingest/",
+    "serve": "node scripts/serve.mjs"
+  },
+  "devDependencies": {
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3"
+  }
+}

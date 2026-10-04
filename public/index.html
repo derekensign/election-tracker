@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026 Race Tracker — Texas &amp; U.S. Senate</title>
+<meta name="description" content="Daily tracker for the 2026 Texas statewide races, Texas Legislature, and U.S. Senate: polls, forecaster ratings, prediction-market odds, and seat-distribution forecasts with day-over-day change detection.">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="masthead">
+  <div class="wrap">
+    <h1>2026 Race Tracker</h1>
+    <p class="subtitle">Texas statewide races · Texas Legislature · U.S. Senate map</p>
+    <p class="asof" id="asof">Loading…</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <section id="big-moves" class="card moves">
+    <h2>Big moves since last update</h2>
+    <ul id="moves-list" class="moves-list"></ul>
+  </section>
+
+  <section id="senate-control" class="card">
+    <h2>U.S. Senate control</h2>
+    <div class="tiles" id="control-tiles"></div>
+    <div class="chart-head">
+      <h3>Seat distribution — Democratic caucus seats after the election</h3>
+      <div class="legend" id="seat-legend"></div>
+    </div>
+    <div id="seat-chart" class="chart"></div>
+    <p class="note" id="seat-note"></p>
+  </section>
+
+  <section id="senate-map-section" class="card">
+    <h2>U.S. Senate map</h2>
+    <p class="note">Shaded by the average of ten public forecaster ratings (Cook, Decision Desk HQ, The Economist, FiftyPlusOne, Fox, Inside Elections, RealClearPolitics, Sabato, Silver Bulletin, Split Ticket). Hover a state for details. Seats not up in 2026 are left blank.</p>
+    <div class="legend rating-legend" id="rating-legend"></div>
+    <div id="senate-map" class="map"></div>
+    <h3>Battlegrounds</h3>
+    <div class="table-scroll"><table id="senate-table" class="data"></table></div>
+    <details><summary>All 35 seats</summary><div class="table-scroll"><table id="senate-table-all" class="data"></table></div></details>
+  </section>
+
+  <section id="texas" class="card">
+    <h2>Texas statewide</h2>
+    <p class="note">Polls and forecaster ratings come first; prediction-market odds are a secondary signal and are flagged when the market is thin. Polling average: recency-weighted (14-day half-life) over the last 30 days, minimum three polls, partisan/internal polls half-weighted.</p>
+    <div class="table-scroll"><table id="texas-table" class="data"></table></div>
+    <div id="texas-detail"></div>
+  </section>
+
+  <section id="tx-house" class="card">
+    <h2>Texas House</h2>
+    <div class="tiles" id="tx-house-tiles"></div>
+    <div class="mode-row">
+      <span>Color by:</span>
+      <button class="mode active" data-chamber="house" data-mode="rating">Rating / party held</button>
+      <button class="mode" data-chamber="house" data-mode="margin">2024 presidential margin</button>
+    </div>
+    <div class="legend" id="tx-house-legend"></div>
+    <div id="tx-house-map" class="map"></div>
+    <h3>Rated districts</h3>
+    <div class="table-scroll"><table id="tx-house-table" class="data"></table></div>
+  </section>
+
+  <section id="tx-senate" class="card">
+    <h2>Texas Senate</h2>
+    <div class="tiles" id="tx-senate-tiles"></div>
+    <div class="mode-row">
+      <span>Color by:</span>
+      <button class="mode active" data-chamber="senate" data-mode="rating">Rating / party held</button>
+      <button class="mode" data-chamber="senate" data-mode="margin">2024 presidential margin</button>
+    </div>
+    <div class="legend" id="tx-senate-legend"></div>
+    <div id="tx-senate-map" class="map"></div>
+    <h3>Seats up in 2026</h3>
+    <div class="table-scroll"><table id="tx-senate-table" class="data"></table></div>
+  </section>
+
+  <section id="sources" class="card">
+    <h2>Sources &amp; method</h2>
+    <ul class="sources" id="sources-list"></ul>
+    <p class="note">Ratings tables, poll tables, and legislative district tables are read from Wikipedia (CC BY-SA 4.0), which cites each forecaster and pollster. Polls also come from VoteHub's public feed. Odds come from the Polymarket and Kalshi public APIs; a market is marked thin below $10k traded. The seat distribution labelled "derived" is a Poisson-binomial over per-race win probabilities (Polymarket, then Kalshi, then a rating-based prior) that assumes races are independent, so it understates the chance of a uniform swing. District boundaries: Texas Legislative Council plans H2316 and S2168. Not affiliated with any campaign, forecaster, or exchange.</p>
+  </section>
+</main>
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+<footer class="wrap foot"><a href="https://github.com/derekensign/election-tracker">Source on GitHub</a> · Data refreshes every morning (Central time).</footer>
+</body>
+</html>

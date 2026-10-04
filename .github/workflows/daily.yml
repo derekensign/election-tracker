@@ -1,0 +1,36 @@
+name: Daily snapshot
+
+on:
+  schedule:
+    # 12:00 UTC = 7:00 am Central Daylight Time (6:00 am after the November time change).
+    - cron: "0 12 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build today's snapshot
+        run: node ingest/build.js
+      - name: Commit and push data
+        run: |
+          git config user.name "Derek Ensign"
+          git config user.email "derekensign@gmail.com"
+          git add public/data
+          if git diff --cached --quiet; then
+            echo "No data changes"
+            exit 0
+          fi
+          git commit -m "data: snapshot $(TZ=America/Chicago date +%F)"
+          git push

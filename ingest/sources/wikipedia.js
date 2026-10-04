@@ -1,0 +1,262 @@
+// Wikipedia (CC BY-SA 4.0) via the MediaWiki API: forecaster rating tables, poll tables, and legislative district tables.
+import { fetchJson } from "../http.js";
+import {
+  extractTables, findSection, parseDateRange, parsePartyShading, parsePercent, parsePviMargin,
+  parseRaceRating, parseTable, plainText, stripRefs,
+} from "../wikitext.js";
+
+const API = "https://en.wikipedia.org/w/api.php";
+
+export async function fetchWikitext(pageTitle) {
+  const data = await fetchJson(`${API}?action=parse&page=${encodeURIComponent(pageTitle)}&prop=wikitext|revid&format=json&formatversion=2`);
+  if (!data?.parse?.wikitext) throw new Error(`No wikitext for ${pageTitle}`);
+  return { title: data.parse.title, revisionId: data.parse.revid, wikitext: data.parse.wikitext, url: `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle)}` };
+}
+
+/**
+ * National Senate page, "Predictions" table: one row per seat, one column per forecaster.
+ * Returns { forecasters: [{ key, name, asOf }], races: { "Texas": { incumbentParty, pvi, ratings: { Cook: "Tossup", ... }, special } } }
+ */
+export function parseSenateRatingsTable(wikitext) {
+  const section = findSection(wikitext, /^Predictions$/i, { last: false });
+  if (!section) throw new Error("Senate page: Predictions section not found");
+  const table = extractTables(section.body)[0];
+  const rows = parseTable(table);
+  // Header: two rows; the second lists State, PVI, Senator, Last election, then forecasters.
+  const headerRow = rows.find((row) => row.length >= 10 && row.every((cell) => cell.header) && /State/i.test(row[0].text));
+  if (!headerRow) throw new Error("Senate page: header row not found");
+  const forecasters = headerRow.slice(4).map((cell) => parseForecasterHeader(cell.text));
+  const races = {};
+  for (const row of rows) {
+    if (row.some((cell) => cell.header && /^\s*\[\[2026 United States Senate (?:special )?election in/.test(cell.text))) {
+      const stateCell = row[0].text;
+      const stateName = plainText(stateCell).replace(/\s*\(special\)\s*/i, "").trim();
+      const special = /special/i.test(stateCell);
+      const incumbentParty = parsePartyShading(cellMarkup(row[2])) || parsePartyShading(cellMarkup(row[3]));
+      const pviMatch = (row[1]?.text || "").match(/Shading PVI\s*\|\s*([DR])\s*\|\s*([\d.]+)/i);
+      const pvi = pviMatch ? `${pviMatch[1].toUpperCase()}+${pviMatch[2]}` : (/EVEN/i.test(row[1]?.text || "") ? "EVEN" : null);
+      const incumbent = plainText(row[2]?.text || "");
+      const ratings = {};
+      row.slice(4).forEach((cell, index) => {
+        const rating = parseRaceRating(cell.text);
+        if (rating && forecasters[index]) ratings[forecasters[index].key] = rating.label;
+      });
+      races[stateName] = { special, incumbentParty, incumbent, pvi, ratings };
+    }
+  }
+  return { forecasters, races };
+}
+
+function parseForecasterHeader(text) {
+  const cleaned = stripRefs(text);
+  const nameMatch = cleaned.match(/\[\[(?:[^\]|]*\|)?([^\]]+)\]\]/);
+  const name = nameMatch ? nameMatch[1].trim() : plainText(cleaned).split(" ")[0];
+  const dateMatch = plainText(cleaned).match(/([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s*\d{4})/);
+  const key = canonicalForecaster(name);
+  return { key, name: FORECASTER_NAMES[key] || name, asOf: dateMatch ? normalizeDate(dateMatch[1]) : null };
+}
+
+const FORECASTER_NAMES = {
+  cook: "Cook Political Report", ddhq: "Decision Desk HQ", economist: "The Economist", fpo: "FiftyPlusOne",
+  fox: "Fox News", ie: "Inside Elections", rcp: "RealClearPolitics", sabato: "Sabato's Crystal Ball",
+  silver: "Silver Bulletin", st: "Split Ticket", cbs: "CBS News", statenavigate: "State Navigate",
+};
+
+export function canonicalForecaster(name) {
+  const n = name.toLowerCase();
+  if (/cook/.test(n)) return "cook";
+  if (/ddhq|decision desk/.test(n)) return "ddhq";
+  if (/econ/.test(n)) return "economist";
+  if (/fpo|fiftyplusone/.test(n)) return "fpo";
+  if (/fox/.test(n)) return "fox";
+  if (/^ie$|inside elections/.test(n)) return "ie";
+  if (/rcp|realclear/.test(n)) return "rcp";
+  if (/sabato/.test(n)) return "sabato";
+  if (/silver/.test(n)) return "silver";
+  if (/^st$|split ticket/.test(n)) return "st";
+  if (/cbs/.test(n)) return "cbs";
+  if (/state navigate/.test(n)) return "statenavigate";
+  return n.replace(/[^a-z0-9]+/g, "");
+}
+
+function normalizeDate(text) {
+  const parsed = parseDateRange(text);
+  return parsed ? parsed.end : null;
+}
+
+/**
+ * A race page's "Predictions" table (Source | Ranking | As of) -> { cook: { label, asOf }, ... }.
+ * Looks inside the General election section when present (primary pages have none).
+ */
+export function parseRacePredictions(wikitext) {
+  const general = findSection(wikitext, /^General election$/i, { last: false });
+  const section = findSection(wikitext, /^Predictions$/i, { afterIndex: general ? general.start : 0, last: false });
+  if (!section) return {};
+  const table = extractTables(section.body)[0];
+  if (!table) return {};
+  const ratings = {};
+  for (const row of parseTable(table)) {
+    if (row.length < 2 || row[0].header) continue;
+    const rating = parseRaceRating(row[1].text) || parseRaceRating(row.map((c) => c.text).join(" "));
+    if (!rating) continue;
+    const sourceName = plainText(row[0].text);
+    const asOfCell = row[2] ? plainText(row[2].text) : "";
+    ratings[canonicalForecaster(sourceName)] = { name: FORECASTER_NAMES[canonicalForecaster(sourceName)] || sourceName, label: rating.label, asOf: normalizeDate(asOfCell) };
+  }
+  return ratings;
+}
+
+/**
+ * The general-election "Polling" section of a race page.
+ * Returns { aggregates: [...], polls: [...] } with candidate columns mapped to D/R by candidate last names.
+ */
+export function parseRacePolling(wikitext, { democrat, republican }) {
+  const general = findSection(wikitext, /^General election$/i, { last: false });
+  const section = findSection(wikitext, /^Polling$/i, { afterIndex: general ? general.start : 0, last: true });
+  if (!section) return { aggregates: [], polls: [] };
+  const aggregates = [];
+  const polls = [];
+  const demLast = lastName(democrat);
+  const repLast = lastName(republican);
+  for (const table of extractTables(section.body)) {
+    const rows = parseTable(table);
+    const headerRow = rows.find((row) => row.filter((c) => c.header).length >= 4);
+    if (!headerRow) continue;
+    const headers = headerRow.map((cell) => plainText(cell.text).toLowerCase());
+    const demIndex = headers.findIndex((h) => h.includes(demLast));
+    const repIndex = headers.findIndex((h) => h.includes(repLast));
+    if (demIndex === -1 || repIndex === -1) continue; // e.g., hypothetical matchup tables
+    const dateIndex = headers.findIndex((h) => /date/.test(h));
+    const isAggregate = headers.some((h) => /aggregat|source of poll/.test(h));
+    const sampleIndex = headers.findIndex((h) => /sample/.test(h));
+    const moeIndex = headers.findIndex((h) => /margin.*error|moe/.test(h));
+    const undecidedIndex = headers.findIndex((h) => /undecided/.test(h));
+    for (const row of rows) {
+      if (row === headerRow || row.every((c) => c.header) || row.length < Math.max(demIndex, repIndex) + 1) continue;
+      const firstText = plainText(row[0].text);
+      if (/^average$/i.test(firstText) || !firstText) continue;
+      const dem = parsePercent(row[demIndex].text);
+      const rep = parsePercent(row[repIndex].text);
+      if (dem === null || rep === null) continue;
+      const dates = dateIndex >= 0 ? parseDateRange(row[dateIndex].text) : null;
+      const urlMatch = row[0].text.match(/\|\s*url\s*=\s*(\S+)/);
+      if (isAggregate) {
+        const updatedIndex = headers.findIndex((h) => /updated/.test(h));
+        aggregates.push({
+          source: firstText, dem, rep, margin: round1(dem - rep),
+          through: dates ? dates.end : null,
+          updated: updatedIndex >= 0 ? (parseDateRange(row[updatedIndex].text)?.end ?? null) : null,
+          url: urlMatch ? urlMatch[1] : null,
+        });
+        continue;
+      }
+      const sampleText = sampleIndex >= 0 ? plainText(row[sampleIndex].text) : "";
+      const sampleMatch = sampleText.match(/([\d,]+)\s*\(?\s*(LV|RV|A|V)?/i);
+      const partisanMatch = firstText.match(/\((R|D)\)\s*$/) || firstText.match(/\((R|D)\)/);
+      polls.push({
+        source: "wikipedia",
+        id: `wikipedia:${slug(firstText)}:${dates ? dates.end : "undated"}:${sampleText.replace(/\s+/g, "")}`,
+        pollster: firstText.replace(/\s*\((R|D)\)\s*/g, " ").replace(/\s+/g, " ").trim(),
+        sponsors: [],
+        startDate: dates ? dates.start : null,
+        endDate: dates ? dates.end : null,
+        sampleSize: sampleMatch ? Number(sampleMatch[1].replace(/,/g, "")) : null,
+        population: sampleMatch && sampleMatch[2] ? sampleMatch[2].toUpperCase() : null,
+        marginOfError: moeIndex >= 0 ? parsePercent(row[moeIndex].text) : null,
+        partisan: partisanMatch ? partisanMatch[1] : null,
+        internal: /internal/i.test(row[0].text),
+        dem, rep,
+        undecided: undecidedIndex >= 0 ? parsePercent(row[undecidedIndex].text) : null,
+        url: urlMatch ? urlMatch[1] : null,
+      });
+    }
+  }
+  return { aggregates, polls };
+}
+
+/**
+ * Legislative chamber page: "By district" table (every seat: incumbent, party, 2024 presidential margin)
+ * and "Competitive districts" table (State Navigate ratings). Returns { districts: [...], ratingSource }.
+ */
+export function parseLegislativeChamber(wikitext) {
+  const byDistrict = findSection(wikitext, /^By district$/i);
+  const districts = new Map();
+  if (byDistrict) {
+    const table = extractTables(byDistrict.body)[0];
+    for (const row of parseTable(table || "")) {
+      if (row.every((c) => c.header) || row.length < 4) continue;
+      const numberMatch = plainText(row[0].text).match(/(\d+)/);
+      if (!numberMatch) continue;
+      const district = Number(numberMatch[1]);
+      const incumbentText = plainText(row[2].text);
+      const party = parsePartyShading(cellMarkup(row[3])) || parsePartyFromLabel(row[4]?.text || "");
+      districts.set(district, {
+        district,
+        incumbent: incumbentText.replace(/[†‡]/g, "").trim() || null,
+        retiring: /†/.test(incumbentText),
+        defeatedInPrimary: /‡/.test(incumbentText),
+        party,
+        presidentialMargin2024: parsePviMargin(row[1].text),
+        rating: null,
+        ratingSource: null,
+        flip: false,
+      });
+    }
+  }
+  const competitive = findSection(wikitext, /^Competitive districts$/i);
+  let ratingSource = null;
+  if (competitive) {
+    const table = extractTables(competitive.body)[0];
+    const rows = parseTable(table || "");
+    const headerRow = rows.find((row) => row.some((c) => c.header));
+    const ratingHeader = headerRow ? headerRow[headerRow.length - 1] : null;
+    if (ratingHeader) {
+      const name = plainText(ratingHeader.text.replace(/\{\{Efn[\s\S]*?\}\}/gi, ""));
+      const asOf = name.match(/([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s*\d{4})/);
+      ratingSource = { name: name.replace(/\s*[A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s*\d{4}.*$/, "").trim() || "State Navigate", asOf: asOf ? normalizeDate(asOf[1]) : null };
+    }
+    for (const row of rows) {
+      if (row.every((c) => c.header) || row.length < 3) continue;
+      const numberMatch = plainText(row[0].text).match(/(\d+)/);
+      if (!numberMatch) continue;
+      const district = Number(numberMatch[1]);
+      const rating = parseRaceRating(row[row.length - 1].text);
+      const entry = districts.get(district) || { district, incumbent: plainText(row[1].text) || null, party: parsePartyShading(cellMarkup(row[1])), presidentialMargin2024: null };
+      if (rating) { entry.rating = rating.label; entry.flip = rating.flip; entry.ratingSource = ratingSource?.name || null; }
+      if (!entry.party) entry.party = parsePartyShading(cellMarkup(row[1]));
+      districts.set(district, entry);
+    }
+  }
+  const chamberPredictions = parseLegislativeChamberPredictions(wikitext);
+  return { districts: [...districts.values()].sort((a, b) => a.district - b.district), ratingSource, chamberPredictions };
+}
+
+function parseLegislativeChamberPredictions(wikitext) {
+  const predictions = findSection(wikitext, /^Predictions$/i, { last: false });
+  if (!predictions) return {};
+  const statewide = findSection(predictions.body, /^Statewide$/i, { last: false }) || { body: predictions.body };
+  const table = extractTables(statewide.body)[0];
+  if (!table) return {};
+  const out = {};
+  for (const row of parseTable(table)) {
+    if (row.every((c) => c.header) || row.length < 2) continue;
+    const rating = parseRaceRating(row[1].text);
+    if (!rating) continue;
+    const name = plainText(row[0].text);
+    out[canonicalForecaster(name)] = { name, label: rating.label, asOf: row[2] ? normalizeDate(plainText(row[2].text)) : null };
+  }
+  return out;
+}
+
+function parsePartyFromLabel(text) {
+  const t = plainText(text).toLowerCase();
+  if (/^dem/.test(t)) return "D";
+  if (/^rep/.test(t)) return "R";
+  if (/^ind/.test(t)) return "I";
+  return null;
+}
+
+function lastName(fullName) { return fullName.trim().split(/\s+/).pop().toLowerCase(); }
+function cellMarkup(cell) { return cell ? `${cell.attributes || ""} ${cell.text || ""}` : ""; }
+function slug(text) { return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+function round1(value) { return Math.round(value * 10) / 10; }
