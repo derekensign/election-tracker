@@ -1,13 +1,13 @@
-Texas Polls Tracker, Sunday, October 4, 2026
+Texas Polls Tracker, Monday, October 5, 2026
 
-Talarico 70% to win the Senate seat on a polling average of D+3.3. Hinojosa 38% for governor. Democrats 75% to control the U.S. Senate, 85% for the House, 2% for the Texas House.
+Talarico 70% to win the Senate seat on a polling average of D+3.2. Hinojosa 37% for governor. Democrats 75% to control the U.S. Senate, 85% for the House, 2% for the Texas House.
 
 WHAT MOVED
-- First snapshot; movement tracking starts tomorrow.
+- Nothing crossed the alert thresholds since the last snapshot.
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 70%. Average D+3.3 over 20 polls; latest New York Times/Siena University Sep 30 D+6.0.
-- Governor: Hinojosa 38%. Average R+1.9 over 16 polls; latest The New York Times/Siena University Sep 30 D+3.0.
+- U.S. Senate: Talarico 70%. Average D+3.2 over 18 polls; latest New York Times/Siena University Sep 30 D+6.0.
+- Governor: Hinojosa 37%. Average R+2.1 over 14 polls; latest The New York Times/Siena University Sep 30 D+3.0.
 - Lieutenant Governor: Goodwin 29%. Average R+3.5 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
 - Attorney General: Johnson 28%. Average R+3.6 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
 - Comptroller: Eckhardt 19%. Average R+5.7 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
@@ -22,16 +22,16 @@ TEXAS LEGISLATURE
 
 U.S. SENATE
 - Control: 75% for Democrats. Expected 51.6 Democratic-caucus seats; 51 needed.
-- Closest races: AK 51% D (average D+0.1, 3 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); ME 59% D (average D+1.4, 8 polls); MN 60% D (average D+1.6, 3 polls); KS 62% D (average D+2.0, 3 polls); TX 66% D (average D+2.5, 7 polls); MI 68% D (average D+2.9, 9 polls); IA 70% D (average D+3.3, 5 polls); ID 28% D (average R+4.0, 1 polls); OH 74% D (average D+4.1, 6 polls); FL 25% D (average R+4.2, 6 polls).
+- Closest races: AK 51% D (average D+0.1, 3 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); ME 59% D (average D+1.4, 8 polls); MN 60% D (average D+1.6, 3 polls); KS 62% D (average D+2.0, 3 polls); TX 65% D (average D+2.4, 6 polls); MI 68% D (average D+2.9, 9 polls); IA 70% D (average D+3.3, 5 polls); ID 28% D (average R+4.0, 1 polls); OH 74% D (average D+4.1, 6 polls); FL 25% D (average R+4.2, 6 polls).
 
 U.S. HOUSE
 - Control: 85% for Democrats (expected 231.7 seats, 218 needed). Generic ballot D+7.0 over 5 polls.
 - Texas seats in play: TX-15 37% D (Tilt R, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
-- Texas voter registration deadline: Monday, October 5, 2026 (tomorrow).
-- Texas early voting begins: Monday, October 19, 2026 (in 15 days).
-- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 19 days).
-- Texas early voting ends: Friday, October 30, 2026 (in 26 days).
+- Texas voter registration deadline: Monday, October 5, 2026 (today).
+- Texas early voting begins: Monday, October 19, 2026 (in 14 days).
+- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 18 days).
+- Texas early voting ends: Friday, October 30, 2026 (in 25 days).
 
 https://texas-race-tracker.vercel.app
