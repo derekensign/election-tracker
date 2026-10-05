@@ -3,7 +3,10 @@ name: Daily snapshot
 on:
   schedule:
     # 12:00 UTC = 7:00 am Central Daylight Time (6:00 am after the November time change).
+    # GitHub may delay or skip a scheduled run under load, so a second attempt follows at 13:30 UTC;
+    # the build is idempotent (same-day runs overwrite the day's snapshot).
     - cron: "0 12 * * *"
+    - cron: "30 13 * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -23,6 +26,12 @@ jobs:
           node-version: 22
       - name: Build today's snapshot
         run: node ingest/build.js
+      - name: Confirm the snapshot is for today (Central time)
+        run: |
+          today=$(TZ=America/Chicago date +%F)
+          actual=$(node -e 'console.log(require("./public/data/latest.json").asOf)')
+          echo "snapshot asOf=$actual today=$today"
+          test "$actual" = "$today"
       - name: Commit and push data
         run: |
           git config user.name "Derek Ensign"
