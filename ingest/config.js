@@ -17,38 +17,6 @@ export const SENATE_STATES = {
 /** Senators NOT up in 2026, by caucus. 47 D-caucus (45 D + Sanders + King) and 53 R today. */
 export const SENATE_SEATS_NOT_UP = { democraticCaucus: 34, republican: 31 };
 
-/**
- * Prediction-market identifiers for the Senate races that have liquid markets.
- * Polymarket: event slug. Kalshi: series ticker. `candidates` is only needed where market titles omit party letters.
- * Missing entries simply yield no market odds.
- */
-export const SENATE_MARKETS = {
-  AK: { polymarket: "alaska-senate-election-winner", kalshi: "KXAKSENATE", candidates: { D: "Mary Peltola", R: "Dan Sullivan" } },
-  FL: { polymarket: "florida-senate-election-winner", kalshi: "SENATEPARTY-FL" },
-  GA: { polymarket: "georgia-senate-election-winner", kalshi: null },
-  IA: { polymarket: "iowa-senate-election-winner", kalshi: "SENATEIA" },
-  KS: { polymarket: "kansas-senate-election-winner", kalshi: null },
-  ME: { polymarket: "maine-senate-election-winner", kalshi: "SENATEME" },
-  MI: { polymarket: "michigan-senate-election-winner", kalshi: "SENATEPARTY-MI" },
-  MN: { polymarket: "minnesota-senate-election-winner", kalshi: "SENATEPARTYMN" },
-  NE: { polymarket: "nebraska-senate-election-winner", kalshi: "SENATEPARTY-NE", candidates: { R: "Pete Ricketts", I: "Dan Osborn" } },
-  NH: { polymarket: "new-hampshire-senate-election-winner", kalshi: "SENATENH" },
-  NC: { polymarket: "north-carolina-senate-election-winner", kalshi: null },
-  OH: { polymarket: "ohio-senate-election-winner", kalshi: "SENATEOH" },
-  SC: { polymarket: "south-carolina-senate-election-winner", kalshi: null },
-  TN: { polymarket: "tennessee-senate-election-winner", kalshi: "SENATEPARTYTN" },
-  TX: { polymarket: "texas-senate-election-winner", kalshi: "SENATETX" },
-  MT: { polymarket: null, kalshi: "SENATEMT" },
-};
-
-/** Chamber-level markets. */
-export const CONTROL_MARKETS = {
-  usSenate: { polymarket: "which-party-will-win-the-senate-in-2026", kalshiSeatsEvent: "KXDSENATESEATS-27" },
-  usHouse: { polymarket: "which-party-will-win-the-house-in-2026" },
-  txHouse: { kalshi: "KXTXHOUSE", kalshiSeatsSeries: "KXTXHOUSEDEMSEATS" },
-  txStatewideDemWins: { kalshiSeries: "KXTXSTATEWIDEDEMS" },
-};
-
 /** Texas statewide races. `votehubType` is the VoteHub poll_type; null means VoteHub has no feed. */
 export const TEXAS_STATEWIDE_RACES = [
   {
@@ -56,60 +24,52 @@ export const TEXAS_STATEWIDE_RACES = [
     democrat: "James Talarico", republican: "Ken Paxton",
     wikipedia: "2026_United_States_Senate_election_in_Texas",
     votehubType: "us-senator",
-    polymarket: "texas-senate-election-winner", kalshi: "SENATETX",
   },
   {
     id: "tx-governor", office: "Governor",
     democrat: "Gina Hinojosa", republican: "Greg Abbott",
     wikipedia: "2026_Texas_gubernatorial_election",
     votehubType: "governor",
-    polymarket: "texas-governor-winner-2026", kalshi: "GOVPARTYTX",
   },
   {
     id: "tx-ltgov", office: "Lieutenant Governor",
     democrat: "Vikki Goodwin", republican: "Dan Patrick",
     wikipedia: "2026_Texas_lieutenant_gubernatorial_election",
     votehubType: null,
-    polymarket: "texas-lieutenant-governor-election-winner-2026", kalshi: "KXLTGOVTX",
   },
   {
     id: "tx-ag", office: "Attorney General",
     democrat: "Nathan Johnson", republican: "Mayes Middleton",
     wikipedia: "2026_Texas_Attorney_General_election",
     votehubType: "attorney-general",
-    polymarket: "texas-attorney-general-election-winner-2026", kalshi: "KXATTYGENTX",
   },
   {
     id: "tx-comptroller", office: "Comptroller",
     democrat: "Sarah Eckhardt", republican: "Don Huffines",
     wikipedia: "2026_Texas_Comptroller_of_Public_Accounts_election",
     votehubType: null,
-    polymarket: null, kalshi: "KXTXCOMPTROLLER",
   },
   {
     id: "tx-railroad", office: "Railroad Commissioner",
     democrat: "Jon Rosenthal", republican: "Bo French",
     wikipedia: "2026_Texas_Railroad_Commissioner_election",
     votehubType: null,
-    polymarket: "texas-railroad-commissioner-election-winner-2026", kalshi: "KXTXRAILROAD",
   },
   {
     id: "tx-land", office: "Land Commissioner",
     democrat: "Ben Flores", republican: "Dawn Buckingham",
     wikipedia: "2026_Texas_Land_Commissioner_election",
     votehubType: null,
-    polymarket: null, kalshi: "KXTXGLO",
   },
   {
     id: "tx-agriculture", office: "Agriculture Commissioner",
     democrat: "Clayton Tucker", republican: "Nate Sheets",
     wikipedia: "2026_Texas_Commissioner_of_Agriculture_election",
     votehubType: null,
-    polymarket: null, kalshi: "KXTXAGCOM",
   },
 ];
 
-/** Governors: the 36 states voting in 2026; Kalshi GOVPARTY series carry party-level odds for every one. */
+/** Governors: the 36 states voting in 2026. */
 export const GOVERNOR_STATES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado", CT: "Connecticut",
   FL: "Florida", GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IA: "Iowa", KS: "Kansas", ME: "Maine",
@@ -118,7 +78,6 @@ export const GOVERNOR_STATES = {
   SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas", VT: "Vermont", WI: "Wisconsin", WY: "Wyoming",
 };
 export const GOVERNORS_WIKIPEDIA_PAGE = "2026_United_States_gubernatorial_elections";
-export const GOVERNOR_KALSHI_SERIES = (state) => (state === "NH" ? "GOVPARTY-NH" : `GOVPARTY${state}`);
 
 export const US_HOUSE = {
   wikipedia: "2026_United_States_House_of_Representatives_elections",
@@ -127,16 +86,14 @@ export const US_HOUSE = {
   seats: 435, majority: 218,
   // Fallback if the infobox cannot be parsed: 218 R, 214 D, 3 vacancies (October 2026).
   compositionFallback: { R: 218, D: 214 },
-  kalshiSeatsSeries: "KXDHOUSEWON",
   texasDistricts: 38,
 };
 
-/** Texas judicial and State Board of Education races (no public polling; Kalshi has thin markets for two Supreme Court seats). */
+/** Texas judicial and State Board of Education races (no public polling). */
 export const TEXAS_COURTS = {
   supremeCourtPage: "2026_Texas_Supreme_Court_election",
   sboePage: "2026_Texas_State_Board_of_Education_election",
   electionsPage: "2026_Texas_elections",
-  kalshi: { "Chief Justice": "KXTXSUPREMECHIEF", "Place 2": "KXTXSUPREME2" },
 };
 
 export const TEXAS_LEGISLATURE = {
@@ -153,8 +110,5 @@ export const RATING_SCALE = {
 
 /** Rough win probability implied by a rating, used only where no market or model number exists. */
 export const RATING_PRIOR_D_WIN = { 4: 0.985, 3: 0.9, 2: 0.75, 1: 0.6, 0: 0.5, "-1": 0.4, "-2": 0.25, "-3": 0.1, "-4": 0.015 };
-
-/** Prediction markets below this traded volume (USD) are flagged as thin. */
-export const THIN_MARKET_VOLUME_USD = 10_000;
 
 export const USER_AGENT = "election-tracker/0.1 (https://github.com/derekensign/election-tracker; derekensign@gmail.com)";

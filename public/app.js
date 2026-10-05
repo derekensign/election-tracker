@@ -6,7 +6,6 @@
   ]);
   const previousDay = series.length >= 2 ? series[series.length - 2] : null;
   SNAPSHOT = snapshot; PREVIOUS_DAY = previousDay; US_TOPO = usTopo;
-  setModel(MODEL);
 
   renderHeader(snapshot);
   renderMoves(snapshot);
@@ -32,33 +31,16 @@
   console.error(error);
 });
 
-// ---------- model toggle (polls vs markets) ----------
-const modelParam = new URLSearchParams(location.search).get("model");
-let MODEL = (modelParam || localStorage.getItem("model")) === "markets" ? "markets" : "polls";
+// ---------- probabilities (polls model only) ----------
 let SNAPSHOT = null, PREVIOUS_DAY = null, US_TOPO = null;
 let SENATE_MAP_MODE = "rating";
-/** Selected-model Democratic win probability for a race, with its label. */
+/** Democratic win probability for a race from the polls model (or the rating prior when a race has no polls). */
 function raceProbability(race) {
-  if (MODEL === "polls") {
-    if (race.pollModel?.pD != null) return { p: race.pollModel.pD, source: race.pollModel.source === "polls" ? "polls" : "rating prior", detail: race.pollModel.source === "polls" ? `σ ${race.pollModel.sigma} · ${race.pollModel.effectiveN} eff. polls` : "no polls" };
-    return { p: null, source: null, detail: "no polls" };
-  }
-  if (race.pD != null) return { p: race.pD, source: race.probabilitySource, detail: race.probabilitySource };
-  return { p: null, source: null, detail: "no market" };
+  if (race.pollModel?.pD != null) return { p: race.pollModel.pD, source: race.pollModel.source === "polls" ? "polls" : "rating prior", detail: race.pollModel.source === "polls" ? `σ ${race.pollModel.sigma} · ${race.pollModel.effectiveN} eff. polls` : "no polls" };
+  return { p: null, source: null, detail: "no polls" };
 }
-function previousRaceProbability(prev, raceId) {
-  const p = prev?.races?.[raceId];
-  if (!p) return null;
-  return MODEL === "polls" ? p.pollModel : (p.pm ?? p.ks);
-}
-function modelName() { return MODEL === "polls" ? "polls model" : "markets"; }
-function setModel(model) {
-  MODEL = model; localStorage.setItem("model", model);
-  document.querySelectorAll("[data-model]").forEach((b) => b.classList.toggle("active", b.dataset.model === model));
-  if (!SNAPSHOT) return;
-  renderBoard(SNAPSHOT, PREVIOUS_DAY); renderControl(SNAPSHOT, PREVIOUS_DAY); renderSeatChart(SNAPSHOT); renderSenateMap(SNAPSHOT, US_TOPO, PREVIOUS_DAY); renderSenateTables(SNAPSHOT, PREVIOUS_DAY); renderTexas(SNAPSHOT, PREVIOUS_DAY); renderControlStrip(SNAPSHOT, PREVIOUS_DAY); renderGovernors(SNAPSHOT, US_TOPO, PREVIOUS_DAY);
-}
-document.querySelectorAll("[data-model]").forEach((b) => b.addEventListener("click", () => setModel(b.dataset.model)));
+function previousRaceProbability(prev, raceId) { return prev?.races?.[raceId]?.pollModel ?? null; }
+function modelName() { return "polls model"; }
 document.querySelectorAll("button.mode[data-senate-map]").forEach((b) => b.addEventListener("click", () => {
   SENATE_MAP_MODE = b.dataset.senateMap;
   document.querySelectorAll("button.mode[data-senate-map]").forEach((x) => x.classList.toggle("active", x === b));
@@ -114,13 +96,12 @@ function renderBoard(s, prev) {
     const race = s.texas.races.find((r) => r.id === id);
     if (!race) continue;
     const sel = raceProbability(race);
-    const other = MODEL === "polls" ? { label: "markets", p: race.pD } : { label: "polls model", p: race.pollModel?.pD };
     const prevP = previousRaceProbability(prev, race.id);
     leads.push(`<div class="lead">
       <p class="race"><b>Texas ${esc(race.office === "U.S. Senate" ? "U.S. Senate" : race.office)}</b>, ${esc(lastName(race.democrat))} (D) against ${esc(lastName(race.republican))} (R)</p>
       <div class="big">${pct(sel.p)}<small>chance ${esc(lastName(race.democrat))} wins</small>${delta(sel.p, prevP)}</div>
       ${splitBar(sel.p)}
-      <p class="sub">Polling average <b>${marginText(race.pollingAverage?.margin)}</b> across ${race.pollingAverage?.pollCount ?? 0} polls. ${other.p != null ? `The ${other.label} say <b>${pct(other.p)}</b>.` : ""}</p>
+      <p class="sub">Polling average <b>${marginText(race.pollingAverage?.margin)}</b> across ${race.pollingAverage?.pollCount ?? 0} polls${race.polls?.[0] ? `; latest ${esc(race.polls[0].pollster)} ${marginText(race.polls[0].dem - race.polls[0].rep)}` : ""}.</p>
     </div>`);
   }
   document.getElementById("board").innerHTML = leads.join("");
@@ -130,16 +111,12 @@ function renderBoard(s, prev) {
 /** Chamber-control strip under the board: U.S. Senate, U.S. House, Texas House, Texas Senate. */
 function renderControlStrip(s, prev) {
   const c = s.senateControl;
-  const senateControl = MODEL === "polls" ? c.pollModel?.control?.D : c.derived?.control?.D;
-  const senateExpected = MODEL === "polls" ? c.pollModel?.expected : c.derived?.expected;
-  const prevSenate = MODEL === "polls" ? prev?.control?.pollModel : prev?.control?.derived;
   const h = s.usHouse;
-  const houseControl = MODEL === "polls" ? h?.model?.control?.D : h?.markets?.polymarket?.D;
   const items = [
-    { k: "U.S. Senate, Democratic control", v: pct(senateControl) + delta(senateControl, prevSenate), s: `${c.current.democraticCaucus} D to ${c.current.republican} R today; expected ${senateExpected ? senateExpected.D.toFixed(1) : "—"} D seats, 51 needed. ${MODEL === "polls" ? `Markets ${pct(c.polymarket?.D)}.` : `Polls model ${pct(c.pollModel?.control?.D)}.`}` },
-    { k: "U.S. House, Democratic control", v: pct(houseControl) + delta(houseControl, MODEL === "polls" ? prev?.usHouse?.control : prev?.usHouse?.polymarket), s: h ? `${h.composition.R} R to ${h.composition.D} D today; ${MODEL === "polls" ? `our model expects ${h.model.expected.D.toFixed(1)} D seats, 218 needed. Polymarket ${pct(h.markets?.polymarket?.D)}.` : `Polymarket; our model ${pct(h.model.control.D)}.`}` : "unavailable" },
-    { k: "Texas House, Democratic control", v: pct(s.txHouse.model?.control?.D) + delta(s.txHouse.model?.control?.D, prev?.txHouseModel?.control), s: `${s.txHouse.current.D} D to ${s.txHouse.current.R} R today; our model expects ${s.txHouse.model ? s.txHouse.model.expected.D.toFixed(1) : "—"} D seats, 76 needed.` },
-    { k: "Texas Senate, Democratic control", v: pct(s.txSenate.model?.control?.D) + delta(s.txSenate.model?.control?.D, prev?.txSenateModel?.control), s: `${s.txSenate.current.D} D to ${s.txSenate.current.R} R today; our model expects ${s.txSenate.model ? s.txSenate.model.expected.D.toFixed(1) : "—"} D seats, 16 needed.` },
+    { k: "U.S. Senate, Democratic control", v: pct(c.pollModel?.control?.D) + delta(c.pollModel?.control?.D, prev?.control?.pollModel), s: `${c.current.democraticCaucus} D to ${c.current.republican} R today; expected ${c.pollModel ? c.pollModel.expected.D.toFixed(1) : "—"} D seats, 51 needed.` },
+    { k: "U.S. House, Democratic control", v: pct(h?.model?.control?.D) + delta(h?.model?.control?.D, prev?.usHouse?.control), s: h ? `${h.composition.R} R to ${h.composition.D} D today; expected ${h.model.expected.D.toFixed(1)} D seats, 218 needed. Generic ballot ${marginText(h.genericBallot?.average?.margin)}.` : "unavailable" },
+    { k: "Texas House, Democratic control", v: pct(s.txHouse.model?.control?.D) + delta(s.txHouse.model?.control?.D, prev?.txHouseModel?.control), s: `${s.txHouse.current.D} D to ${s.txHouse.current.R} R today; expected ${s.txHouse.model ? s.txHouse.model.expected.D.toFixed(1) : "—"} D seats, 76 needed.` },
+    { k: "Texas Senate, Democratic control", v: pct(s.txSenate.model?.control?.D) + delta(s.txSenate.model?.control?.D, prev?.txSenateModel?.control), s: `${s.txSenate.current.D} D to ${s.txSenate.current.R} R today; expected ${s.txSenate.model ? s.txSenate.model.expected.D.toFixed(1) : "—"} D seats, 16 needed.` },
   ];
   document.getElementById("control-strip").innerHTML = items.map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 }
@@ -160,75 +137,19 @@ function labelForType(type) { return { rating: "Rating", market: "Market", poll:
 function renderControl(s, prev) {
   const c = s.senateControl;
   const pm = c.pollModel;
-  const expectedText = (d) => `expected ${d.expected.D.toFixed(1)} D, ${d.expected.R.toFixed(1)} R${d.expected.other >= 0.05 ? `, ${d.expected.other.toFixed(1)} other` : ""}`;
-  const pollsTile = { k: "Polls model, Democratic control", v: pct(pm?.control?.D) + delta(pm?.control?.D, prev?.control?.pollModel), s: pm ? expectedText(pm) : "unavailable", primary: MODEL === "polls" };
-  const marketTile = { k: "Market race odds, Democratic control", v: pct(c.derived?.control?.D) + delta(c.derived?.control?.D, prev?.control?.derived), s: expectedText(c.derived), primary: MODEL === "markets" };
   const tiles = [
     { k: "Today", v: `${c.current.democraticCaucus} D, ${c.current.republican} R`, s: "Democratic caucus includes independents Sanders and King" },
-    ...(MODEL === "polls" ? [pollsTile, marketTile] : [marketTile, pollsTile]),
-    { k: "Polymarket, Democratic control", v: pct(c.polymarket?.D) + delta(c.polymarket?.D, prev?.control?.polymarket), s: c.polymarket ? `$${compact(c.polymarket.volumeUsd)} traded` : "unavailable" },
-    { k: "Kalshi seats market, 51 or more D seats", v: pct(c.kalshiSeats?.controlD) + delta(c.kalshiSeats?.controlD, prev?.control?.kalshi), s: c.kalshiSeats ? `${compact(c.kalshiSeats.volumeContracts)} contracts traded` : "unavailable" },
-    { k: "U.S. House, Democratic control (Polymarket)", v: pct(c.usHousePolymarket?.D), s: "for context" },
+    { k: "Democratic control", v: pct(pm?.control?.D) + delta(pm?.control?.D, prev?.control?.pollModel), s: pm ? `expected ${pm.expected.D.toFixed(1)} D, ${pm.expected.R.toFixed(1)} R${pm.expected.other >= 0.05 ? `, ${pm.expected.other.toFixed(1)} other` : ""}; 51 needed` : "unavailable", primary: true },
+    { k: "Republican control", v: pct(pm?.control?.R), s: "50 seats with the Vice President's tiebreak, or more" },
+    { k: "No majority for either side", v: pct(pm?.control?.none), s: "an independent holds the balance" },
   ];
   document.getElementById("control-tiles").innerHTML = tiles.map((t) => `<div class="figure${t.primary ? " primary" : ""}"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 }
 
 function renderSeatChart(s) {
   const c = s.senateControl;
-  const selected = MODEL === "polls" && c.pollModel ? c.pollModel : c.derived;
-  const derived = new Map(selected.histogram.map((h) => [h.d, h.probability]));
-  const market = new Map();
-  for (const bucket of c.kalshiSeats?.buckets || []) {
-    const key = bucket.key.startsWith("<") ? `<${bucket.key.slice(1)}` : bucket.key.startsWith(">") ? `>${bucket.key.slice(1)}` : Number(bucket.key);
-    market.set(key, bucket.normalized);
-  }
-  const marketKeys = [...market.keys()];
-  const lowBound = marketKeys.find((k) => typeof k === "string" && k.startsWith("<"));
-  const highBound = marketKeys.find((k) => typeof k === "string" && k.startsWith(">"));
-  const lo = lowBound ? Number(lowBound.slice(1)) : 44;
-  const hi = highBound ? Number(highBound.slice(1)) : 58;
-  const categories = [];
-  if (lowBound) categories.push({ key: lowBound, label: `<${lo}` });
-  for (let d = lo; d <= hi; d += 1) categories.push({ key: d, label: String(d) });
-  if (highBound) categories.push({ key: highBound, label: `>${hi}` });
-  const derivedFor = (cat) => {
-    if (typeof cat.key === "string" && cat.key.startsWith("<")) return sum([...derived].filter(([d]) => d < lo).map(([, p]) => p));
-    if (typeof cat.key === "string" && cat.key.startsWith(">")) return sum([...derived].filter(([d]) => d > hi).map(([, p]) => p));
-    return derived.get(cat.key) || 0;
-  };
-  const rows = categories.map((cat) => ({ ...cat, market: market.get(cat.key) ?? null, derived: derivedFor(cat) }));
-  const seriesDefs = [{ id: "market", name: "Kalshi seats market", color: "#5b5b5b" }, { id: "derived", name: MODEL === "polls" ? "Polls model" : "Derived from market race odds", color: cssVar("--d3") }];
-  document.getElementById("seat-chart-title").textContent = `Seat distribution: Democratic caucus seats after the election, ${MODEL === "polls" ? "polls model" : "market-derived"} against the Kalshi market`;
-  document.getElementById("seat-legend").innerHTML = seriesDefs.map((d) => `<span><i class="sw" style="background:${d.color}"></i>${d.name}</span>`).join("");
-
-  const width = 900, height = 260, margin = { top: 16, right: 12, bottom: 36, left: 40 };
-  const svg = d3.select("#seat-chart").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "Probability of each Democratic-caucus seat count");
-  const x0 = d3.scaleBand().domain(rows.map((r) => r.label)).range([margin.left, width - margin.right]).paddingInner(0.25);
-  const x1 = d3.scaleBand().domain(seriesDefs.map((d) => d.id)).range([0, x0.bandwidth()]).paddingInner(0.08);
-  const yMax = Math.max(0.05, d3.max(rows, (r) => Math.max(r.market || 0, r.derived || 0)) * 1.15);
-  const y = d3.scaleLinear().domain([0, yMax]).range([height - margin.bottom, margin.top]);
-  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(4)).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (d) => y(d)).attr("y2", (d) => y(d));
-  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x0).tickSize(0)).select(".domain").remove();
-  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(4).tickFormat((d) => `${Math.round(d * 100)}%`).tickSize(0)).select(".domain").remove();
-  // Majority marker between 50 and 51
-  const idx51 = rows.findIndex((r) => r.key === 51);
-  if (idx51 > 0) {
-    const xLine = x0(rows[idx51].label) - (x0.step() - x0.bandwidth()) / 2;
-    svg.append("line").attr("x1", xLine).attr("x2", xLine).attr("y1", margin.top).attr("y2", height - margin.bottom).attr("stroke", "#111").attr("stroke-dasharray", "3 3");
-    svg.append("text").attr("class", "label").attr("x", xLine + 4).attr("y", margin.top + 10).text("51 seats: Democratic majority");
-  }
-  const groups = svg.append("g").selectAll("g").data(rows).join("g").attr("transform", (r) => `translate(${x0(r.label)},0)`);
-  groups.selectAll("rect").data((r) => seriesDefs.map((d) => ({ series: d, value: r[d.id], row: r }))).join("rect")
-    .attr("class", "bar").attr("x", (d) => x1(d.series.id)).attr("width", x1.bandwidth())
-    .attr("y", (d) => (d.value == null ? y(0) : y(d.value))).attr("height", (d) => (d.value == null ? 0 : y(0) - y(d.value)))
-    .attr("rx", 2).attr("fill", (d) => d.series.color)
-    .on("mousemove", (event, d) => showTooltip(event, `<b>${d.row.label} Democratic-caucus seats</b><div class="row"><span>${d.series.name}</span><span>${pct(d.value, 1)}</span></div>`))
-    .on("mouseleave", hideTooltip);
-  // Direct labels on the derived series peaks
-  const top = [...rows].sort((a, b) => (b.derived || 0) - (a.derived || 0)).slice(0, 3);
-  svg.append("g").selectAll("text").data(top).join("text").attr("class", "label").attr("text-anchor", "middle")
-    .attr("x", (r) => x0(r.label) + x1("derived") + x1.bandwidth() / 2).attr("y", (r) => y(r.derived) - 4).text((r) => `${Math.round(r.derived * 100)}%`);
-  document.getElementById("seat-note").textContent = `${c.kalshiSeats?.note || ""} The ${MODEL === "polls" ? "polls-model" : "market-derived"} distribution assumes independent races (${s.usSenate.races.length} seats; ${c.notUp.democraticCaucus} D-caucus and ${c.notUp.republican} R seats are not up), so it understates the odds of a uniform swing.`;
+  renderSeatHistogram("seat-chart", "seat-chart-title", { histogram: c.pollModel.histogram, control: c.pollModel.control, expected: c.pollModel.expected, majority: 51, notUp: { D: c.notUp.democraticCaucus, R: c.notUp.republican } }, "U.S. Senate");
+  document.getElementById("seat-note").textContent = `Polls model over the ${s.usSenate.races.length} seats on the ballot; ${c.notUp.democraticCaucus} Democratic-caucus and ${c.notUp.republican} Republican seats are not up. Races are treated as independent, so the chance of a uniform swing is understated.`;
 }
 const sum = (arr) => arr.reduce((a, b) => a + b, 0);
 
@@ -281,12 +202,8 @@ function senateTooltip(race, s, prev) {
   for (const f of s.usSenate.forecasters) if (race.ratings[f.key]) rows.push(`<div class="row"><span>${esc(f.name)}</span><span>${esc(race.ratings[f.key])}</span></div>`);
   rows.push("<hr>");
   const sel = raceProbability(race);
-  rows.push(`<div class="row"><span><b>D win, ${modelName()}</b></span><span><b>${pct(sel.p)}</b>${sel.detail ? ` · ${esc(sel.detail)}` : ""}</span></div>`);
-  if (race.pollModel?.pD != null && MODEL !== "polls") rows.push(`<div class="row"><span>D win, polls model</span><span>${pct(race.pollModel.pD)}</span></div>`);
-  if (race.pD != null && MODEL !== "markets") rows.push(`<div class="row"><span>D win, markets</span><span>${pct(race.pD)}</span></div>`);
+  rows.push(`<div class="row"><span><b>${esc(race.independentRace ? `${race.candidates?.I || "Independent"} wins` : "D wins")}, polls model</b></span><span><b>${pct(race.independentRace ? race.pI : sel.p)}</b>${sel.detail ? ` · ${esc(sel.detail)}` : ""}</span></div>`);
   if (race.pollingAverage) rows.push(`<div class="row"><span>Polling avg (${race.pollingAverage.pollCount} polls)</span><span>${marginText(race.pollingAverage.margin)}${prevRace?.poll != null ? ` (prev ${marginText(prevRace.poll)})` : ""}</span></div>`);
-  if (race.odds?.polymarket) rows.push(`<div class="row"><span>Polymarket D win${race.odds.polymarket.thin ? " (thin)" : ""}</span><span>${pct(race.odds.polymarket.D)}${prevRace?.pm != null ? ` (prev ${pct(prevRace.pm)})` : ""}</span></div>`);
-  if (race.odds?.kalshi) rows.push(`<div class="row"><span>Kalshi D win${race.odds.kalshi.thin ? " (thin)" : ""}</span><span>${pct(race.odds.kalshi.D)}</span></div>`);
   return rows.join("");
 }
 
@@ -294,9 +211,9 @@ function renderSenateTables(s, prev) {
   const races = [...s.usSenate.races];
   const competitiveness = (r) => Math.abs(r.consensus?.score ?? 4) + (raceProbability(r).p != null ? Math.abs(raceProbability(r).p - 0.5) : 0.4);
   races.sort((a, b) => competitiveness(a) - competitiveness(b));
-  const battlegrounds = races.filter((r) => Math.abs(r.consensus?.score ?? 4) <= 3 || (r.odds?.polymarket && Math.abs(r.odds.polymarket.D - 0.5) < 0.35));
+  const battlegrounds = races.filter((r) => Math.abs(r.consensus?.score ?? 4) <= 3 || (raceProbability(r).p != null && Math.abs(raceProbability(r).p - 0.5) < 0.35));
   const render = (list, table) => {
-    const head = `<tr><th>State</th><th>Matchup</th><th>Consensus</th><th title="${esc(s.usSenate.forecasters.map((f) => f.name).join(", "))}">Ratings<span class="sub">${s.usSenate.forecasters.map((f) => esc(shortName(f.name))).join(", ")}</span></th><th class="num">Poll average</th><th class="num">D wins<span class="sub">${esc(modelName())}</span></th><th class="num">Polymarket D</th><th class="num">Kalshi D</th><th>Trend</th></tr>`;
+    const head = `<tr><th>State</th><th>Matchup</th><th>Consensus</th><th title="${esc(s.usSenate.forecasters.map((f) => f.name).join(", "))}">Ratings<span class="sub">${s.usSenate.forecasters.map((f) => esc(shortName(f.name))).join(", ")}</span></th><th class="num">Poll average</th><th class="num">D wins<span class="sub">polls model</span></th><th>Trend</th></tr>`;
     const body = list.map((r) => {
       const p = prev?.races?.[r.id];
       return `<tr>
@@ -305,10 +222,8 @@ function renderSenateTables(s, prev) {
         <td>${ratingPill(r.consensus?.label)}</td>
         <td class="ratings-cell">${s.usSenate.forecasters.map((f) => miniRating(r.ratings[f.key])).join("")}</td>
         <td class="num">${marginText(r.pollingAverage?.margin)}${r.pollingAverage ? `<span class="thin">n=${r.pollingAverage.pollCount}</span>` : ""}${delta(r.pollingAverage?.margin, p?.poll, { scale: 1, unit: "" })}</td>
-        <td class="num"><b>${pct(raceProbability(r).p)}</b>${raceProbability(r).source && raceProbability(r).source !== "polls" && raceProbability(r).source !== "polymarket" ? `<span class="thin">${esc(raceProbability(r).source)}</span>` : ""}${delta(raceProbability(r).p, previousRaceProbability(prev, r.id))}</td>
-        <td class="num">${pct(r.odds?.polymarket?.D)}${r.odds?.polymarket?.thin ? '<span class="thin">thin</span>' : ""}${delta(r.odds?.polymarket?.D, p?.pm)}</td>
-        <td class="num">${pct(r.odds?.kalshi?.D)}${r.odds?.kalshi?.thin ? '<span class="thin">thin</span>' : ""}${delta(r.odds?.kalshi?.D, p?.ks)}</td>
-        <td>${sparkline(r.id, MODEL === "polls" ? "pollModel" : "pm")}</td>
+        <td class="num"><b>${r.independentRace ? `${pct(r.pI)}<span class="thin">${esc(r.candidates?.I || "independent")}</span>` : pct(raceProbability(r).p)}</b>${!r.independentRace && raceProbability(r).source && raceProbability(r).source !== "polls" ? `<span class="thin">${esc(raceProbability(r).source)}</span>` : ""}${r.independentRace ? "" : delta(raceProbability(r).p, previousRaceProbability(prev, r.id))}</td>
+        <td>${sparkline(r.id, "pollModel")}</td>
       </tr>`;
     }).join("");
     document.getElementById(table).innerHTML = head + body;
@@ -335,7 +250,7 @@ function sparkline(raceId, field) {
 // ---------- texas statewide ----------
 function renderTexas(s, prev) {
   const races = s.texas.races;
-  const head = `<tr><th>Race</th><th>Democrat</th><th>Republican</th><th class="num">Poll average</th><th>Latest poll</th><th>Ratings</th><th class="num">D wins<span class="sub">${esc(modelName())}</span></th><th class="num">Kalshi D</th><th class="num">Polymarket D</th></tr>`;
+  const head = `<tr><th>Race</th><th>Democrat</th><th>Republican</th><th class="num">Poll average</th><th>Latest poll</th><th>Ratings</th><th class="num">D wins<span class="sub">polls model</span></th></tr>`;
   const body = races.map((r) => {
     const p = prev?.races?.[r.id];
     const latest = r.polls?.[0];
@@ -348,8 +263,6 @@ function renderTexas(s, prev) {
       <td class="wrap">${latest ? `${esc(latest.pollster)}${latest.partisan ? ` (${esc(latest.partisan)})` : ""} <span class="muted">${fmtDate(latest.endDate)}</span>: <b>${marginText(latest.dem - latest.rep)}</b>` : '<span class="muted">no public polls found</span>'}</td>
       <td>${ratings || '<span class="muted">—</span>'}</td>
       <td class="num" title="${esc(raceProbability(r).detail || "")}"><b>${pct(raceProbability(r).p)}</b>${delta(raceProbability(r).p, previousRaceProbability(prev, r.id))}</td>
-      <td class="num">${pct(r.odds?.kalshi?.D)}${r.odds?.kalshi?.thin ? '<span class="thin">thin</span>' : ""}${delta(r.odds?.kalshi?.D, p?.ks)}</td>
-      <td class="num">${pct(r.odds?.polymarket?.D)}${r.odds?.polymarket?.thin ? '<span class="thin">thin</span>' : ""}${delta(r.odds?.polymarket?.D, p?.pm)}</td>
     </tr>`;
   }).join("");
   document.getElementById("texas-table").innerHTML = head + body;
@@ -360,7 +273,7 @@ function renderTexas(s, prev) {
     const polls = (r.polls || []).slice(0, 10).map((poll) => { const w = weightFor(poll); return `<tr><td>${esc(poll.pollster)}${poll.partisan ? ` <span class="muted">(${esc(poll.partisan)})</span>` : ""}${poll.internal ? ' <span class="muted">internal</span>' : ""}</td><td>${esc(poll.startDate ? `${fmtDate(poll.startDate)}–${fmtDate(poll.endDate)}` : fmtDate(poll.endDate))}</td><td class="num">${poll.sampleSize ? poll.sampleSize.toLocaleString() : "—"}${poll.population ? ` ${esc(poll.population)}` : ""}</td><td class="num">${poll.dem}%</td><td class="num">${poll.rep}%</td><td class="num"><b>${marginText(poll.dem - poll.rep)}</b></td><td title="${esc(w?.ratedAs ? `538 rating as ${w.ratedAs}` : "not in FiveThirtyEight's ratings")}">${w?.grade ? esc(w.grade) : '<span class="muted">unrated</span>'}</td><td class="num muted">${w ? w.weight.toFixed(2) : "—"}</td><td>${poll.url ? `<a href="${esc(poll.url)}" rel="noopener">source</a>` : ""}</td></tr>`; }).join("");
     const aggregates = (r.aggregates || []).map((a) => `<span class="pill" style="background:#f3f2ee">${esc(a.source)}: ${marginText(a.margin)}</span>`).join(" ");
     const ratingRows = Object.values(r.ratings || {}).map((v) => `<span title="${esc(v.asOf || "")}">${esc(v.name)}: ${ratingPill(v.label)}</span>`).join(", ");
-    const statewide = r.id === "tx-senate" && s.texas.statewideDemWins ? `<p class="meta">Kalshi on how many Texas statewide races Democrats win: ${s.texas.statewideDemWins.map((b) => `${esc(b.label.toLowerCase())} ${pct(b.probability)}`).join(", ")}.</p>` : "";
+    const statewide = "";
     return `<details class="race-card"><summary>${esc(r.office)}: ${esc(r.democrat)} (D) against ${esc(r.republican)} (R), ${r.polls?.length || 0} polls (<a href="${esc(r.wikipediaUrl)}" rel="noopener">Wikipedia</a>)</summary>
       ${ratingRows ? `<p class="meta">Forecaster ratings: ${ratingRows}</p>` : ""}
       ${aggregates ? `<p class="meta">Published averages: ${aggregates}</p>` : ""}
@@ -382,7 +295,7 @@ function renderChamber(kind, chamber, topo, s) {
   const env = model?.environment;
   const tiles = [
     { k: "Today", v: `${current.D} D, ${current.R} R`, s: `${chamber.majority} seats make a majority; ${chamber.upForElection} seats are up` },
-    { k: "Our model, Democratic control", v: model ? pct(model.control.D) : "—", s: model ? `expected ${model.expected.D.toFixed(1)} D, ${model.expected.R.toFixed(1)} R${chamber.control?.kalshi ? `; Kalshi market ${pct(chamber.control.kalshi.D)}${chamber.control.kalshi.thin ? " (thin)" : ""}` : ""}` : "unavailable", primary: true },
+    { k: "Our model, Democratic control", v: model ? pct(model.control.D) : "—", s: model ? `expected ${model.expected.D.toFixed(1)} D, ${model.expected.R.toFixed(1)} R` : "unavailable", primary: true },
     { k: "Statewide environment", v: env ? marginText(env.margin) : "—", s: env ? `generic ballot ${marginText(env.genericBallot)} over ${env.genericBallotPolls} polls; down-ballot races ${marginText(env.downBallotMean)}; swing ${env.swingFrom2024 > 0 ? "D" : "R"}+${Math.abs(env.swingFrom2024).toFixed(1)} from 2024` : "no polls" },
     { k: `Seats rated by ${chamber.ratingSource?.name || "State Navigate"}`, v: String(Object.values(counts).reduce((a, b) => a + b, 0)), s: rated || "none" },
   ];
@@ -500,8 +413,6 @@ function renderUsHouse(s, topo, prev) {
     { k: "Today", v: `${h.composition.R} R, ${h.composition.D} D`, s: `${h.seats - h.composition.R - h.composition.D} vacant; ${h.majority} seats make a majority` },
     { k: "Our model, Democratic control", v: pct(h.model.control.D) + delta(h.model.control.D, prev?.usHouse?.control), s: `expected ${h.model.expected.D.toFixed(1)} D, ${h.model.expected.R.toFixed(1)} R over ${h.model.ratedCount} rated seats`, primary: true },
     { k: "Generic congressional ballot", v: ga ? marginText(ga.margin) : "—", s: ga ? `${ga.pollCount} polls in the window, quality-weighted${h.genericBallot.aggregates?.length ? `; published averages ${h.genericBallot.aggregates.map((a) => `${a.source} ${marginText(a.margin)}`).join(", ")}` : ""}` : "no polls" },
-    { k: "Polymarket, Democratic control", v: pct(h.markets?.polymarket?.D) + delta(h.markets?.polymarket?.D, prev?.usHouse?.polymarket), s: h.markets?.polymarket ? `$${compact(h.markets.polymarket.volumeUsd)} traded` : "unavailable" },
-    { k: "Kalshi seats market, 218 or more D", v: pct(h.markets?.kalshi?.controlD), s: h.markets?.kalshi ? `${compact(h.markets.kalshi.volumeContracts)} contracts traded` : "unavailable" },
   ];
   document.getElementById("us-house-tiles").innerHTML = tiles.map((t) => `<div class="figure${t.primary ? " primary" : ""}"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
   renderSeatHistogram("us-house-chart", "us-house-chart-title", h.model, "U.S. House");
@@ -573,8 +484,8 @@ function renderCourts(s) {
     { k: "SBOE districts up", v: String(sboe.length), s: "nominees only; no district model" },
   ].map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v">${t.v}</div><div class="s">${esc(t.s)}</div></div>`).join("");
   const nomineeCell = (r) => r.nominees.length ? r.nominees.map((n) => `${esc(n.name)} <span class="muted">(${esc(n.party || "?")})</span>`).join(" vs ") : '<span class="muted">nominees not listed</span>';
-  document.getElementById("courts-table").innerHTML = `<tr><th>Court</th><th>Seat</th><th>Matchup</th><th>Incumbent</th><th class="num">D wins<span class="sub">statewide baseline</span></th><th class="num">Kalshi D</th></tr>` +
-    judicial.map((r) => `<tr><td>${esc(r.body)}</td><td><b>${esc(r.race)}</b></td><td class="wrap">${nomineeCell(r)}</td><td class="wrap">${esc(r.incumbent || "Open")}${r.incumbentParty ? ` <span class="muted">(${esc(r.incumbentParty)})</span>` : ""}</td><td class="num"><b>${pct(r.pollModel?.pD)}</b></td><td class="num">${r.odds?.kalshi ? `${pct(r.odds.kalshi.D)}${r.odds.kalshi.thin ? '<span class="thin">thin</span>' : ""}` : '<span class="muted">—</span>'}</td></tr>`).join("");
+  document.getElementById("courts-table").innerHTML = `<tr><th>Court</th><th>Seat</th><th>Matchup</th><th>Incumbent</th><th class="num">D wins<span class="sub">statewide baseline</span></th></tr>` +
+    judicial.map((r) => `<tr><td>${esc(r.body)}</td><td><b>${esc(r.race)}</b></td><td class="wrap">${nomineeCell(r)}</td><td class="wrap">${esc(r.incumbent || "Open")}${r.incumbentParty ? ` <span class="muted">(${esc(r.incumbentParty)})</span>` : ""}</td><td class="num"><b>${pct(r.pollModel?.pD)}</b></td></tr>`).join("");
   document.getElementById("sboe-table").innerHTML = `<tr><th>District</th><th>Matchup</th><th>Incumbent</th></tr>` + sboe.map((r) => `<tr><td><b>${esc(r.race)}</b></td><td class="wrap">${nomineeCell(r)}</td><td class="wrap">${esc(r.incumbent || "Open")}${r.incumbentParty ? ` <span class="muted">(${esc(r.incumbentParty)})</span>` : ""}</td></tr>`).join("");
 }
 
@@ -639,8 +550,8 @@ function renderGovernors(s, topo, prev) {
   const competitiveness = (r) => Math.abs(r.consensus?.score ?? 4) + (raceProbability(r).p != null ? Math.abs(raceProbability(r).p - 0.5) : 0.4);
   races.sort((a, b) => competitiveness(a) - competitiveness(b));
   const battlegrounds = races.filter((r) => Math.abs(r.consensus?.score ?? 4) <= 3 || (raceProbability(r).p != null && Math.abs(raceProbability(r).p - 0.5) < 0.35));
-  const head = `<tr><th>State</th><th>Matchup</th><th>Consensus</th><th title="${esc(g.forecasters.map((f) => f.name).join(", "))}">Ratings<span class="sub">${g.forecasters.map((f) => esc(shortName(f.name))).join(", ")}</span></th><th class="num">Poll average</th><th class="num">D wins<span class="sub">${esc(modelName())}</span></th><th class="num">Kalshi D</th></tr>`;
-  const row = (r) => { const p = prev?.races?.[r.id]; return `<tr><td><b>${esc(r.state)}</b> <span class="muted">${esc(r.incumbentParty || "")}</span></td><td class="wrap">${r.candidates?.D ? `${esc(r.candidates.D)} <span class="muted">(D)</span>` : '<span class="muted">Democrat</span>'} / ${r.candidates?.R ? `${esc(r.candidates.R)} <span class="muted">(R)</span>` : '<span class="muted">Republican</span>'}</td><td>${ratingPill(r.consensus?.label)}</td><td class="ratings-cell">${g.forecasters.map((f) => miniRating(r.ratings[f.key])).join("")}</td><td class="num">${marginText(r.pollingAverage?.margin)}${r.pollingAverage ? `<span class="thin">n=${r.pollingAverage.pollCount}</span>` : ""}${delta(r.pollingAverage?.margin, p?.poll, { scale: 1, unit: "" })}</td><td class="num"><b>${pct(raceProbability(r).p)}</b>${raceProbability(r).source && !["polls", "polymarket", "kalshi"].includes(raceProbability(r).source) ? `<span class="thin">${esc(raceProbability(r).source)}</span>` : ""}${delta(raceProbability(r).p, previousRaceProbability(prev, r.id))}</td><td class="num">${pct(r.odds?.kalshi?.D)}${r.odds?.kalshi?.thin ? '<span class="thin">thin</span>' : ""}${delta(r.odds?.kalshi?.D, p?.ks)}</td></tr>`; };
+  const head = `<tr><th>State</th><th>Matchup</th><th>Consensus</th><th title="${esc(g.forecasters.map((f) => f.name).join(", "))}">Ratings<span class="sub">${g.forecasters.map((f) => esc(shortName(f.name))).join(", ")}</span></th><th class="num">Poll average</th><th class="num">D wins<span class="sub">polls model</span></th></tr>`;
+  const row = (r) => { const p = prev?.races?.[r.id]; return `<tr><td><b>${esc(r.state)}</b> <span class="muted">${esc(r.incumbentParty || "")}</span></td><td class="wrap">${r.candidates?.D ? `${esc(r.candidates.D)} <span class="muted">(D)</span>` : '<span class="muted">Democrat</span>'} / ${r.candidates?.R ? `${esc(r.candidates.R)} <span class="muted">(R)</span>` : '<span class="muted">Republican</span>'}</td><td>${ratingPill(r.consensus?.label)}</td><td class="ratings-cell">${g.forecasters.map((f) => miniRating(r.ratings[f.key])).join("")}</td><td class="num">${marginText(r.pollingAverage?.margin)}${r.pollingAverage ? `<span class="thin">n=${r.pollingAverage.pollCount}</span>` : ""}${delta(r.pollingAverage?.margin, p?.poll, { scale: 1, unit: "" })}</td><td class="num"><b>${pct(raceProbability(r).p)}</b>${raceProbability(r).source && raceProbability(r).source !== "polls" ? `<span class="thin">${esc(raceProbability(r).source)}</span>` : ""}${delta(raceProbability(r).p, previousRaceProbability(prev, r.id))}</td></tr>`; };
   document.getElementById("governor-table").innerHTML = head + battlegrounds.map(row).join("");
   document.getElementById("governor-table-all").innerHTML = head + [...g.races].sort((a, b) => a.stateName.localeCompare(b.stateName)).map(row).join("");
 }
@@ -649,11 +560,10 @@ function governorTooltip(race, g) {
   if (race.candidates?.D || race.candidates?.R) rows.push(`${esc(race.candidates.D || "Democrat")} (D) vs ${esc(race.candidates.R || "Republican")} (R)`);
   rows.push("<hr>");
   const sel = raceProbability(race);
-  rows.push(`<div class="row"><span><b>D wins, ${modelName()}</b></span><span><b>${pct(sel.p)}</b></span></div>`);
+  rows.push(`<div class="row"><span><b>D wins, polls model</b></span><span><b>${pct(sel.p)}</b></span></div>`);
   rows.push(`<div class="row"><span>Consensus rating</span><span>${esc(race.consensus?.label || "—")}</span></div>`);
   for (const f of g.forecasters) if (race.ratings[f.key]) rows.push(`<div class="row"><span>${esc(f.name)}</span><span>${esc(race.ratings[f.key])}</span></div>`);
   if (race.pollingAverage) rows.push(`<div class="row"><span>Polling avg (${race.pollingAverage.pollCount})</span><span>${marginText(race.pollingAverage.margin)}</span></div>`);
-  if (race.odds?.kalshi) rows.push(`<div class="row"><span>Kalshi D win</span><span>${pct(race.odds.kalshi.D)}</span></div>`);
   return rows.join("");
 }
 
@@ -695,12 +605,12 @@ function renderPollsters(s) {
 function renderTrends(s, series) {
   const grid = document.getElementById("trend-charts");
   const charts = [
-    { title: "Texas U.S. Senate: Talarico win chance", lines: [{ name: "Polls model", color: cssVar("--d3"), get: (d) => d.races?.["tx-senate"]?.pollModel }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.races?.["tx-senate"]?.pm }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
-    { title: "Texas Governor: Hinojosa win chance", lines: [{ name: "Polls model", color: cssVar("--d3"), get: (d) => d.races?.["tx-governor"]?.pollModel }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.races?.["tx-governor"]?.pm }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+    { title: "Texas win chances, polls model", lines: [{ name: "Talarico, U.S. Senate", color: cssVar("--d3"), get: (d) => d.races?.["tx-senate"]?.pollModel }, { name: "Hinojosa, Governor", color: "#5b5b5b", get: (d) => d.races?.["tx-governor"]?.pollModel }, { name: "Goodwin, Lt. Governor", color: "#b58a00", get: (d) => d.races?.["tx-ltgov"]?.pollModel }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+    { title: "Texas Attorney General and down-ballot, polls model", lines: [{ name: "Johnson, AG", color: cssVar("--d3"), get: (d) => d.races?.["tx-ag"]?.pollModel }, { name: "Rosenthal, Railroad", color: "#5b5b5b", get: (d) => d.races?.["tx-railroad"]?.pollModel }, { name: "Eckhardt, Comptroller", color: "#b58a00", get: (d) => d.races?.["tx-comptroller"]?.pollModel }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
     { title: "Texas polling averages, D margin", lines: [{ name: "U.S. Senate", color: cssVar("--d3"), get: (d) => d.races?.["tx-senate"]?.poll }, { name: "Governor", color: "#5b5b5b", get: (d) => d.races?.["tx-governor"]?.poll }], format: (v) => marginText(v), domain: null },
-    { title: "U.S. Senate: Democratic control", lines: [{ name: "Polls model", color: cssVar("--d3"), get: (d) => d.control?.pollModel }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.control?.polymarket }, { name: "Kalshi seats", color: "#b58a00", get: (d) => d.control?.kalshi }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+    { title: "U.S. Senate: Democratic control, polls model", lines: [{ name: "Control", color: cssVar("--d3"), get: (d) => d.control?.pollModel }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
     { title: "Texas House: expected Democratic seats, our model", lines: [{ name: "Expected seats", color: cssVar("--d3"), get: (d) => d.txHouseModel?.expectedD }], format: (v) => v.toFixed(1), domain: null },
-    { title: "U.S. House: Democratic control", lines: [{ name: "Our model", color: cssVar("--d3"), get: (d) => d.usHouse?.control }, { name: "Polymarket", color: "#5b5b5b", get: (d) => d.usHouse?.polymarket }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
+    { title: "U.S. House: Democratic control, our model", lines: [{ name: "Control", color: cssVar("--d3"), get: (d) => d.usHouse?.control }], format: (v) => `${Math.round(v * 100)}%`, domain: [0, 1] },
   ];
   grid.innerHTML = "";
   for (const chart of charts) {
@@ -887,8 +797,6 @@ setupVotePanel();
 // ---------- sources ----------
 function renderSources(s) {
   const items = [
-    ["Polymarket Gamma API", "https://polymarket.com", s.sources.polymarket],
-    ["Kalshi public market data", "https://kalshi.com", s.sources.kalshi],
     ["VoteHub polls feed", "https://votehub.com", s.sources.votehub],
     ["Wikipedia (ratings, polls, districts)", "https://en.wikipedia.org/wiki/2026_United_States_Senate_elections", s.sources.wikipedia],
     ["Wikipedia U.S. House ratings and Texas congressional races", "https://en.wikipedia.org/wiki/2026_United_States_House_of_Representatives_election_ratings", s.sources.wikipedia],

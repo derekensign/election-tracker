@@ -1,19 +1,19 @@
 Texas Polls Tracker, Sunday, October 4, 2026
 
-Talarico 70% by the polls model (64% in the markets), polling average D+3.3. Hinojosa 38% for governor. Democrats 67% to control the U.S. Senate, 85% for the House, 2% for the Texas House.
+Talarico 70% to win the Senate seat on a polling average of D+3.3. Hinojosa 38% for governor. Democrats 75% to control the U.S. Senate, 85% for the House, 2% for the Texas House.
 
 WHAT MOVED
 - First snapshot; movement tracking starts tomorrow.
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 70% (polls model), 64% (markets). Average D+3.3 over 20 polls; latest New York Times/Siena University Sep 30 D+6.0.
-- Governor: Hinojosa 38% (polls model), 25% (markets). Average R+1.9 over 16 polls; latest The New York Times/Siena University Sep 30 D+3.0.
-- Lieutenant Governor: Goodwin 29% (polls model), 35% (markets). Average R+3.5 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
-- Attorney General: Johnson 28% (polls model), 25% (markets). Average R+3.6 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
-- Comptroller: Eckhardt 19% (polls model), 20% (markets, thin). Average R+5.7 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
-- Railroad Commissioner: Rosenthal 39% (polls model), 55% (markets). Average R+1.7 over 3 polls; latest Stratus Intelligence Sep 24 R+2.0.
-- Land Commissioner: Flores 20% (polls model), 20% (markets, thin). Average R+5.5 over 3 polls; latest Texas Public Opinion Research Sep 22 R+3.0.
-- Agriculture Commissioner: Tucker 24% (polls model), 36% (markets, thin). Average R+4.5 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
+- U.S. Senate: Talarico 70%. Average D+3.3 over 20 polls; latest New York Times/Siena University Sep 30 D+6.0.
+- Governor: Hinojosa 38%. Average R+1.9 over 16 polls; latest The New York Times/Siena University Sep 30 D+3.0.
+- Lieutenant Governor: Goodwin 29%. Average R+3.5 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
+- Attorney General: Johnson 28%. Average R+3.6 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
+- Comptroller: Eckhardt 19%. Average R+5.7 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
+- Railroad Commissioner: Rosenthal 39%. Average R+1.7 over 3 polls; latest Stratus Intelligence Sep 24 R+2.0.
+- Land Commissioner: Flores 20%. Average R+5.5 over 3 polls; latest Texas Public Opinion Research Sep 22 R+3.0.
+- Agriculture Commissioner: Tucker 24%. Average R+4.5 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
 
 TEXAS LEGISLATURE
 - Statewide environment R+4.9: legislative generic ballot R+5.4 over 3 polls, down-ballot statewide races R+4.1; a D+8.8 swing from Trump's 2024 margin.
@@ -21,16 +21,11 @@ TEXAS LEGISLATURE
 - Texas Senate: 12 D today; model expects 11.5 D seats, 0% for a majority (16). Closest: SD-9 54% D (Likely D), SD-19 91% D, SD-21 94% D.
 
 U.S. SENATE
-- Control: polls model 67% D, market-derived 64%, Polymarket 66%, Kalshi seats market 65%. Expected 51.2 Democratic-caucus seats; 51 needed.
-- Closest by the polls model: AK 51% D (markets 73%; avg D+0.1); ME 59% D (markets 59%; avg D+1.4); MN 60% D (markets 88%; avg D+1.6); KS 62% D (markets 33%; avg D+2.0); TX 66% D (markets 64%; avg D+2.5); MI 68% D (markets 73%; avg D+2.9); IA 70% D (markets 42%; avg D+3.3); OH 74% D (markets 62%; avg D+4.1); FL 25% D (markets 10%; avg R+4.2).
-- Alaska: polls and markets disagree, 51% vs 73% for Mary Peltola.
-- Florida: polls and markets disagree, 25% vs 10% for Angie Nixon.
-- Iowa: polls and markets disagree, 70% vs 42% for Josh Turek.
-- Kansas: polls and markets disagree, 62% vs 33% for Adam Hamilton.
-- Minnesota: polls and markets disagree, 60% vs 88% for Peggy Flanagan.
+- Control: 75% for Democrats. Expected 51.6 Democratic-caucus seats; 51 needed.
+- Closest races: AK 51% D (average D+0.1, 3 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); ME 59% D (average D+1.4, 8 polls); MN 60% D (average D+1.6, 3 polls); KS 62% D (average D+2.0, 3 polls); TX 66% D (average D+2.5, 7 polls); MI 68% D (average D+2.9, 9 polls); IA 70% D (average D+3.3, 5 polls); ID 28% D (average R+4.0, 1 polls); OH 74% D (average D+4.1, 6 polls); FL 25% D (average R+4.2, 6 polls).
 
 U.S. HOUSE
-- Control: our model 85% D (expected 231.7 seats, 218 needed); Polymarket 93%; Kalshi 96%. Generic ballot D+7.0 over 5 polls.
+- Control: 85% for Democrats (expected 231.7 seats, 218 needed). Generic ballot D+7.0 over 5 polls.
 - Texas seats in play: TX-15 37% D (Tilt R, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP

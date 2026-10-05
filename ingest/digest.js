@@ -22,7 +22,7 @@ export function buildDigest(snapshot) {
 
   // ---- headline ----
   const headline = [
-    senate ? `${lastName(senate.democrat)} ${pct(senate.pollModel?.pD)} by the polls model (${pct(senate.pD)} in the markets), polling average ${marginText(senate.pollingAverage?.margin)}.` : null,
+    senate ? `${lastName(senate.democrat)} ${pct(senate.pollModel?.pD)} to win the Senate seat on a polling average of ${marginText(senate.pollingAverage?.margin)}.` : null,
     governor ? `${lastName(governor.democrat)} ${pct(governor.pollModel?.pD)} for governor.` : null,
     `Democrats ${pct(s.senateControl.pollModel?.control?.D)} to control the U.S. Senate, ${pct(s.usHouse?.model?.control?.D)} for the House, ${pct(s.txHouse.model?.control?.D)} for the Texas House.`,
   ].filter(Boolean).join(" ");
@@ -40,7 +40,7 @@ export function buildDigest(snapshot) {
     bullets: s.texas.races.map((r) => {
       const latest = r.polls?.[0];
       const avg = r.pollingAverage;
-      return `${r.office}: ${lastName(r.democrat)} ${pct(r.pollModel?.pD)} (polls model), ${pct(r.pD)} (markets${r.odds?.kalshi?.thin && !r.odds?.polymarket ? ", thin" : ""}). Average ${marginText(avg?.margin)} over ${avg?.pollCount ?? 0} polls${latest ? `; latest ${latest.pollster}${latest.partisan ? ` (${latest.partisan})` : ""} ${shortDate(latest.endDate)} ${marginText(latest.dem - latest.rep)}` : ""}.`;
+      return `${r.office}: ${lastName(r.democrat)} ${pct(r.pollModel?.pD)}. Average ${marginText(avg?.margin)} over ${avg?.pollCount ?? 0} polls${latest ? `; latest ${latest.pollster}${latest.partisan ? ` (${latest.partisan})` : ""} ${shortDate(latest.endDate)} ${marginText(latest.dem - latest.rep)}` : ""}.`;
     }),
   });
 
@@ -62,9 +62,8 @@ export function buildDigest(snapshot) {
   sections.push({
     title: "U.S. Senate",
     bullets: [
-      `Control: polls model ${pct(c.pollModel?.control?.D)} D, market-derived ${pct(c.derived?.control?.D)}, Polymarket ${pct(c.polymarket?.D)}, Kalshi seats market ${pct(c.kalshiSeats?.controlD)}. Expected ${c.pollModel?.expected?.D?.toFixed(1)} Democratic-caucus seats; 51 needed.`,
-      battlegrounds.length ? `Closest by the polls model: ${battlegrounds.map((r) => `${r.state} ${pct(r.pollModel.pD)} D (markets ${pct(r.pD)}; avg ${marginText(r.pollingAverage?.margin)})`).join("; ")}.` : null,
-      ...s.usSenate.races.filter((r) => r.pollModel?.pD != null && r.pD != null && Math.abs(r.pollModel.pD - r.pD) >= 0.15).map((r) => `${r.stateName}: polls and markets disagree, ${pct(r.pollModel.pD)} vs ${pct(r.pD)} for ${r.candidates?.D || "the Democrat"}.`),
+      `Control: ${pct(c.pollModel?.control?.D)} for Democrats. Expected ${c.pollModel?.expected?.D?.toFixed(1)} Democratic-caucus seats; 51 needed.`,
+      battlegrounds.length ? `Closest races: ${battlegrounds.map((r) => `${r.state} ${pct(r.pollModel.pD)} D (average ${marginText(r.pollingAverage?.margin)}, ${r.pollingAverage?.pollCount ?? 0} polls)`).join("; ")}.` : null,
     ].filter(Boolean),
   });
 
@@ -75,7 +74,7 @@ export function buildDigest(snapshot) {
     sections.push({
       title: "U.S. House",
       bullets: [
-        `Control: our model ${pct(h.model.control.D)} D (expected ${h.model.expected.D.toFixed(1)} seats, 218 needed); Polymarket ${pct(h.markets?.polymarket?.D)}; Kalshi ${pct(h.markets?.kalshi?.controlD)}. Generic ballot ${marginText(h.genericBallot?.average?.margin)} over ${h.genericBallot?.average?.pollCount ?? 0} polls.`,
+        `Control: ${pct(h.model.control.D)} for Democrats (expected ${h.model.expected.D.toFixed(1)} seats, 218 needed). Generic ballot ${marginText(h.genericBallot?.average?.margin)} over ${h.genericBallot?.average?.pollCount ?? 0} polls.`,
         txPlay.length ? `Texas seats in play: ${txPlay.map((d) => `${d.id} ${pct(d.modelD)} D (${d.consensus?.label}${d.pollingAverage ? `, polls ${marginText(d.pollingAverage.margin)}` : ""})`).join("; ")}.` : "No Texas congressional seat is inside the competitive band.",
       ],
     });

@@ -84,6 +84,51 @@ function normalizeDate(text) {
   return parsed ? parsed.end : null;
 }
 
+/**
+ * "Race summary" tables (Senate and governors pages): the Candidates cell lists `*{{Party stripe|<Party>}}Name (Party)` lines.
+ * Returns { "Texas": { D: "James Talarico", R: "Ken Paxton", I: null, others: ["Ted Brown (Libertarian)"] } }.
+ */
+export function parseRaceSummaryCandidates(wikitext, rowPattern) {
+  const section = findSection(wikitext, /^Race summary$/i, { last: false });
+  if (!section) return {};
+  const result = {};
+  for (const table of extractTables(section.body)) {
+    for (const row of parseTable(table)) {
+      const stateCell = row.find((cell) => cell.header && rowPattern.test(cell.text));
+      if (!stateCell) continue;
+      const stateName = plainText(stateCell.text).replace(/\s*\([^)]*\)\s*$/, "").replace(/\s*\(special\)\s*/i, "").trim();
+      const candidatesCell = row[row.length - 1];
+      const entry = { D: null, R: null, I: null, others: [] };
+      const byParty = { D: [], R: [], I: [] };
+      // Entries are `*{{Party stripe|<Party>}}Name (Party)<ref/>`; the first may share a line with {{Plainlist|.
+      for (const segment of (candidatesCell?.text || "").split(/\*\s*\{\{\s*Party stripe\s*\|/i).slice(1)) {
+        const close = segment.indexOf("}}");
+        if (close === -1) continue;
+        const partyTemplate = segment.slice(0, close);
+        const rest = segment.slice(close + 2).split("\n")[0];
+        const display = plainText(rest);
+        const name = display.replace(/\s*\([^)]*\)\s*$/, "").trim();
+        if (!name) continue;
+        const partyText = `${partyTemplate} ${display}`;
+        const party = /Democratic/i.test(partyText) ? "D" : /Republican/i.test(partyText) ? "R" : /Independent/i.test(partyText) ? "I" : null;
+        const linked = /\[\[/.test(rest);
+        const notable = /senator|governor|incumbent|representative/i.test(rest);
+        if (party) byParty[party].push({ name, linked, notable }); else entry.others.push(display);
+      }
+      // Several candidates can share a party label (Alaska's top-four general); prefer the notable, wikilinked one.
+      for (const party of ["D", "R", "I"]) {
+        const list = byParty[party];
+        if (!list.length) continue;
+        const pick = list.find((c) => c.linked && c.notable) || list.find((c) => c.linked) || list[0];
+        entry[party] = pick.name;
+        for (const other of list) if (other !== pick) entry.others.push(`${other.name} (${party})`);
+      }
+      if (!result[stateName]) result[stateName] = entry;
+    }
+  }
+  return result;
+}
+
 /** National governors page: same table shape as the Senate page, rows link to "2026 <State> gubernatorial election". */
 export function parseGovernorRatingsTable(wikitext) {
   return parseSenateRatingsTable(wikitext, { rowPattern: /^\s*\[\[2026 [A-Za-z ]+ gubernatorial election/, pageLabel: "Governors page" });

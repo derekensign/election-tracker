@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Texas Polls Tracker: 2026 Texas races and the U.S. Senate</title>
-<meta name="description" content="Daily tracker for the 2026 Texas statewide races, Texas Legislature, and U.S. Senate: polls, forecaster ratings, prediction-market odds, and seat-distribution forecasts with day-over-day change detection.">
+<meta name="description" content="Daily tracker for the 2026 Texas statewide races, Texas Legislature, and U.S. Senate and House: polls, forecaster ratings, and seat-distribution forecasts with day-over-day change detection.">
 <link rel="stylesheet" href="styles.css">
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
@@ -15,10 +15,10 @@
   <div class="top">
     <div>
       <h1>Texas Polls Tracker</h1>
-      <p class="dek">Texas statewide races, the Texas Legislature, and the U.S. Senate and House, updated every morning. Win probabilities come from a quality-weighted polling model, or from prediction markets if you prefer.</p>
+      <p class="dek">Texas statewide races, the Texas Legislature, and the U.S. Senate and House, updated every morning. Win probabilities come from a quality-weighted polling model and the published forecaster ratings.</p>
       <p class="asof" id="asof">Loading the latest snapshot.</p>
     </div>
-    <div class="segmented-wrap"><button class="vote-button" id="open-vote">Where and when to vote</button><span class="segmented-label">Probabilities from</span><span class="segmented" role="group" aria-label="Probability source"><button class="active" data-model="polls" title="Quality-weighted polling average with a Student-t error model">Polls model</button><button data-model="markets" title="Polymarket, then Kalshi">Prediction markets</button></span></div>
+    <div class="segmented-wrap"><button class="vote-button" id="open-vote">Where and when to vote</button></div>
   </div>
 </header>
 <div class="vote-strip wrap" id="vote-strip" hidden></div>
@@ -66,7 +66,7 @@
 <div class="panel" data-panel="courts">
   <section id="courts-section">
     <h2>Texas courts and State Board of Education</h2>
-    <p class="note">Statewide judicial races have no public polling and usually land within a point or two of the generic down-ballot vote, so each Supreme Court and Court of Criminal Appeals seat is shown with the statewide-environment baseline from the Legislature model. Kalshi carries markets on two Supreme Court seats; both are thin. SBOE districts list nominees only.</p>
+    <p class="note">Statewide judicial races have no public polling and usually land within a point or two of the generic down-ballot vote, so each Supreme Court and Court of Criminal Appeals seat is shown with the statewide-environment baseline from the Legislature model. SBOE districts list nominees only.</p>
     <div class="figures" id="courts-figures"></div>
     <div class="table-scroll"><table id="courts-table" class="data"></table></div>
     <h3>State Board of Education</h3>
@@ -87,11 +87,11 @@
 <div class="panel" data-panel="governors">
   <section id="governors-section">
     <h2>Governors</h2>
-    <p class="note">The 36 governorships on the ballot. Ratings from Cook, Inside Elections, Sabato, RealClearPolitics, Fox, Silver Bulletin, and Decision Desk HQ via Wikipedia; polls from VoteHub; party odds from Kalshi. The Texas race uses the fuller poll set from the Texas statewide tab.</p>
+    <p class="note">The 36 governorships on the ballot. Ratings from Cook, Inside Elections, Sabato, RealClearPolitics, Fox, Silver Bulletin, and Decision Desk HQ via Wikipedia; polls from VoteHub. The Texas race uses the fuller poll set from the Texas statewide tab.</p>
     <div class="mode-row">
       <span>Color by:</span>
       <button class="mode active" data-governor-map="rating">Forecaster ratings</button>
-      <button class="mode" data-governor-map="probability">Win probability (selected model)</button>
+      <button class="mode" data-governor-map="probability">Win probability (polls model)</button>
       <span class="zoom-controls" data-zoom-for="governor-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span>
     </div>
     <div class="legend" id="governor-legend"></div>
@@ -162,7 +162,6 @@
     <div class="figures" id="control-tiles"></div>
     <div class="chart-head">
       <h3 id="seat-chart-title">Seat distribution: Democratic caucus seats after the election</h3>
-      <div class="legend" id="seat-legend"></div>
     </div>
     <div id="seat-chart" class="chart"></div>
     <p class="note" id="seat-note"></p>
@@ -174,7 +173,7 @@
     <div class="mode-row">
       <span>Color by:</span>
       <button class="mode active" data-senate-map="rating">Forecaster ratings</button>
-      <button class="mode" data-senate-map="probability">Win probability (selected model)</button>
+      <button class="mode" data-senate-map="probability">Win probability (polls model)</button>
     </div>
     <div class="legend rating-legend" id="rating-legend"></div>
     <div class="mode-row"><span class="zoom-controls" data-zoom-for="senate-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span></div>
@@ -189,7 +188,7 @@
 <div class="panel" data-panel="texas">
   <section id="texas-statewide">
     <h2>Texas statewide</h2>
-    <p class="note">Polls and forecaster ratings come first; prediction-market odds are a secondary signal and are flagged when the market is thin. Polling average: last 30 days (minimum three polls), weighted by recency (14-day half-life), sample size, and pollster quality (FiveThirtyEight numeric grade: A+ = 1.0× down to 0.35×, unrated 0.5×), partisan/internal polls halved.</p>
+    <p class="note">Polling average: last 30 days (minimum three polls), weighted by recency (14-day half-life), sample size, and pollster quality (FiveThirtyEight numeric grade: A+ = 1.0× down to 0.35×, unrated 0.5×), partisan/internal polls halved.</p>
     <div class="table-scroll"><table id="texas-table" class="data"></table></div>
     <div id="texas-detail"></div>
   </section>
@@ -274,10 +273,10 @@
   <section id="sources">
     <h2>Sources and method</h2>
     <ul class="sources" id="sources-list"></ul>
-    <p class="note"><b>Polls model.</b> Each race's quality-weighted polling average (D − R margin) is turned into a win probability with a Student-t error model (5 degrees of freedom, so misses of 2–3σ are not treated as freakish). σ = √(5.5² + (0.05 × days to election)² + 3²/effective polls): 5.5 points is roughly the historical root-mean-square error of final statewide polling averages, the time term adds ~1.5 points a month out, and the sparsity term widens thinly polled races. Pollster quality comes from FiveThirtyEight's pollster ratings (vendored copy, 2024 methodology); unrated pollsters get half weight. Races with no polls fall back to a forecaster-rating prior and say so.</p>
+    <p class="note"><b>Polls model.</b> Each race's quality-weighted polling average (D − R margin) is turned into a win probability with a Student-t error model (5 degrees of freedom, so misses of 2–3σ are not treated as freakish). σ = √(5.5² + (0.05 × days to election)² + 3²/effective polls): 5.5 points is roughly the historical root-mean-square error of final statewide polling averages, the time term adds ~1.5 points a month out, and the sparsity term widens thinly polled races. Pollster quality comes from FiveThirtyEight's pollster ratings (vendored copy, 2024 methodology); unrated pollsters get half weight. Races with no polls fall back to a forecaster-rating prior and say so. Prediction-market odds are not used anywhere on this site.</p>
 <p class="note"><b>Texas Legislature model.</b> Every seat starts from its district's 2024 presidential margin, shifted by three-quarters of the statewide swing implied by today's environment (a 60/40 blend of the legislative generic-ballot polling average and the mean of the down-ballot statewide race averages, measured against Trump's 13.7-point 2024 margin), plus 3 points for an incumbent who is running again. Uncertainty has two parts: a shared statewide error (Student-t, scale 4.5) and an independent district error (scale 6). Where State Navigate rates a district, its implied probability is averaged with the fundamentals in log-odds. Chamber control is the probability that Democratic seats reach the majority line, integrating over the statewide error. No district-level public polls exist yet; if any appear on the race pages they will be folded in.</p>
 <p class="note"><b>U.S. House model.</b> Forecasters publish ratings for about 144 competitive districts (Cook, Inside Elections, Sabato, The Economist, Split Ticket, Decision Desk HQ, FiftyPlusOne, Fox, Silver Bulletin, RealClearPolitics). Each rated seat's consensus rating becomes an implied margin (Tossup 0, Tilt 2.5, Lean 5.5, Likely 10, Safe 17), averaged half-and-half with the district's polling average where at least two district polls exist (so far only in Texas). Seats outside the list stay with the party that holds them; the three vacancies are left out. Uncertainty is a shared national error (Student-t, scale 3.5) plus independent district error (scale 5.5); control is the probability Democrats reach 218.</p>
-<p class="note"><b>Markets.</b> Polymarket first, then Kalshi; a market is marked thin below $10k traded and is not used as the primary number. <b>Seat distributions</b> are Poisson-binomial over the 35 races and assume independence, so both understate the chance of a uniform swing; the Kalshi seats market is shown alongside for comparison. Ratings tables, poll tables, and legislative district tables are read from Wikipedia (CC BY-SA 4.0), which cites each forecaster and pollster; polls also come from VoteHub's public feed. District boundaries: Texas Legislative Council plans H2316 and S2168. Not affiliated with any campaign, forecaster, or exchange.</p>
+<p class="note"><b>Seat distributions</b> are Poisson-binomial over the races in a chamber and assume independence beyond the shared statewide or national error term, so they understate the chance of a uniform swing. Ratings tables, poll tables, and legislative district tables are read from Wikipedia (CC BY-SA 4.0), which cites each forecaster and pollster; polls also come from VoteHub's public feed. District boundaries: Texas Legislative Council plans H2316, S2168, and C2333. Not affiliated with any campaign or forecaster.</p>
   </section>
 </div>
 </main>

@@ -65,16 +65,16 @@ test("race rating and PVI templates parse", () => {
 
 test("change detection flags rating moves and new polls", () => {
   const base = {
-    usSenate: { forecasters: [{ key: "cook", name: "Cook" }], races: [{ id: "us-senate-TX", state: "TX", stateName: "Texas", ratings: { cook: "Tossup" }, odds: { polymarket: { D: 0.6 } }, polls: [], pollingAverage: { margin: 2 } }] },
+    usSenate: { forecasters: [{ key: "cook", name: "Cook" }], races: [{ id: "us-senate-TX", state: "TX", stateName: "Texas", ratings: { cook: "Tossup" }, pollModel: { pD: 0.6 }, polls: [], pollingAverage: { margin: 2 } }] },
     texas: { races: [] }, txHouse: { districts: [] }, txSenate: { districts: [] }, senateControl: {},
   };
   const next = structuredClone(base);
   next.usSenate.races[0].ratings.cook = "Lean D";
-  next.usSenate.races[0].odds.polymarket.D = 0.65;
+  next.usSenate.races[0].pollModel.pD = 0.65;
   next.usSenate.races[0].polls = [{ id: "p1", pollster: "Siena", endDate: "2026-10-03", dem: 50, rep: 45 }];
   const changes = detectChanges(base, next);
   assert.ok(changes.some((c) => c.type === "rating" && /Tossup → Lean D/.test(c.text)));
-  assert.ok(changes.some((c) => c.type === "market"));
+  assert.ok(changes.some((c) => c.type === "poll-model"));
   assert.ok(changes.some((c) => c.type === "poll" && /Siena/.test(c.text)));
 });
 

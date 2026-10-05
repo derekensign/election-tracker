@@ -1,6 +1,6 @@
 // Day-over-day change detection. Produces a ranked list of "big moves" between two snapshots.
 
-const THRESHOLDS = { marketPoints: 3, pollMarginPoints: 1.0, controlPoints: 3, expectedSeats: 0.3 };
+const THRESHOLDS = { marketPoints: 3 /* model-probability points */, pollMarginPoints: 1.0, controlPoints: 3, expectedSeats: 0.3 };
 
 export function detectChanges(previous, current) {
   if (!previous) return [{ type: "baseline", severity: 0, text: "Baseline snapshot: changes will appear starting with the next update." }];
@@ -16,7 +16,7 @@ export function detectChanges(previous, current) {
     if (!before) continue;
     const label = `${race.stateName} Governor`;
     compareRatings(before.ratings, race.ratings, current.governors.forecasters, label, race.id, changes);
-    compareOdds({ ...before.odds, pollModel: before.pollModel }, { ...race.odds, pollModel: race.pollModel }, label, race.id, changes);
+    compareModel(before.pollModel, race.pollModel, label, race.id, changes);
     if (race.state !== "TX") comparePolls(before, race, label, race.id, changes);
   }
   changes.sort((a, b) => b.severity - a.severity);
@@ -29,7 +29,7 @@ function compareSenateRaces(previous, current, changes) {
     if (!before) continue;
     const label = `${race.stateName} Senate`;
     compareRatings(before.ratings, race.ratings, current.usSenate.forecasters, label, race.id, changes);
-    compareOdds({ ...before.odds, pollModel: before.pollModel }, { ...race.odds, pollModel: race.pollModel }, label, race.id, changes);
+    compareModel(before.pollModel, race.pollModel, label, race.id, changes);
     comparePolls(before, race, label, race.id, changes);
   }
 }
@@ -40,7 +40,7 @@ function compareTexasRaces(previous, current, changes) {
     if (!before) continue;
     const label = `TX ${race.office}`;
     compareRatings(mapLabels(before.ratings), mapLabels(race.ratings), null, label, race.id, changes);
-    compareOdds({ ...before.odds, pollModel: before.pollModel }, { ...race.odds, pollModel: race.pollModel }, label, race.id, changes);
+    compareModel(before.pollModel, race.pollModel, label, race.id, changes);
     comparePolls(before, race, label, race.id, changes);
   }
 }
@@ -58,21 +58,12 @@ function compareRatings(before, after, forecasters, label, raceId, changes) {
   }
 }
 
-function compareOdds(before, after, label, raceId, changes) {
-  const bp = before?.pollModel?.pD;
-  const ap = after?.pollModel?.pD;
+function compareModel(before, after, label, raceId, changes) {
+  const bp = before?.pD;
+  const ap = after?.pD;
   if (bp != null && ap != null && Math.abs(ap - bp) * 100 >= THRESHOLDS.marketPoints) {
     const delta = (ap - bp) * 100;
     changes.push({ type: "poll-model", severity: 55 + Math.min(30, Math.abs(delta)), raceId, text: `${label}: poll-model D win chance ${pct(bp)} → ${pct(ap)} (${signed(delta)} pts)` });
-  }
-  for (const source of ["polymarket", "kalshi"]) {
-    const b = before?.[source]?.D;
-    const a = after?.[source]?.D;
-    if (b === null || b === undefined || a === null || a === undefined) continue;
-    const delta = (a - b) * 100;
-    if (Math.abs(delta) >= THRESHOLDS.marketPoints) {
-      changes.push({ type: "market", severity: 40 + Math.min(40, Math.abs(delta)), raceId, text: `${label}: ${sourceName(source)} D win odds ${pct(b)} → ${pct(a)} (${signed(delta)} pts)` });
-    }
   }
 }
 
@@ -98,11 +89,6 @@ function compareLegislature(previous, current, key, label, changes) {
       changes.push({ type: "rating", severity: 60, raceId: `${key}-${district.district}`, text: `${label} District ${district.district}: ${before.rating || "unrated"} → ${district.rating || "unrated"}` });
     }
   }
-  const b = previous[key]?.control?.kalshi?.D;
-  const a = current[key]?.control?.kalshi?.D;
-  if (b != null && a != null && Math.abs(a - b) * 100 >= THRESHOLDS.controlPoints) {
-    changes.push({ type: "market", severity: 45, text: `${label} control: Kalshi D ${pct(b)} → ${pct(a)}` });
-  }
   const bm = previous[key]?.model?.expected?.D;
   const am = current[key]?.model?.expected?.D;
   if (bm != null && am != null && Math.abs(am - bm) >= 0.5) {
@@ -117,23 +103,16 @@ function compareLegislature(previous, current, key, label, changes) {
 }
 
 function compareControl(previous, current, changes) {
-  const pairs = [
-    ["Polymarket Senate control", previous.senateControl?.polymarket?.D, current.senateControl?.polymarket?.D],
-    ["Kalshi-implied Senate control", previous.senateControl?.kalshiSeats?.controlD, current.senateControl?.kalshiSeats?.controlD],
-    ["Market-derived Senate control", previous.senateControl?.derived?.control?.D, current.senateControl?.derived?.control?.D],
-    ["Poll-model Senate control", previous.senateControl?.pollModel?.control?.D, current.senateControl?.pollModel?.control?.D],
-  ];
-  for (const [name, b, a] of pairs) {
-    if (b == null || a == null) continue;
+  const b = previous.senateControl?.pollModel?.control?.D;
+  const a = current.senateControl?.pollModel?.control?.D;
+  if (b != null && a != null && Math.abs(a - b) * 100 >= THRESHOLDS.controlPoints) {
     const delta = (a - b) * 100;
-    if (Math.abs(delta) >= THRESHOLDS.controlPoints) changes.push({ type: "control", severity: 90, text: `${name}: D ${pct(b)} → ${pct(a)} (${signed(delta)} pts)` });
+    changes.push({ type: "control", severity: 90, text: `U.S. Senate control (polls model): D ${pct(b)} → ${pct(a)} (${signed(delta)} pts)` });
   }
-  for (const [name, key] of [["market-derived", "derived"], ["poll model", "pollModel"]]) {
-    const bE = previous.senateControl?.[key]?.expected?.D;
-    const aE = current.senateControl?.[key]?.expected?.D;
-    if (bE != null && aE != null && Math.abs(aE - bE) >= THRESHOLDS.expectedSeats) {
-      changes.push({ type: "control", severity: 70, text: `Expected Democratic-caucus seats (${name}) ${bE.toFixed(1)} → ${aE.toFixed(1)}` });
-    }
+  const bE = previous.senateControl?.pollModel?.expected?.D;
+  const aE = current.senateControl?.pollModel?.expected?.D;
+  if (bE != null && aE != null && Math.abs(aE - bE) >= THRESHOLDS.expectedSeats) {
+    changes.push({ type: "control", severity: 70, text: `Expected Democratic-caucus seats ${bE.toFixed(1)} → ${aE.toFixed(1)}` });
   }
 }
 
@@ -163,7 +142,6 @@ function compareUsHouse(previous, current, changes) {
   }
 }
 
-function sourceName(source) { return source === "polymarket" ? "Polymarket" : "Kalshi"; }
 function pct(p) { return `${Math.round(p * 100)}%`; }
 function signed(n) { return `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(1)}`; }
 export function marginText(margin) {

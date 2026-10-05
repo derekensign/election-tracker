@@ -3,11 +3,9 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync, copyFi
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  CONTROL_MARKETS, SENATE_MARKETS, SENATE_SEATS_NOT_UP, SENATE_STATES, TEXAS_LEGISLATURE, TEXAS_STATEWIDE_RACES,
-  THIN_MARKET_VOLUME_USD, US_HOUSE, US_SENATE_WIKIPEDIA_PAGE, GOVERNOR_STATES, GOVERNORS_WIKIPEDIA_PAGE, GOVERNOR_KALSHI_SERIES, TEXAS_COURTS,
+  SENATE_SEATS_NOT_UP, SENATE_STATES, TEXAS_LEGISLATURE, TEXAS_STATEWIDE_RACES,
+  US_HOUSE, US_SENATE_WIKIPEDIA_PAGE, GOVERNOR_STATES, GOVERNORS_WIKIPEDIA_PAGE, TEXAS_COURTS,
 } from "./config.js";
-import * as polymarket from "./sources/polymarket.js";
-import * as kalshi from "./sources/kalshi.js";
 import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
@@ -18,7 +16,6 @@ import { buildPollsterReport } from "./pollsters-report.js";
 
 const ELECTION_DAY = "2026-11-03";
 import { detectChanges } from "./diff.js";
-import { sequential } from "./http.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DATA_DIR = join(ROOT, "public", "data");
@@ -33,9 +30,7 @@ export async function build() {
   const log = (message) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
 
   // ---- Fetch everything, tolerating individual source failures -------------------------------------------
-  const [polymarketData, kalshiData, votehubPolls, wikiPages] = await Promise.all([
-    guard("polymarket", sources, log, fetchPolymarket),
-    guard("kalshi", sources, log, fetchKalshi),
+  const [votehubPolls, wikiPages] = await Promise.all([
     guard("votehub", sources, log, votehub.fetchAllPolls),
     guard("wikipedia", sources, log, fetchWikipedia),
   ]);
@@ -43,47 +38,41 @@ export async function build() {
   // ---- U.S. Senate -----------------------------------------------------------------------------------------
   const senateTable = wikiPages?.senate ? wikipedia.parseSenateRatingsTable(wikiPages.senate.wikitext) : previous?.usSenate ?? { forecasters: [], races: {} };
   const forecasters = senateTable.forecasters?.length ? senateTable.forecasters : previous?.usSenate?.forecasters ?? [];
+  const senateCandidates = wikiPages?.senate ? wikipedia.parseRaceSummaryCandidates(wikiPages.senate.wikitext, /^\s*\[\[2026 United States Senate (?:special )?election in/) : {};
   const senateRaces = Object.entries(SENATE_STATES).map(([state, stateName]) => {
     const wikiRace = senateTable.races?.[stateName] ?? previous?.usSenate?.races?.find((r) => r.state === state);
     const previousRace = previous?.usSenate?.races?.find((r) => r.state === state);
     const ratings = wikiRace?.ratings ?? previousRace?.ratings ?? {};
     const consensus = ratingConsensus(ratings);
-    const odds = {
-      polymarket: polymarketData?.senate?.[state] ?? (sources.polymarket.ok ? null : previousRace?.odds?.polymarket ?? null),
-      kalshi: kalshiData?.senate?.[state] ?? (sources.kalshi.ok ? null : previousRace?.odds?.kalshi ?? null),
-    };
-    const candidates = odds.polymarket?.candidates ?? odds.kalshi?.candidates ?? previousRace?.candidates ?? {};
-    const rawPolls = votehubPolls && candidates.D && candidates.R
-      ? votehub.pollsForRace(votehubPolls, { pollType: "us-senator", stateName, democrat: candidates.D, republican: candidates.R })
+    const summary = senateCandidates[stateName];
+    const candidates = summary ? { D: summary.D, R: summary.R, I: summary.I } : previousRace?.candidates ?? {};
+    // Races with no major Democrat (Nebraska's independent) are polled as independent vs Republican.
+    const democraticSide = candidates.D || candidates.I;
+    const rawPolls = votehubPolls && democraticSide && candidates.R
+      ? votehub.pollsForRace(votehubPolls, { pollType: "us-senator", stateName, democrat: democraticSide, republican: candidates.R })
       : (sources.votehub.ok ? [] : previousRace?.polls ?? []);
     const polls = sortPolls(dedupePolls(rawPolls));
-    const probabilities = raceProbabilities(odds, consensus?.label);
     const average = pollingAverage(polls, { asOf, ratePollster });
+    const independentRace = Boolean(!candidates.D && candidates.I);
+    const pollModel = pollModelFor(average, consensus?.label, asOf);
+    const probabilities = independentRace
+      ? { pD: 0, pR: 1 - (pollModel?.pD ?? 0.5), pI: pollModel?.pD ?? 0.5, probabilitySource: pollModel?.source ?? "rating prior" }
+      : { pD: pollModel?.pD ?? 0.5, pR: 1 - (pollModel?.pD ?? 0.5), pI: 0, probabilitySource: pollModel?.source ?? "rating prior" };
     return {
       id: `us-senate-${state}`, state, stateName,
       special: Boolean(wikiRace?.special), incumbentParty: wikiRace?.incumbentParty ?? null, incumbent: wikiRace?.incumbent ?? null, pvi: wikiRace?.pvi ?? null,
-      candidates, ratings, consensus, odds, polls: polls.slice(0, 40),
-      pollingAverage: average,
-      pollModel: pollModelFor(average, consensus?.label, asOf, { hasIndependent: Boolean(candidates.I && !candidates.D) }),
+      candidates, otherCandidates: summary?.others ?? [], independentRace, ratings, consensus, polls: polls.slice(0, 40),
+      pollingAverage: average, pollModel,
       ...probabilities,
     };
   });
 
   // ---- Senate control & seat distribution ------------------------------------------------------------------
   const notUp = { democraticCaucusNotUp: SENATE_SEATS_NOT_UP.democraticCaucus, republicanNotUp: SENATE_SEATS_NOT_UP.republican };
-  const derived = seatDistribution(senateRaces.map((r) => ({ pD: r.pD, pR: r.pR, pI: r.pI })), notUp);
-  // Poll model: races with polls use the polling average; Nebraska-style independent races keep their market/prior split.
-  const pollModel = seatDistribution(senateRaces.map((r) => (r.pollModel?.pD != null && !(r.pI > 0)
-    ? { pD: r.pollModel.pD, pR: 1 - r.pollModel.pD, pI: 0 }
-    : { pD: r.pD, pR: r.pR, pI: r.pI })), notUp);
-  const kalshiSeats = kalshiData?.senateSeats ?? (sources.kalshi.ok ? null : previous?.senateControl?.kalshiSeats ?? null);
+  const pollModel = seatDistribution(senateRaces.map((r) => ({ pD: r.pD, pR: r.pR, pI: r.pI })), notUp);
   const senateControl = {
     current: { democraticCaucus: 47, republican: 53, note: "Democratic caucus includes independents Sanders (VT) and King (ME), neither up in 2026." },
     notUp: SENATE_SEATS_NOT_UP,
-    polymarket: polymarketData?.senateControl ?? (sources.polymarket.ok ? null : previous?.senateControl?.polymarket ?? null),
-    usHousePolymarket: polymarketData?.houseControl ?? (sources.polymarket.ok ? null : previous?.senateControl?.usHousePolymarket ?? null),
-    kalshiSeats,
-    derived,
     pollModel,
     electionDay: ELECTION_DAY,
   };
@@ -99,25 +88,18 @@ export async function build() {
       : [];
     const merged = page || votehubRacePolls.length ? [...votehubRacePolls, ...polling.polls] : previousRace?.polls ?? [];
     const polls = sortPolls(dedupePolls(merged));
-    const odds = {
-      polymarket: polymarketData?.texas?.[race.id] ?? (sources.polymarket.ok ? null : previousRace?.odds?.polymarket ?? null),
-      kalshi: kalshiData?.texas?.[race.id] ?? (sources.kalshi.ok ? null : previousRace?.odds?.kalshi ?? null),
-    };
     const consensus = ratingConsensus(ratings);
     const average = pollingAverage(polls, { asOf, ratePollster });
+    const pollModel = pollModelFor(average, consensus?.label, asOf, { allowPrior: false });
     return {
       id: race.id, office: race.office, democrat: race.democrat, republican: race.republican,
       wikipediaUrl: page?.url ?? previousRace?.wikipediaUrl ?? `https://en.wikipedia.org/wiki/${race.wikipedia}`,
-      ratings, consensus, odds,
+      ratings, consensus,
       polls: polls.slice(0, 40), pollingAverage: average, aggregates: polling.aggregates,
-      pollModel: pollModelFor(average, consensus?.label, asOf, { allowPrior: false }),
-      ...raceProbabilities(odds, consensus?.label, { allowPrior: false }),
+      pollModel, pD: pollModel?.pD ?? null, pR: pollModel ? 1 - pollModel.pD : null, pI: 0, probabilitySource: pollModel?.source ?? null,
     };
   });
-  const texas = {
-    races: texasRaces,
-    statewideDemWins: kalshiData?.statewideDemWins ?? (sources.kalshi.ok ? null : previous?.texas?.statewideDemWins ?? null),
-  };
+  const texas = { races: texasRaces };
 
   // ---- Texas Legislature -----------------------------------------------------------------------------------
   // Legislative generic ballot ("which party's candidate for the Texas House") lives on the House page.
@@ -129,21 +111,17 @@ export async function build() {
   const downBallotAverages = texasRaces.filter((r) => !["tx-senate", "tx-governor"].includes(r.id)).map((r) => r.pollingAverage);
   const environment = estimateEnvironment({ genericBallotAverage, downBallotAverages });
   const txLegislature = { genericBallot: { polls: genericBallotPolls.slice(0, 20), average: genericBallotAverage }, environment };
-  const txHouse = buildChamber("house", wikiPages?.txHouse, previous?.txHouse, {
-    control: kalshiData?.txHouseControl ?? (sources.kalshi.ok ? null : previous?.txHouse?.control?.kalshi ?? null),
-    demSeats: kalshiData?.txHouseDemSeats ?? (sources.kalshi.ok ? null : previous?.txHouse?.demSeats ?? null),
-    environment,
-  });
+  const txHouse = buildChamber("house", wikiPages?.txHouse, previous?.txHouse, { environment });
   const txSenate = buildChamber("senate", wikiPages?.txSenate, previous?.txSenate, { environment });
 
   // ---- Governors --------------------------------------------------------------------------------------------
-  const governors = buildGovernors({ page: wikiPages?.governors, previous: previous?.governors, votehubPolls, kalshiOdds: kalshiData?.governors, sources, asOf, texasGovernor: texasRaces.find((r) => r.id === "tx-governor") });
+  const governors = buildGovernors({ page: wikiPages?.governors, previous: previous?.governors, votehubPolls, sources, asOf, texasGovernor: texasRaces.find((r) => r.id === "tx-governor") });
 
   // ---- Texas courts and SBOE --------------------------------------------------------------------------------
-  const txCourts = buildTexasCourts({ pages: wikiPages?.courts, previous: previous?.txCourts, kalshiOdds: kalshiData?.courts, sources, environment });
+  const txCourts = buildTexasCourts({ pages: wikiPages?.courts, previous: previous?.txCourts, environment });
 
   // ---- U.S. House -------------------------------------------------------------------------------------------
-  const usHouse = buildUsHouse({ pages: wikiPages?.usHouse, previous: previous?.usHouse, votehubPolls, kalshiSeats: kalshiData?.usHouseSeats, polymarketControl: polymarketData?.houseControl, sources, asOf });
+  const usHouse = buildUsHouse({ pages: wikiPages?.usHouse, previous: previous?.usHouse, votehubPolls, sources, asOf });
 
   const snapshot = {
     version: 1, generatedAt: generatedAt.toISOString(), asOf, sources,
@@ -173,88 +151,6 @@ export async function build() {
 }
 
 // ---- Source fetchers ----------------------------------------------------------------------------------------
-async function fetchPolymarket() {
-  const senate = {};
-  await Promise.all(Object.entries(SENATE_MARKETS).map(async ([state, ids]) => {
-    if (!ids.polymarket) return;
-    try {
-      const event = await polymarket.fetchEvent(ids.polymarket);
-      senate[state] = withThinFlag(polymarket.partyProbabilities(event, ids.candidates || {}), event.volumeUsd, event.url);
-    } catch (error) { console.warn(`  polymarket ${state}: ${error.message}`); }
-  }));
-  const texas = {};
-  await Promise.all(TEXAS_STATEWIDE_RACES.map(async (race) => {
-    if (!race.polymarket) return;
-    try {
-      const event = await polymarket.fetchEvent(race.polymarket);
-      texas[race.id] = withThinFlag(polymarket.partyProbabilities(event), event.volumeUsd, event.url);
-    } catch (error) { console.warn(`  polymarket ${race.id}: ${error.message}`); }
-  }));
-  const senateEvent = await polymarket.fetchEvent(CONTROL_MARKETS.usSenate.polymarket);
-  const houseEvent = await polymarket.fetchEvent(CONTROL_MARKETS.usHouse.polymarket);
-  return {
-    senate, texas,
-    senateControl: { ...polymarket.controlProbabilities(senateEvent), url: senateEvent.url },
-    houseControl: { ...polymarket.controlProbabilities(houseEvent), url: houseEvent.url },
-  };
-}
-
-async function fetchKalshi() {
-  // Kalshi rate-limits bursts, so requests run one at a time.
-  const senate = {};
-  await sequential(Object.entries(SENATE_MARKETS).filter(([, ids]) => ids.kalshi), async ([state, ids]) => {
-    try {
-      const markets = await kalshi.fetchMarkets({ seriesTicker: ids.kalshi });
-      const probabilities = kalshi.partyProbabilities(markets, { democrat: ids.candidates?.D, republican: ids.candidates?.R });
-      if (probabilities.D !== null || probabilities.R !== null) senate[state] = kalshiWithFlags(probabilities, ids.kalshi);
-    } catch (error) { console.warn(`  kalshi ${state}: ${error.message}`); }
-  });
-  const texas = {};
-  await sequential(TEXAS_STATEWIDE_RACES.filter((race) => race.kalshi), async (race) => {
-    try {
-      const markets = await kalshi.fetchMarkets({ seriesTicker: race.kalshi });
-      texas[race.id] = kalshiWithFlags(kalshi.partyProbabilities(markets, race), race.kalshi);
-    } catch (error) { console.warn(`  kalshi ${race.id}: ${error.message}`); }
-  });
-  const seatMarkets = await kalshi.fetchMarkets({ eventTicker: CONTROL_MARKETS.usSenate.kalshiSeatsEvent });
-  const buckets = kalshi.seatDistribution(seatMarkets);
-  const controlD = buckets.filter((b) => bucketMinimumSeats(b.key) >= 51).reduce((sum, b) => sum + (b.normalized ?? 0), 0);
-  const senateSeats = {
-    event: CONTROL_MARKETS.usSenate.kalshiSeatsEvent, url: `https://kalshi.com/markets/${CONTROL_MARKETS.usSenate.kalshiSeatsEvent.split("-")[0].toLowerCase()}`,
-    buckets, controlD: round3(controlD),
-    volumeContracts: buckets.reduce((sum, b) => sum + b.volumeContracts, 0),
-    note: "Kalshi counts independents with the party they caucus with, so these are Democratic-caucus seats.",
-  };
-  const txHouseMarkets = await kalshi.fetchMarkets({ seriesTicker: CONTROL_MARKETS.txHouse.kalshi });
-  const txHouseControl = kalshiWithFlags(kalshi.partyProbabilities(txHouseMarkets, {}), CONTROL_MARKETS.txHouse.kalshi);
-  const txHouseDemSeats = await fetchBuckets(CONTROL_MARKETS.txHouse.kalshiSeatsSeries);
-  const statewideDemWins = await fetchBuckets(CONTROL_MARKETS.txStatewideDemWins.kalshiSeries);
-  const usHouseSeats = await fetchBuckets(US_HOUSE.kalshiSeatsSeries);
-  const governors = {};
-  await sequential(Object.keys(GOVERNOR_STATES), async (state) => {
-    try {
-      const markets = await kalshi.fetchMarkets({ seriesTicker: GOVERNOR_KALSHI_SERIES(state) });
-      const probabilities = kalshi.partyProbabilities(markets, {});
-      if (probabilities.D !== null || probabilities.R !== null) governors[state] = kalshiWithFlags(probabilities, GOVERNOR_KALSHI_SERIES(state));
-    } catch (error) { console.warn(`  kalshi governor ${state}: ${error.message}`); }
-  }, { gapMs: 150 });
-  const courts = {};
-  await sequential(Object.entries(TEXAS_COURTS.kalshi), async ([race, series]) => {
-    try { const markets = await kalshi.fetchMarkets({ seriesTicker: series }); courts[race] = kalshiWithFlags(kalshi.partyProbabilities(markets, {}), series); } catch (error) { console.warn(`  kalshi court ${race}: ${error.message}`); }
-  });
-  return { senate, texas, senateSeats, txHouseControl, txHouseDemSeats, statewideDemWins, usHouseSeats, governors, courts };
-}
-
-async function fetchBuckets(seriesTicker) {
-  try {
-    const markets = await kalshi.fetchMarkets({ seriesTicker });
-    return markets
-      .filter((m) => m.probability !== null)
-      .map((m) => ({ ticker: m.ticker, label: m.outcome || m.title, probability: m.probability, yesBid: m.yesBid, yesAsk: m.yesAsk, volumeContracts: m.volumeContracts }))
-      .sort((a, b) => numericIn(a.label) - numericIn(b.label));
-  } catch (error) { console.warn(`  kalshi ${seriesTicker}: ${error.message}`); return null; }
-}
-
 async function fetchWikipedia() {
   const senate = await wikipedia.fetchWikitext(US_SENATE_WIKIPEDIA_PAGE);
   const texas = {};
@@ -291,63 +187,21 @@ async function guard(name, sources, log, fetcher) {
   }
 }
 
-function withThinFlag(probabilities, volumeUsd, url) {
-  // A party with no market in a two- or three-way race has ~0 chance (e.g. Nebraska has no viable Democrat).
-  const present = ["D", "R", "I"].filter((party) => probabilities[party] !== null);
-  if (present.length >= 2) for (const party of ["D", "R"]) if (probabilities[party] === null) probabilities[party] = 0;
-  const total = (probabilities.D ?? 0) + (probabilities.R ?? 0) + (probabilities.I ?? 0);
-  return {
-    ...probabilities,
-    D: probabilities.D === null ? null : round3(probabilities.D / (total || 1)),
-    R: probabilities.R === null ? null : round3(probabilities.R / (total || 1)),
-    I: probabilities.I === null ? null : round3(probabilities.I / (total || 1)),
-    volumeUsd: Math.round(volumeUsd), thin: volumeUsd < THIN_MARKET_VOLUME_USD, url,
-  };
-}
-
-function kalshiWithFlags(probabilities, seriesTicker) {
-  const total = (probabilities.D ?? 0) + (probabilities.R ?? 0);
-  return {
-    D: probabilities.D === null ? null : round3(probabilities.D / (total || 1)),
-    R: probabilities.R === null ? null : round3(probabilities.R / (total || 1)),
-    rawD: probabilities.D, rawR: probabilities.R,
-    candidates: probabilities.candidates,
-    volumeContracts: Math.round(probabilities.volumeContracts), spread: probabilities.spread,
-    thin: probabilities.volumeContracts < THIN_MARKET_VOLUME_USD, // contracts are $1 each at settlement
-    url: `https://kalshi.com/markets/${seriesTicker.toLowerCase()}`,
-  };
-}
-
 /**
  * Poll-based win probability for a race. With no usable polls, fall back to the rating prior (flagged) or null.
- * Independent-vs-Republican races (no Democrat) are left to the market/prior path.
  */
-function pollModelFor(average, consensusLabel, asOf, { allowPrior = true, hasIndependent = false } = {}) {
+function pollModelFor(average, consensusLabel, asOf, { allowPrior = true } = {}) {
   const daysToElection = Math.max(0, Math.round((Date.parse(ELECTION_DAY) - Date.parse(asOf)) / 86_400_000));
-  if (average && !hasIndependent) {
+  if (average) {
     const result = pollWinProbability(average, { daysToElection });
     return { ...result, source: "polls", qualityWeighted: average.qualityWeighted };
   }
-  if (!allowPrior || hasIndependent) return null;
+  if (!allowPrior) return null;
   const pD = priorFromRating(consensusLabel);
   return { pD, sigma: null, margin: null, effectiveN: 0, daysToElection, source: "rating prior" };
 }
 
-/** Win probabilities for a race: Polymarket first, then Kalshi, then a rating-based prior. */
-function raceProbabilities(odds, consensusLabel, { allowPrior = true } = {}) {
-  const pm = odds.polymarket;
-  if (pm && pm.D !== null && pm.R !== null && !pm.thin) {
-    return { pD: pm.D, pR: pm.R, pI: pm.I ?? 0, probabilitySource: "polymarket" };
-  }
-  const ks = odds.kalshi;
-  if (ks && ks.D !== null && ks.R !== null) return { pD: ks.D, pR: ks.R, pI: 0, probabilitySource: "kalshi" };
-  if (pm && pm.D !== null && pm.R !== null) return { pD: pm.D, pR: pm.R, pI: pm.I ?? 0, probabilitySource: "polymarket (thin)" };
-  if (!allowPrior) return { pD: null, pR: null, pI: 0, probabilitySource: null };
-  const pD = priorFromRating(consensusLabel);
-  return { pD, pR: 1 - pD, pI: 0, probabilitySource: "rating prior" };
-}
-
-function buildChamber(kind, page, previousChamber, { control, demSeats, environment }) {
+function buildChamber(kind, page, previousChamber, { environment }) {
   const config = TEXAS_LEGISLATURE[kind];
   const parsed = page ? wikipedia.parseLegislativeChamber(page.wikitext) : null;
   const districts = parsed?.districts?.length ? parsed.districts : previousChamber?.districts ?? [];
@@ -376,52 +230,45 @@ function buildChamber(kind, page, previousChamber, { control, demSeats, environm
     chamberPredictions: parsed?.chamberPredictions ?? previousChamber?.chamberPredictions ?? {},
     districts,
     summary: { ratingCounts, expectedD: Math.round((expectedD + Math.max(0, notUpD)) * 10) / 10, competitive: districts.filter((d) => d.rating && ratingScore(d.rating) !== null && Math.abs(ratingScore(d.rating)) <= 2).length },
-    control: control ? { kalshi: control } : previousChamber?.control ?? null,
-    demSeats: demSeats ?? null,
     model: model ? { environment: model.environment, params: model.params, histogram: model.histogram, control: model.control, expected: model.expected, majority: model.majority, totalSeats: model.totalSeats, notUp: model.notUp } : null,
   };
 }
 
 /**
- * Texas Supreme Court, Court of Criminal Appeals, and State Board of Education: nominees from Wikipedia, Kalshi odds where a
- * market exists, and a baseline probability from the statewide environment (these races track the generic down-ballot vote).
+ * Texas Supreme Court, Court of Criminal Appeals, and State Board of Education: nominees from Wikipedia and a baseline
+ * probability from the statewide environment (these races track the generic down-ballot vote).
  */
-function buildTexasCourts({ pages, previous, kalshiOdds, sources, environment }) {
+function buildTexasCourts({ pages, previous, environment }) {
   const supreme = pages?.supreme ? wikipedia.parseInfoboxRaces(pages.supreme.wikitext).map((r) => ({ ...r, body: "Texas Supreme Court" })) : previous?.races?.filter((r) => r.body === "Texas Supreme Court") ?? [];
   const cca = pages?.elections ? wikipedia.parseCriminalAppeals(pages.elections.wikitext).map((r) => ({ ...r, body: "Court of Criminal Appeals" })) : previous?.races?.filter((r) => r.body === "Court of Criminal Appeals") ?? [];
   const sboe = pages?.sboe ? wikipedia.parseInfoboxRaces(pages.sboe.wikitext).map((r) => ({ ...r, body: "State Board of Education" })) : previous?.races?.filter((r) => r.body === "State Board of Education") ?? [];
   // Statewide judicial races run close to the generic down-ballot environment; SBOE districts are not modeled (no district data).
   const statewideModel = environment ? pollWinProbability({ margin: environment.margin, effectiveN: 4 }, { daysToElection: Math.max(0, Math.round((Date.parse(ELECTION_DAY) - Date.now()) / 86_400_000)), finalError: 6 }) : null;
-  const races = [...supreme, ...cca, ...sboe].map((r) => {
-    const kalshi = kalshiOdds?.[r.race] && r.body === "Texas Supreme Court" ? kalshiOdds[r.race] : null;
-    return {
-      id: `${r.body}-${r.race}`.toLowerCase().replace(/[^a-z0-9]+/g, "-"), body: r.body, race: r.race, nominees: r.nominees, incumbent: r.incumbent, incumbentParty: r.incumbentParty,
-      ratings: r.ratings, odds: { kalshi }, pollModel: r.body === "State Board of Education" ? null : statewideModel ? { pD: statewideModel.pD, source: "statewide environment" } : null,
-    };
-  });
+  const races = [...supreme, ...cca, ...sboe].map((r) => ({
+    id: `${r.body}-${r.race}`.toLowerCase().replace(/[^a-z0-9]+/g, "-"), body: r.body, race: r.race, nominees: r.nominees, incumbent: r.incumbent, incumbentParty: r.incumbentParty,
+    ratings: r.ratings, pollModel: r.body === "State Board of Education" ? null : statewideModel ? { pD: statewideModel.pD, source: "statewide environment" } : null,
+  }));
   return { races, environment: environment?.margin ?? null, pages: { supreme: pages?.supreme?.url ?? previous?.pages?.supreme ?? null, sboe: pages?.sboe?.url ?? previous?.pages?.sboe ?? null, elections: pages?.elections?.url ?? previous?.pages?.elections ?? null } };
 }
 
-/** Governors: ratings table from the national page, VoteHub polls (candidates named by Kalshi markets), Kalshi party odds, polls model. */
-function buildGovernors({ page, previous, votehubPolls, kalshiOdds, sources, asOf, texasGovernor }) {
+/** Governors: ratings table and candidates from the national page, VoteHub polls, polls model. */
+function buildGovernors({ page, previous, votehubPolls, sources, asOf, texasGovernor }) {
   const table = page ? wikipedia.parseGovernorRatingsTable(page.wikitext) : null;
   const forecasters = table?.forecasters ?? previous?.forecasters ?? [];
+  const summary = page ? wikipedia.parseRaceSummaryCandidates(page.wikitext, /^\s*\[\[2026 [A-Za-z ]+ gubernatorial election/) : {};
   const races = Object.entries(GOVERNOR_STATES).map(([state, stateName]) => {
     const wikiRace = table?.races?.[stateName];
     const previousRace = previous?.races?.find((r) => r.state === state);
     const ratings = wikiRace?.ratings ?? previousRace?.ratings ?? {};
     const consensus = ratingConsensus(ratings);
-    const kalshi = kalshiOdds?.[state] ?? (sources.kalshi.ok ? null : previousRace?.odds?.kalshi ?? null);
-    const candidates = kalshi?.candidates ?? previousRace?.candidates ?? {};
+    const candidates = summary[stateName] ? { D: summary[stateName].D, R: summary[stateName].R, I: summary[stateName].I } : previousRace?.candidates ?? {};
     const rawPolls = votehubPolls && candidates.D && candidates.R
       ? votehub.pollsForRace(votehubPolls, { pollType: "governor", stateName, democrat: candidates.D, republican: candidates.R })
       : (sources.votehub.ok ? [] : previousRace?.polls ?? []);
     const polls = sortPolls(dedupePolls(state === "TX" && texasGovernor ? texasGovernor.polls : rawPolls));
     const average = state === "TX" && texasGovernor ? texasGovernor.pollingAverage : pollingAverage(polls, { asOf, ratePollster });
     const pollModel = pollModelFor(average, consensus?.label, asOf);
-    const odds = { kalshi, polymarket: state === "TX" ? texasGovernor?.odds?.polymarket ?? null : null };
-    const market = raceProbabilities(odds, consensus?.label);
-    return { id: `governor-${state}`, state, stateName, incumbentParty: wikiRace?.incumbentParty ?? previousRace?.incumbentParty ?? null, incumbent: wikiRace?.incumbent ?? previousRace?.incumbent ?? null, pvi: wikiRace?.pvi ?? null, candidates, ratings, consensus, odds, polls: polls.slice(0, 30), pollingAverage: average, pollModel, ...market };
+    return { id: `governor-${state}`, state, stateName, incumbentParty: wikiRace?.incumbentParty ?? previousRace?.incumbentParty ?? null, incumbent: wikiRace?.incumbent ?? previousRace?.incumbent ?? null, pvi: wikiRace?.pvi ?? null, candidates, ratings, consensus, polls: polls.slice(0, 30), pollingAverage: average, pollModel, pD: pollModel?.pD ?? null, probabilitySource: pollModel?.source ?? null };
   });
   return { forecasters, races, pageUrl: page?.url ?? previous?.pageUrl ?? `https://en.wikipedia.org/wiki/${GOVERNORS_WIKIPEDIA_PAGE}` };
 }
@@ -430,7 +277,7 @@ function buildGovernors({ page, previous, votehubPolls, kalshiOdds, sources, asO
  * U.S. House: national ratings table (144 competitive seats), the Texas congressional page (ratings for all 38
  * districts plus district polls), the generic ballot (VoteHub + Wikipedia aggregates), markets, and our model.
  */
-function buildUsHouse({ pages, previous, votehubPolls, kalshiSeats, polymarketControl, sources, asOf }) {
+function buildUsHouse({ pages, previous, votehubPolls, sources, asOf }) {
   const ratingsTable = pages?.ratings ? wikipedia.parseHouseRatingsTable(pages.ratings.wikitext) : null;
   const forecasters = ratingsTable?.forecasters ?? previous?.forecasters ?? [];
   const national = pages?.national ? wikipedia.parseHouseNationalPage(pages.national.wikitext) : null;
@@ -483,14 +330,6 @@ function buildUsHouse({ pages, previous, votehubPolls, kalshiSeats, polymarketCo
   const modelById = new Map(model.seats.map((seat) => [seat.id, seat]));
   for (const d of districts) d.modelD = modelById.get(d.id)?.pD ?? null;
 
-  // Kalshi "at least N seats" ladder -> P(D ≥ 218) and an implied distribution over the ladder steps.
-  let kalshi = null;
-  if (kalshiSeats?.length) {
-    const ladder = kalshiSeats.map((b) => ({ atLeast: Number((b.label.match(/\d+/) || [])[0]), probability: b.probability, volumeContracts: b.volumeContracts })).filter((b) => Number.isFinite(b.atLeast)).sort((a, b) => a.atLeast - b.atLeast);
-    const majorityStep = ladder.find((b) => b.atLeast === US_HOUSE.majority) || ladder.filter((b) => b.atLeast <= US_HOUSE.majority).pop();
-    kalshi = { ladder, controlD: majorityStep ? round3(majorityStep.probability) : null, volumeContracts: Math.round(ladder.reduce((s, b) => s + b.volumeContracts, 0)), url: `https://kalshi.com/markets/${US_HOUSE.kalshiSeatsSeries.toLowerCase()}` };
-  } else if (!sources.kalshi.ok) kalshi = previous?.markets?.kalshi ?? null;
-
   return {
     seats: US_HOUSE.seats, majority: US_HOUSE.majority, composition,
     forecasters,
@@ -498,7 +337,6 @@ function buildUsHouse({ pages, previous, votehubPolls, kalshiSeats, polymarketCo
     genericBallot: { polls: genericPolls.slice(0, 30), average: genericAverage, aggregates: national?.aggregates ?? previous?.genericBallot?.aggregates ?? [] },
     texasStatewidePolls: texasPage ? sortPolls(dedupePolls(texasPage.statewidePolls)).slice(0, 12) : previous?.texasStatewidePolls ?? [],
     model: { ...model, seats: undefined, notUp, ratedCount: districts.length },
-    markets: { polymarket: polymarketControl ?? (sources.polymarket.ok ? null : previous?.markets?.polymarket ?? null), kalshi },
     pages: { national: pages?.national?.url ?? previous?.pages?.national ?? null, ratings: pages?.ratings?.url ?? previous?.pages?.ratings ?? null, texas: pages?.texas?.url ?? previous?.pages?.texas ?? null },
   };
 }
@@ -517,18 +355,17 @@ function buildSeries() {
     const s = JSON.parse(readFileSync(join(HISTORY_DIR, file), "utf8"));
     const races = {};
     for (const race of [...s.usSenate.races, ...s.texas.races, ...(s.governors?.races || [])]) {
-      races[race.id] = { pm: race.odds?.polymarket?.D ?? null, ks: race.odds?.kalshi?.D ?? null, poll: race.pollingAverage?.margin ?? null, pollModel: race.pollModel?.pD ?? null, rating: race.consensus?.score ?? null };
+      races[race.id] = { poll: race.pollingAverage?.margin ?? null, pollModel: race.pollModel?.pD ?? null, rating: race.consensus?.score ?? null };
     }
     return {
       date: s.asOf,
-      control: { polymarket: s.senateControl?.polymarket?.D ?? null, kalshi: s.senateControl?.kalshiSeats?.controlD ?? null, derived: s.senateControl?.derived?.control?.D ?? null, pollModel: s.senateControl?.pollModel?.control?.D ?? null },
-      expectedD: s.senateControl?.derived?.expected?.D ?? null,
+      control: { pollModel: s.senateControl?.pollModel?.control?.D ?? null },
       pollModelExpectedD: s.senateControl?.pollModel?.expected?.D ?? null,
       txHouseExpectedD: s.txHouse?.summary?.expectedD ?? null,
       txHouseModel: { control: s.txHouse?.model?.control?.D ?? null, expectedD: s.txHouse?.model?.expected?.D ?? null },
       txSenateModel: { control: s.txSenate?.model?.control?.D ?? null, expectedD: s.txSenate?.model?.expected?.D ?? null },
       txEnvironment: s.txLegislature?.environment?.margin ?? null,
-      usHouse: { control: s.usHouse?.model?.control?.D ?? null, expectedD: s.usHouse?.model?.expected?.D ?? null, generic: s.usHouse?.genericBallot?.average?.margin ?? null, polymarket: s.usHouse?.markets?.polymarket?.D ?? null },
+      usHouse: { control: s.usHouse?.model?.control?.D ?? null, expectedD: s.usHouse?.model?.expected?.D ?? null, generic: s.usHouse?.genericBallot?.average?.margin ?? null },
       races,
     };
   });
