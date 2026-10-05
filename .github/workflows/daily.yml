@@ -2,11 +2,11 @@ name: Daily snapshot
 
 on:
   schedule:
-    # 12:00 UTC = 7:00 am Central Daylight Time (6:00 am after the November time change).
-    # GitHub may delay or skip a scheduled run under load, so a second attempt follows at 13:30 UTC;
-    # the build is idempotent (same-day runs overwrite the day's snapshot).
-    - cron: "0 12 * * *"
-    - cron: "30 13 * * *"
+    # 12:07 UTC = 7:07 am Central Daylight Time (6:07 am after the November time change). Off-the-hour minutes
+    # avoid GitHub's most congested scheduler slots; a second attempt follows at 13:37 UTC. The build is
+    # idempotent, so same-day runs simply overwrite the day's snapshot.
+    - cron: "7 12 * * *"
+    - cron: "37 13 * * *"
   workflow_dispatch: {}
 
 permissions:

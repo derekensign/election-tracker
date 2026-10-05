@@ -65,7 +65,7 @@ npm test
 
 ## Automation
 
-`.github/workflows/daily.yml` runs at 12:00 UTC daily (7 am Central), commits `public/data/`, and pushes; Vercel redeploys from the push. Trigger it manually from the Actions tab with "Run workflow".
+`.github/workflows/daily.yml` runs at 12:07 UTC daily (7:07 am Central) with a backup attempt at 13:37 UTC, commits `public/data/`, and pushes; Vercel redeploys from the push. Trigger it manually from the Actions tab with "Run workflow" or `gh workflow run daily.yml`.
 
 ## Adding a race or source
 
