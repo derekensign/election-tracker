@@ -65,7 +65,13 @@ npm test
 
 ## Automation
 
-`.github/workflows/daily.yml` runs at 12:07 UTC daily (7:07 am Central) with a backup attempt at 13:37 UTC, commits `public/data/`, and pushes; Vercel redeploys from the push. Trigger it manually from the Actions tab with "Run workflow" or `gh workflow run daily.yml`.
+`.github/workflows/daily.yml` builds the snapshot, commits `public/data/`, and pushes; Vercel redeploys from the push. It is started three ways, any one of which is enough (the build is idempotent):
+
+1. GitHub's own schedule at 12:07 UTC and 13:37 UTC (7:07 and 8:37 am Central). GitHub skipped both on the first two mornings, so it is not relied on alone.
+2. **AWS EventBridge at 12:12 UTC** firing `aws/dispatch/index.mjs`, a Lambda in the personal account that calls GitHub's workflow-dispatch API. Deploy with `AWS_PROFILE=personal ./aws/deploy.sh` (stack `election-tracker-dispatch`, us-east-1). The GitHub token lives in Secrets Manager as `election-tracker/github-dispatch-token`; it is currently the `gh` CLI's OAuth token, which stops working if you ever run `gh auth logout` or `gh auth refresh`. To swap in a fine-grained PAT (Actions: write on this repo): `aws secretsmanager put-secret-value --secret-id election-tracker/github-dispatch-token --secret-string '<pat>'`, no redeploy needed.
+3. Manually: the Actions tab's "Run workflow", or `gh workflow run daily.yml`.
+
+The workflow fails rather than publishing if the snapshot date is not today's Central date.
 
 ## Adding a race or source
 

@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Reliable morning trigger for the Texas Polls Tracker. GitHub's own cron skipped two mornings in a row, so
+  EventBridge fires a tiny Lambda that calls GitHub's workflow-dispatch API. The build itself still runs in
+  GitHub Actions, so nothing here needs redeploying when the tracker's code changes.
+
+Parameters:
+  GithubTokenSecretId:
+    Type: String
+    Default: election-tracker/github-dispatch-token
+    Description: Secrets Manager secret holding a GitHub token with the `workflow` scope (bare string or {"token":"..."}).
+  GithubOwner:
+    Type: String
+    Default: derekensign
+  GithubRepo:
+    Type: String
+    Default: election-tracker
+  WorkflowFile:
+    Type: String
+    Default: daily.yml
+
+Resources:
+  DispatchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: election-tracker-dispatch
+      CodeUri: dispatch/
+      Handler: index.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          GITHUB_TOKEN_SECRET_ID: !Ref GithubTokenSecretId
+          GITHUB_OWNER: !Ref GithubOwner
+          GITHUB_REPO: !Ref GithubRepo
+          WORKFLOW_FILE: !Ref WorkflowFile
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${GithubTokenSecretId}-*
+      Events:
+        # 12:12 UTC = 7:12 am Central Daylight Time, five minutes after GitHub's own first attempt.
+        # The build is idempotent, so a double run on a good morning only rewrites the same day's snapshot.
+        Morning:
+          Type: Schedule
+          Properties:
+            Name: election-tracker-morning
+            Schedule: cron(12 12 * * ? *)
+            Description: Start the Texas Polls Tracker daily snapshot workflow on GitHub
+
+Outputs:
+  FunctionName:
+    Value: !Ref DispatchFunction
