@@ -1,6 +1,6 @@
 Texas Polls Tracker, Wednesday, October 7, 2026
 
-Talarico 75% to win the Senate seat on a polling average of D+4.1. Hinojosa 44% for governor. Democrats 76% to control the U.S. Senate, 86% for the House, 2% for the Texas House.
+Talarico 74% to win the Senate seat on a polling average of D+4.0. Hinojosa 44% for governor. Democrats 76% to control the U.S. Senate, 86% for the House, 2% for the Texas House.
 
 WHAT MOVED
 - Florida Senate: The Economist moved Lean R → Likely R
@@ -17,7 +17,7 @@ WHAT MOVED
 - Georgia Governor: Silver Bulletin moved Likely D → Lean D
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 75%. Average D+4.1 over 19 polls; latest YouGov Oct 5 D+6.0.
+- U.S. Senate: Talarico 74%. Average D+4.0 over 19 polls; latest YouGov Oct 5 D+6.0.
 - Governor: Hinojosa 44%. Average R+1.0 over 15 polls; latest YouGov Oct 5 D+1.0.
 - Lieutenant Governor: Goodwin 29%. Average R+3.5 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
 - Attorney General: Johnson 28%. Average R+3.6 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
