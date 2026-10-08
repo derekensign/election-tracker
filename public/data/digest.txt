@@ -1,24 +1,24 @@
-Texas Polls Tracker, Wednesday, October 7, 2026
+Texas Polls Tracker, Thursday, October 8, 2026
 
 Talarico 74% to win the Senate seat on a polling average of D+4.0. Hinojosa 44% for governor. Democrats 76% to control the U.S. Senate, 86% for the House, 2% for the Texas House.
 
 WHAT MOVED
-- Florida Senate: The Economist moved Lean R → Likely R
-- Georgia Senate: Split Ticket moved Likely D → Safe D
-- Kansas Senate: Cook Political Report moved Lean R → Tossup
-- Kansas Senate: FiftyPlusOne moved Lean R → Tossup
-- New Hampshire Senate: Cook Political Report moved Tossup → Lean D
-- North Carolina Senate: Cook Political Report moved Lean D → Likely D
-- North Carolina Senate: Fox News moved Lean D → Likely D
-- North Carolina Senate: Split Ticket moved Likely D → Safe D
-- South Carolina Senate: Fox News moved Solid R → Likely R
-- Alaska Governor: Silver Bulletin moved Solid D → Likely D
-- Florida Governor: Fox News moved Solid R → Likely R
-- Georgia Governor: Silver Bulletin moved Likely D → Lean D
+- Iowa Senate: Silver Bulletin moved Tossup → Lean D
+- Minnesota Senate: Split Ticket moved Lean D → Likely D
+- Nebraska Senate: Silver Bulletin moved Likely R → Lean R
+- North Carolina Senate: Silver Bulletin moved Likely D → Solid D
+- Alabama Governor: Inside Elections moved Solid R → Likely R
+- Alabama Governor: Sabato's Crystal Ball moved Safe R → Solid R
+- Alabama Governor: Silver Bulletin moved Solid R → Safe R
+- Alabama Governor: Decision Desk HQ moved Likely R → Solid R
+- Alaska Governor: Sabato's Crystal Ball moved Lean D → Tossup
+- Alaska Governor: RealClearPolitics moved Lean D → Tossup
+- Alaska Governor: Fox News moved Tossup → Lean D
+- Alaska Governor: Silver Bulletin moved Likely D → Lean D
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 74%. Average D+4.0 over 19 polls; latest YouGov Oct 5 D+6.0.
-- Governor: Hinojosa 44%. Average R+1.0 over 15 polls; latest YouGov Oct 5 D+1.0.
+- U.S. Senate: Talarico 74%. Average D+4.0 over 20 polls; latest YouGov Oct 5 D+6.0.
+- Governor: Hinojosa 44%. Average R+1.0 over 16 polls; latest YouGov Oct 5 D+1.0.
 - Lieutenant Governor: Goodwin 29%. Average R+3.5 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
 - Attorney General: Johnson 28%. Average R+3.6 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
 - Comptroller: Eckhardt 19%. Average R+5.7 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
@@ -36,13 +36,13 @@ U.S. SENATE
 - Closest races: AK 51% D (average D+0.1, 3 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); MN 60% D (average D+1.6, 3 polls); KS 62% D (average D+2.0, 3 polls); ME 65% D (average D+2.3, 9 polls); TX 65% D (average D+2.4, 6 polls); IA 70% D (average D+3.3, 5 polls); MI 70% D (average D+3.3, 10 polls); ID 28% D (average R+4.0, 1 polls); OH 74% D (average D+4.1, 6 polls); FL 25% D (average R+4.2, 6 polls).
 
 U.S. HOUSE
-- Control: 86% for Democrats (expected 231.9 seats, 218 needed). Generic ballot D+7.4 over 4 polls.
+- Control: 86% for Democrats (expected 232.0 seats, 218 needed). Generic ballot D+7.4 over 4 polls.
 - Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
-- Texas early voting begins: Monday, October 19, 2026 (in 12 days).
-- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 16 days).
-- Texas early voting ends: Friday, October 30, 2026 (in 23 days).
-- Election Day: Tuesday, November 3, 2026 (in 27 days).
+- Texas early voting begins: Monday, October 19, 2026 (in 11 days).
+- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 15 days).
+- Texas early voting ends: Friday, October 30, 2026 (in 22 days).
+- Election Day: Tuesday, November 3, 2026 (in 26 days).
 
 https://texas-race-tracker.vercel.app
