@@ -1,6 +1,6 @@
 Texas Polls Tracker, Thursday, October 8, 2026
 
-Talarico 71% to win the Senate seat on a polling average of D+3.4. Hinojosa 40% for governor. Democrats 74% to control the U.S. Senate, 86% for the House, 2% for the Texas House.
+Talarico 71% to win the Senate seat on a polling average of D+3.4. Hinojosa 40% for governor. Democrats 74% to control the U.S. Senate, 86% for the House, 3% for the Texas House.
 
 WHAT MOVED
 - Iowa Senate: Silver Bulletin moved Tossup → Lean D
@@ -28,7 +28,7 @@ TEXAS STATEWIDE
 
 TEXAS LEGISLATURE
 - Statewide environment R+4.9: legislative generic ballot R+5.4 over 3 polls, down-ballot statewide races R+4.1; a D+8.8 swing from Trump's 2024 margin.
-- Texas House: 62 D today; model expects 66.6 D seats, 2% for a Democratic majority (76). Closest: HD-121 59% D (Lean D), HD-74 61% D (Likely D), HD-34 61% D (Tilt D), HD-94 37% D (Tilt R), HD-112 63% D (Lean D).
+- Texas House: 62 D today; model expects 67.3 D seats, 3% for a Democratic majority (76). Closest: HD-94 46% D (Tilt D), HD-52 41% D (Tilt D), HD-108 39% D (Tilt R), HD-74 61% D (Likely D), HD-112 63% D (Lean D).
 - Texas Senate: 12 D today; model expects 11.5 D seats, 0% for a majority (16). Closest: SD-9 54% D (Likely D), SD-19 91% D, SD-21 94% D.
 
 U.S. SENATE
