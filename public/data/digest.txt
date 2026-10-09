@@ -5,16 +5,16 @@ Talarico 71% to win the Senate seat on a polling average of D+3.4. Hinojosa 40% 
 WHAT MOVED
 - Ohio Governor: Decision Desk HQ moved Tossup → Lean D
 - Vermont Governor: Decision Desk HQ moved Safe R → Likely R
-- ME-2 (U.S. House): FiftyPlusOne moved Tossup → Lean D
-- WI-3 (U.S. House): Decision Desk HQ moved Lean D → Likely D
-- AZ-1 (U.S. House): Split Ticket moved Safe D → Likely D
-- CO-5 (U.S. House): FiftyPlusOne moved Tossup → Lean D
-- FL-13 (U.S. House): FiftyPlusOne moved Lean R → Tossup
-- MN-1 (U.S. House): Decision Desk HQ moved Lean R → Likely R
-- GA-10 (U.S. House): Decision Desk HQ moved Safe R → Likely R
-- GA-11 (U.S. House): Decision Desk HQ moved Likely R → Safe R
-- OK-1 (U.S. House): Decision Desk HQ moved Likely R → Safe R
-- TX-2 (U.S. House): new poll — Impact Research (through 2025-10-04): R+9.0
+- Florida Governor: poll-model D win chance 39% → 23% (−15.4 pts)
+- Arizona Governor: polling average D+10.2 → D+6.2
+- Minnesota Senate: poll-model D win chance 60% → 73% (+13.2 pts)
+- Arizona Governor: poll-model D win chance 93% → 82% (−11.0 pts)
+- Florida Governor: polling average R+1.8 → R+4.6
+- Florida Senate: poll-model D win chance 25% → 16% (−8.9 pts)
+- Iowa Senate: poll-model D win chance 59% → 52% (−7.1 pts)
+- Minnesota Senate: polling average D+1.6 → D+3.9
+- Florida Senate: polling average R+4.2 → R+6.3
+- Wisconsin Governor: poll-model D win chance 67% → 72% (+4.6 pts)
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 71%. Average D+3.4 over 22 polls; latest YouGov Oct 5 D+6.0.
@@ -32,11 +32,11 @@ TEXAS LEGISLATURE
 - Texas Senate: 12 D today; model expects 11.5 D seats, 0% for a majority (16). Closest: SD-9 54% D (Likely D), SD-19 91% D, SD-21 94% D.
 
 U.S. SENATE
-- Control: 74% for Democrats. Expected 51.6 Democratic-caucus seats; 51 needed.
-- Closest races: AK 51% D (average D+0.1, 3 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); IA 58% D (average D+1.2, 4 polls); MN 60% D (average D+1.6, 3 polls); TX 62% D (average D+1.8, 8 polls); KS 62% D (average D+2.0, 3 polls); ME 64% D (average D+2.2, 8 polls); MI 72% D (average D+3.5, 11 polls); ID 28% D (average R+4.0, 1 polls); FL 25% D (average R+4.2, 6 polls); OH 77% D (average D+4.7, 7 polls).
+- Control: 74% for Democrats. Expected 51.5 Democratic-caucus seats; 51 needed.
+- Closest races: AK 51% D (average D+0.1, 3 polls); IA 52% D (average D+0.3, 5 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); TX 62% D (average D+1.8, 8 polls); KS 62% D (average D+2.0, 3 polls); ME 68% D (average D+2.8, 9 polls); ID 28% D (average R+4.0, 1 polls); MI 72% D (average D+3.6, 12 polls); MN 73% D (average D+3.9, 4 polls); OH 75% D (average D+4.1, 8 polls).
 
 U.S. HOUSE
-- Control: 86% for Democrats (expected 231.9 seats, 218 needed). Generic ballot D+6.9 over 3 polls.
+- Control: 86% for Democrats (expected 232.2 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
 - Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
