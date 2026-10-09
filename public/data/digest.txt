@@ -1,20 +1,20 @@
-Texas Polls Tracker, Thursday, October 8, 2026
+Texas Polls Tracker, Friday, October 9, 2026
 
 Talarico 71% to win the Senate seat on a polling average of D+3.4. Hinojosa 40% for governor. Democrats 74% to control the U.S. Senate, 86% for the House, 3% for the Texas House.
 
 WHAT MOVED
-- Iowa Senate: Silver Bulletin moved Tossup → Lean D
-- Minnesota Senate: Split Ticket moved Lean D → Likely D
-- Nebraska Senate: Silver Bulletin moved Likely R → Lean R
-- North Carolina Senate: Silver Bulletin moved Likely D → Solid D
-- Iowa Governor: Silver Bulletin moved Likely D → Solid D
-- Michigan Governor: Silver Bulletin moved Solid D → Likely D
-- New Hampshire Governor: Silver Bulletin moved Safe R → Likely R
-- South Carolina Governor: Decision Desk HQ moved Likely R → Lean R
-- TX-15 (U.S. House): The Economist moved Lean R → Tossup
-- Oregon Governor: poll-model D win chance 38% → 57% (+18.9 pts)
-- Iowa Senate: poll-model D win chance 70% → 59% (−11.1 pts)
-- Oregon Governor: polling average R+2.0 → D+1.2
+- Ohio Governor: Decision Desk HQ moved Tossup → Lean D
+- Vermont Governor: Decision Desk HQ moved Safe R → Likely R
+- ME-2 (U.S. House): FiftyPlusOne moved Tossup → Lean D
+- WI-3 (U.S. House): Decision Desk HQ moved Lean D → Likely D
+- AZ-1 (U.S. House): Split Ticket moved Safe D → Likely D
+- CO-5 (U.S. House): FiftyPlusOne moved Tossup → Lean D
+- FL-13 (U.S. House): FiftyPlusOne moved Lean R → Tossup
+- MN-1 (U.S. House): Decision Desk HQ moved Lean R → Likely R
+- GA-10 (U.S. House): Decision Desk HQ moved Safe R → Likely R
+- GA-11 (U.S. House): Decision Desk HQ moved Likely R → Safe R
+- OK-1 (U.S. House): Decision Desk HQ moved Likely R → Safe R
+- TX-2 (U.S. House): new poll — Impact Research (through 2025-10-04): R+9.0
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 71%. Average D+3.4 over 22 polls; latest YouGov Oct 5 D+6.0.
@@ -33,16 +33,16 @@ TEXAS LEGISLATURE
 
 U.S. SENATE
 - Control: 74% for Democrats. Expected 51.6 Democratic-caucus seats; 51 needed.
-- Closest races: AK 51% D (average D+0.1, 3 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); IA 59% D (average D+1.4, 6 polls); MN 60% D (average D+1.6, 3 polls); TX 62% D (average D+1.8, 8 polls); KS 62% D (average D+2.0, 3 polls); ME 65% D (average D+2.3, 9 polls); MI 72% D (average D+3.5, 11 polls); ID 28% D (average R+4.0, 1 polls); FL 25% D (average R+4.2, 6 polls); OH 77% D (average D+4.7, 7 polls).
+- Closest races: AK 51% D (average D+0.1, 3 polls); NE 56% D (average D+1.0, 1 polls); SC 43% D (average R+1.2, 2 polls); IA 58% D (average D+1.2, 4 polls); MN 60% D (average D+1.6, 3 polls); TX 62% D (average D+1.8, 8 polls); KS 62% D (average D+2.0, 3 polls); ME 64% D (average D+2.2, 8 polls); MI 72% D (average D+3.5, 11 polls); ID 28% D (average R+4.0, 1 polls); FL 25% D (average R+4.2, 6 polls); OH 77% D (average D+4.7, 7 polls).
 
 U.S. HOUSE
-- Control: 86% for Democrats (expected 232.0 seats, 218 needed). Generic ballot D+7.4 over 4 polls.
+- Control: 86% for Democrats (expected 231.9 seats, 218 needed). Generic ballot D+6.9 over 3 polls.
 - Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
-- Texas early voting begins: Monday, October 19, 2026 (in 11 days).
-- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 15 days).
-- Texas early voting ends: Friday, October 30, 2026 (in 22 days).
-- Election Day: Tuesday, November 3, 2026 (in 26 days).
+- Texas early voting begins: Monday, October 19, 2026 (in 10 days).
+- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 14 days).
+- Texas early voting ends: Friday, October 30, 2026 (in 21 days).
+- Election Day: Tuesday, November 3, 2026 (in 25 days).
 
 https://texas-race-tracker.vercel.app
