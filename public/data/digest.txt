@@ -7,9 +7,10 @@ WHAT MOVED
 - Iowa Senate: Silver Bulletin moved Lean D → Tossup
 - Louisiana Senate: Silver Bulletin moved Solid R → Likely R
 - TX-2 (U.S. House): new poll — Impact Research (through 2026-10-04): R+9.0
+- TX U.S. Senate: new poll — Trafalgar Group (through 2026-10-08): D+3.0
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 71%. Average D+3.4 over 21 polls; latest YouGov Oct 5 D+6.0.
+- U.S. Senate: Talarico 71%. Average D+3.4 over 22 polls; latest Trafalgar Group (R) Oct 8 D+3.0.
 - Governor: Hinojosa 40%. Average R+1.5 over 18 polls; latest YouGov Oct 5 D+1.0.
 - Lieutenant Governor: Goodwin 29%. Average R+3.5 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
 - Attorney General: Johnson 28%. Average R+3.6 over 4 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
