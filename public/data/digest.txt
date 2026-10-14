@@ -1,34 +1,35 @@
 Texas Polls Tracker, Wednesday, October 14, 2026
 
-Talarico 70% to win the Senate seat on a polling average of D+3.1. Hinojosa 40% for governor. Democrats 75% to control the U.S. Senate, 87% for the House, 3% for the Texas House.
+Talarico 70% to win the Senate seat on a polling average of D+3.1. Hinojosa 41% for governor. Democrats 75% to control the U.S. Senate, 87% for the House, 7% for the Texas House.
 
 WHAT MOVED
+- TX Lieutenant Governor: poll-model D win chance 24% → 52% (+28.4 pts)
+- Kansas Senate: Split Ticket moved Lean R → Tossup
 - Texas Senate: FiftyPlusOne moved Lean D → Tossup
 - TX U.S. Senate: fpo moved Lean D → Tossup
+- Iowa Governor: Decision Desk HQ moved Lean D → Likely D
 - Iowa Governor: Silver Bulletin moved Solid D → Likely D
 - Michigan Governor: Decision Desk HQ moved Lean D → Likely D
 - New Hampshire Governor: Silver Bulletin moved Likely R → Solid R
 - Vermont Governor: Silver Bulletin moved Solid R → Lean R
-- TX-9 (U.S. House): new poll — University of Houston (through 2026-10-07): R+6.0
-- TX U.S. Senate: new poll — Marist University (through 2026-10-11): D+4.0
-- TX U.S. Senate: new poll — Marist University (through 2026-10-11): D+2.0
-- TX Governor: new poll — Marist University (through 2026-10-11): R+1.0
-- TX Governor: new poll — Marist University (through 2026-10-11): R+4.0
+- TX Lieutenant Governor: polling average R+4.6 → D+0.3
+- TX Attorney General: poll-model D win chance 25% → 44% (+19.0 pts)
+- TX Comptroller: poll-model D win chance 19% → 33% (+14.6 pts)
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 70%. Average D+3.1 over 23 polls; latest Marist University Oct 11 D+4.0.
-- Governor: Hinojosa 40%. Average R+1.5 over 19 polls; latest Marist University Oct 11 R+1.0.
-- Lieutenant Governor: Goodwin 23%. Average R+4.6 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
-- Attorney General: Johnson 25%. Average R+4.2 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+5.0.
-- Comptroller: Eckhardt 19%. Average R+5.7 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
+- U.S. Senate: Talarico 70%. Average D+3.1 over 24 polls; latest Marist University Oct 11 D+4.0.
+- Governor: Hinojosa 41%. Average R+1.3 over 20 polls; latest Marist University Oct 11 R+1.0.
+- Lieutenant Governor: Goodwin 52%. Average D+0.3 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 D+3.0.
+- Attorney General: Johnson 44%. Average R+0.9 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 D+1.0.
+- Comptroller: Eckhardt 33%. Average R+2.7 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 R+1.0.
 - Railroad Commissioner: Rosenthal 39%. Average R+1.7 over 3 polls; latest Stratus Intelligence Sep 24 R+2.0.
 - Land Commissioner: Flores 20%. Average R+5.5 over 3 polls; latest Texas Public Opinion Research Sep 22 R+3.0.
 - Agriculture Commissioner: Tucker 24%. Average R+4.5 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
 
 TEXAS LEGISLATURE
-- Statewide environment R+5.0: legislative generic ballot R+5.4 over 3 polls, down-ballot statewide races R+4.4; a D+8.7 swing from Trump's 2024 margin.
-- Texas House: 62 D today; model expects 67.2 D seats, 3% for a Democratic majority (76). Closest: HD-94 46% D (Tilt D), HD-52 41% D (Tilt D), HD-74 61% D (Likely D), HD-108 39% D (Tilt R), HD-112 63% D (Lean D).
-- Texas Senate: 12 D today; model expects 11.5 D seats, 0% for a majority (16). Closest: SD-9 54% D (Likely D), SD-19 91% D, SD-21 94% D.
+- Statewide environment R+2.5: legislative generic ballot R+2.5 over 3 polls, down-ballot statewide races R+2.5; a D+11.2 swing from Trump's 2024 margin.
+- Texas House: 62 D today; model expects 68.9 D seats, 7% for a Democratic majority (76). Closest: HD-94 51% D (Tilt D), HD-52 47% D (Tilt D), HD-108 45% D (Tilt R), HD-96 39% D (Tilt R), HD-37 39% D (Tilt D).
+- Texas Senate: 12 D today; model expects 11.7 D seats, 0% for a majority (16). Closest: SD-9 59% D (Likely D), SD-11 7% D, SD-19 94% D.
 
 U.S. SENATE
 - Control: 75% for Democrats. Expected 51.6 Democratic-caucus seats; 51 needed.
