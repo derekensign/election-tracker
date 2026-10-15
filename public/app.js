@@ -690,7 +690,7 @@ function renderDigest(s, digest = s.digest, { archive = true } = {}) {
       const date = a.dataset.digestDate;
       if (date === s.asOf) { renderDigest(s, s.digest, { archive: false }); return; }
       try { const old = await fetchJson(`data/history/${date}.json`); renderDigest(s, old.digest || { date, dayName: fmtDate(date), headline: "No digest was generated for this day.", sections: [], text: "" }, { archive: false }); } catch { /* keep current */ }
-      window.scrollTo({ top: document.querySelector(".tabs").offsetTop });
+      scrollToPanelTop();
     }));
   }).catch(() => {});
 }
@@ -953,6 +953,16 @@ function showPanel(name, { push = true } = {}) {
   if (push && location.hash !== `#${panel}`) history.replaceState(null, "", `#${panel}${location.search ? "" : ""}`);
   hideTooltip();
 }
-document.querySelectorAll(".tabs a").forEach((a) => a.addEventListener("click", (event) => { event.preventDefault(); showPanel(a.dataset.tab); window.scrollTo({ top: Math.min(window.scrollY, document.querySelector(".tabs").offsetTop), behavior: "auto" }); }));
-window.addEventListener("hashchange", () => showPanel(location.hash.slice(1), { push: false }));
+// Put the top of the active panel right under the sticky tab bar. The tab bar's own offsetTop can't be used:
+// while it is stuck it reports its stuck position, which follows the scroll. If the reader is still above
+// that point (masthead in view), leave them where they are.
+function scrollToPanelTop() {
+  const panel = document.querySelector(".panel.active");
+  if (!panel) return;
+  const tabBarHeight = document.querySelector(".tabs").offsetHeight;
+  const panelTop = panel.getBoundingClientRect().top + window.scrollY - tabBarHeight;
+  window.scrollTo({ top: Math.min(window.scrollY, Math.max(0, panelTop)), behavior: "auto" });
+}
+document.querySelectorAll(".tabs a").forEach((a) => a.addEventListener("click", (event) => { event.preventDefault(); showPanel(a.dataset.tab); scrollToPanelTop(); }));
+window.addEventListener("hashchange", () => { showPanel(location.hash.slice(1), { push: false }); scrollToPanelTop(); });
 showPanel(location.hash.slice(1) || "overview", { push: false });
