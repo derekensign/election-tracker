@@ -292,21 +292,101 @@ function renderTexasTrails(races) {
   const grid = document.getElementById("texas-charts");
   if (!grid) return;
   grid.innerHTML = "";
+  const chartableRaces = races.filter((race) => (race.trail || []).length >= 2);
   for (const race of races) {
     const box = document.createElement("div");
     box.className = "race-trail";
     const trail = race.trail || [];
-    const latestPoint = trail[trail.length - 1];
-    box.innerHTML = `<h4>${esc(race.office)}</h4><p class="sub-head">${esc(race.democrat)} (D) against ${esc(race.republican)} (R)</p>
-      <p class="now">${latestPoint ? `Average <b>${marginText(latestPoint.margin)}</b>, ${esc(lastName(race.democrat))} wins <b>${pct(latestPoint.pD)}</b>` : "No polls yet"}</p>`;
+    box.innerHTML = raceTrailHeader(race);
     grid.appendChild(box);
-    if (trail.length >= 2) drawRaceTrail(box, race, trail);
+    if (trail.length < 2) continue;
+    drawRaceTrail(box, race, trail);
+    // Clicking (or Enter/Space on) a chart opens the enlarged carousel at that race.
+    const openViewer = () => openChartViewer(chartableRaces, chartableRaces.indexOf(race));
+    box.tabIndex = 0;
+    box.setAttribute("role", "button");
+    box.setAttribute("aria-label", `Enlarge the ${race.office} chart`);
+    box.addEventListener("click", openViewer);
+    box.addEventListener("keydown", (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openViewer(); } });
   }
 }
 
-function drawRaceTrail(box, race, trail) {
-  const width = 520, margin = { top: 16, right: 14, bottom: 24, left: 44 };
-  const marginPanelHeight = 150, gapBetweenPanels = 42, probabilityPanelHeight = 96;
+function raceTrailHeader(race) {
+  const trail = race.trail || [];
+  const latestPoint = trail[trail.length - 1];
+  return `<h4>${esc(race.office)}</h4><p class="sub-head">${esc(race.democrat)} (D) against ${esc(race.republican)} (R)</p>
+    <p class="now">${latestPoint ? `Average <b>${marginText(latestPoint.margin)}</b>, ${esc(lastName(race.democrat))} wins <b>${pct(latestPoint.pD)}</b>` : "No polls yet"}</p>`;
+}
+
+// ---------- enlarged chart carousel (a native <dialog>: Escape, focus trap, and backdrop come free) ----------
+const chartViewer = { races: [], index: 0, wired: false };
+function openChartViewer(races, startIndex) {
+  const dialog = document.getElementById("chart-viewer");
+  if (!dialog || startIndex < 0) return;
+  chartViewer.races = races;
+  chartViewer.index = startIndex;
+  if (!chartViewer.wired) wireChartViewer(dialog);
+  // The dialog sits in the browser's top layer, above everything in <body>, so the tooltip must live inside it.
+  dialog.appendChild(tooltip);
+  hideTooltip();
+  showChartViewerRace();
+  document.documentElement.style.overflow = "hidden"; // keep the page behind the viewer from scrolling
+  dialog.showModal();
+}
+
+function showChartViewerRace() {
+  const { races, index } = chartViewer;
+  const race = races[index];
+  const body = document.getElementById("viewer-body");
+  body.innerHTML = raceTrailHeader(race);
+  // Wider viewBox and taller panels than the grid, so text stays the same size while the plot area grows.
+  const isNarrowScreen = window.innerWidth < 600;
+  drawRaceTrail(body, race, race.trail, isNarrowScreen
+    ? { width: 520, marginPanelHeight: 220, probabilityPanelHeight: 130 }
+    : { width: 1000, marginPanelHeight: Math.max(220, Math.min(380, window.innerHeight * 0.38)), probabilityPanelHeight: Math.max(130, Math.min(200, window.innerHeight * 0.2)) });
+  document.getElementById("viewer-count").textContent = `${index + 1} of ${races.length}`;
+  hideTooltip();
+}
+
+function stepChartViewer(step) {
+  const count = chartViewer.races.length;
+  chartViewer.index = (chartViewer.index + step + count) % count; // wraps around at both ends
+  showChartViewerRace();
+}
+
+function wireChartViewer(dialog) {
+  chartViewer.wired = true;
+  dialog.querySelector('[data-viewer="prev"]').addEventListener("click", () => stepChartViewer(-1));
+  dialog.querySelector('[data-viewer="next"]').addEventListener("click", () => stepChartViewer(1));
+  dialog.querySelector('[data-viewer="close"]').addEventListener("click", () => dialog.close());
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") { event.preventDefault(); stepChartViewer(-1); }
+    if (event.key === "ArrowRight") { event.preventDefault(); stepChartViewer(1); }
+  });
+  // A click on the backdrop lands on the dialog element itself, outside its content box.
+  dialog.addEventListener("click", (event) => {
+    if (event.target !== dialog) return;
+    const box = dialog.getBoundingClientRect();
+    const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+    if (outside) dialog.close();
+  });
+  // Horizontal swipe of at least 50px that is mostly sideways moves one race.
+  let touchStart = null;
+  dialog.addEventListener("touchstart", (event) => { const t = event.touches[0]; touchStart = { x: t.clientX, y: t.clientY }; }, { passive: true });
+  dialog.addEventListener("touchend", (event) => {
+    if (!touchStart) return;
+    const t = event.changedTouches[0];
+    const dx = t.clientX - touchStart.x, dy = t.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) stepChartViewer(dx < 0 ? 1 : -1);
+  });
+  dialog.addEventListener("close", () => { hideTooltip(); document.body.appendChild(tooltip); document.documentElement.style.overflow = ""; });
+  // Redraw at the new size if the window is resized while open.
+  window.addEventListener("resize", () => { if (dialog.open) showChartViewerRace(); });
+}
+
+function drawRaceTrail(box, race, trail, { width = 520, marginPanelHeight = 150, probabilityPanelHeight = 96, gapBetweenPanels = 42 } = {}) {
+  const margin = { top: 16, right: 14, bottom: 24, left: 44 };
   const height = margin.top + marginPanelHeight + gapBetweenPanels + probabilityPanelHeight + margin.bottom;
   const parseDay = (iso) => new Date(`${iso}T12:00:00`);
   const firstDay = parseDay(trail[0].date), lastDay = parseDay(trail[trail.length - 1].date);

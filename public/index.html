@@ -191,7 +191,7 @@
     <p class="note">Polling average: last 30 days (minimum three polls), weighted by recency (14-day half-life), sample size, and pollster quality (FiveThirtyEight numeric grade: A+ = 1.0× down to 0.35×, unrated 0.5×), partisan/internal polls halved.</p>
     <div class="table-scroll"><table id="texas-table" class="data"></table></div>
     <h3 class="trend-title" style="margin-top:28px">Polling average and win chance over time</h3>
-    <p class="note">Each day uses only the polls that had finished fieldwork by that day, so the lines show what the average and the polls model said at the time. Dots are individual polls. Hover a chart to read a day.</p>
+    <p class="note">Each day uses only the polls that had finished fieldwork by that day, so the lines show what the average and the polls model said at the time. Dots are individual polls. Hover a chart to read a day, or click it to enlarge.</p>
     <div id="texas-charts" class="trend-grid race-trails"></div>
     <div id="texas-detail"></div>
   </section>
@@ -310,6 +310,18 @@
     </div>
   </div>
   <div class="vote-actions"><button class="mode" id="vote-share">Copy a link to this page</button><span class="muted" id="vote-shared"></span></div>
+</dialog>
+<dialog id="chart-viewer" class="chart-viewer" aria-label="Race chart viewer">
+  <div class="viewer-head">
+    <span id="viewer-count" class="viewer-count"></span>
+    <div class="viewer-nav">
+      <button type="button" class="mode" data-viewer="prev">Previous</button>
+      <button type="button" class="mode" data-viewer="next">Next</button>
+      <button type="button" class="mode" data-viewer="close">Close</button>
+    </div>
+  </div>
+  <div id="viewer-body" class="race-trail viewer-body"></div>
+  <p class="viewer-hint">Use the arrow keys or swipe to move between races. Escape closes.</p>
 </dialog>
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 <footer class="wrap foot">Built by <a href="https://www.derekensign.com" rel="noopener">Derek Ensign</a>. <a href="https://www.derekensign.com/#contact" rel="noopener">Get in touch</a> with questions or ideas. <a href="https://github.com/derekensign/election-tracker">Source code on GitHub</a>. Data refreshes every morning, Central time.</footer>
