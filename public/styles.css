@@ -187,6 +187,9 @@ h3 { margin: 28px 0 8px; font-size: 16px; font-weight: 600; color: var(--ink); }
 .sw { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(0,0,0,.12); }
 table.data .sw { width: 11px; height: 11px; margin-right: 2px; }
 .map { width: 100%; }
+/* Texas district maps are nearly square (800x760 viewBox), so full width on desktop made them taller than the
+   screen. Cap them at about 72% of the window height and center them; phones are unaffected. */
+#tx-house-map, #tx-senate-map, #tx-congress-map { max-width: min(100%, calc(72vh * 800 / 760)); margin-left: auto; margin-right: auto; }
 .map svg { display: block; width: 100%; height: auto; }
 .map path { stroke: #fff; stroke-width: 0.8; cursor: default; }
 .map path.rated { stroke: #333; stroke-width: 0.9; }
