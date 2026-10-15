@@ -104,6 +104,16 @@ p.note, .meta, .foot, .sources, .seat-note, .moves-list { font-family: var(--ser
 .trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px 28px; margin: 12px 0 10px; }
 .trend h4 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; }
 .trend .legend { margin: 2px 0 6px; }
+.race-trail h4 { margin: 0 0 2px; font-size: 14.5px; font-weight: 600; }
+.race-trail .sub-head { margin: 0; font-size: 12.5px; color: var(--ink-2); font-family: var(--serif); }
+.race-trail .now { font-size: 13px; color: var(--ink-2); margin: 2px 0 4px; }
+.race-trail .now b { color: var(--ink); }
+.race-trail svg { display: block; width: 100%; height: auto; }
+.race-trail .grid line { stroke: var(--rule-soft); }
+.race-trail .axis text { fill: var(--ink-2); font-size: 11px; font-family: var(--sans); }
+.race-trail .panel-label { fill: var(--ink-2); font-size: 11.5px; font-family: var(--sans); }
+.race-trail .even-line { stroke: var(--ink-3); stroke-width: 1; }
+.race-trail .hover-line { stroke: var(--ink); stroke-width: 1; }
 .changelog-day { border-top: 1px solid var(--rule-soft); padding: 8px 0; }
 .changelog-day .d { font-weight: 600; font-size: 14px; }
 .changelog-day ul { margin: 4px 0 0; padding-left: 18px; font-family: var(--serif); }

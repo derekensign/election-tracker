@@ -266,6 +266,7 @@ function renderTexas(s, prev) {
     </tr>`;
   }).join("");
   document.getElementById("texas-table").innerHTML = head + body;
+  renderTexasTrails(races);
 
   const detail = document.getElementById("texas-detail");
   detail.innerHTML = races.map((r) => {
@@ -282,6 +283,109 @@ function renderTexas(s, prev) {
       ${polls ? `<div class="table-scroll"><table class="data"><tr><th>Pollster</th><th>Dates</th><th class="num">Sample</th><th class="num">D</th><th class="num">R</th><th class="num">Margin</th><th>538 grade</th><th class="num">Weight</th><th></th></tr>${polls}</table></div>` : '<p class="meta">No general-election polls found in VoteHub or Wikipedia yet.</p>'}
     </details>`;
   }).join("");
+}
+
+// ---------- texas statewide: polling average and polls-model trails ----------
+// One figure per race, two stacked panels sharing a time axis: the D margin (polling average line over
+// individual poll dots) and the polls-model D win chance. Data is race.trail, rebuilt daily by ingest/build.js.
+function renderTexasTrails(races) {
+  const grid = document.getElementById("texas-charts");
+  if (!grid) return;
+  grid.innerHTML = "";
+  for (const race of races) {
+    const box = document.createElement("div");
+    box.className = "race-trail";
+    const trail = race.trail || [];
+    const latestPoint = trail[trail.length - 1];
+    box.innerHTML = `<h4>${esc(race.office)}</h4><p class="sub-head">${esc(race.democrat)} (D) against ${esc(race.republican)} (R)</p>
+      <p class="now">${latestPoint ? `Average <b>${marginText(latestPoint.margin)}</b>, ${esc(lastName(race.democrat))} wins <b>${pct(latestPoint.pD)}</b>` : "No polls yet"}</p>`;
+    grid.appendChild(box);
+    if (trail.length >= 2) drawRaceTrail(box, race, trail);
+  }
+}
+
+function drawRaceTrail(box, race, trail) {
+  const width = 520, margin = { top: 16, right: 14, bottom: 24, left: 44 };
+  const marginPanelHeight = 150, gapBetweenPanels = 42, probabilityPanelHeight = 96;
+  const height = margin.top + marginPanelHeight + gapBetweenPanels + probabilityPanelHeight + margin.bottom;
+  const parseDay = (iso) => new Date(`${iso}T12:00:00`);
+  const firstDay = parseDay(trail[0].date), lastDay = parseDay(trail[trail.length - 1].date);
+  const dColor = cssVar("--d3"), rColor = cssVar("--r3"), ink = cssVar("--ink");
+
+  // Individual polls inside the charted window, plotted at their fieldwork end date.
+  const pollDots = (race.polls || [])
+    .filter((poll) => poll.endDate && parseDay(poll.endDate) >= firstDay && parseDay(poll.endDate) <= lastDay)
+    .map((poll) => ({ poll, day: parseDay(poll.endDate), margin: poll.dem - poll.rep }));
+
+  const x = d3.scaleTime().domain([firstDay, lastDay]).range([margin.left, width - margin.right]);
+
+  // Margin panel: symmetric-ish domain that always includes Even and every poll dot.
+  const marginValues = [0, ...trail.map((p) => p.margin), ...pollDots.map((d) => d.margin)];
+  const [marginLow, marginHigh] = d3.extent(marginValues);
+  const marginPad = Math.max(1, (marginHigh - marginLow) * 0.1);
+  const marginTop = margin.top, marginBottom = margin.top + marginPanelHeight;
+  const yMargin = d3.scaleLinear().domain([marginLow - marginPad, marginHigh + marginPad]).nice().range([marginBottom, marginTop]);
+
+  // Win-chance panel: fixed 0 to 100 percent.
+  const probabilityTop = marginBottom + gapBetweenPanels, probabilityBottom = probabilityTop + probabilityPanelHeight;
+  const yProbability = d3.scaleLinear().domain([0, 1]).range([probabilityBottom, probabilityTop]);
+
+  const svg = d3.select(box).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img")
+    .attr("aria-label", `${race.office}: polling average and polls-model win chance over time`);
+
+  // Gridlines and axes for both panels.
+  const signedMargin = (v) => (v === 0 ? "Even" : `${v > 0 ? "D" : "R"}+${Math.abs(v)}`);
+  svg.append("g").attr("class", "grid").selectAll("line").data(yMargin.ticks(4)).join("line")
+    .attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => yMargin(v)).attr("y2", (v) => yMargin(v));
+  svg.append("g").attr("class", "grid").selectAll("line").data([0, 0.25, 0.75, 1]).join("line")
+    .attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => yProbability(v)).attr("y2", (v) => yProbability(v));
+  svg.append("line").attr("class", "even-line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", yMargin(0)).attr("y2", yMargin(0));
+  svg.append("line").attr("class", "even-line").attr("stroke-dasharray", "3 3").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", yProbability(0.5)).attr("y2", yProbability(0.5));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(yMargin).ticks(4).tickFormat(signedMargin).tickSize(0)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(yProbability).tickValues([0, 0.5, 1]).tickFormat((v) => `${Math.round(v * 100)}%`).tickSize(0)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${probabilityBottom})`)
+    .call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat("%b %-d")).tickSize(0)).select(".domain").remove();
+  svg.append("text").attr("class", "panel-label").attr("x", margin.left + 4).attr("y", marginTop - 4).text("Polling average, D margin");
+  svg.append("text").attr("class", "panel-label").attr("x", margin.left + 4).attr("y", probabilityTop - 10).text(`${lastName(race.democrat)} win chance, polls model`);
+
+  // Poll dots, colored by which side the poll favored, behind the average line.
+  svg.append("g").selectAll("circle").data(pollDots).join("circle")
+    .attr("cx", (d) => x(d.day)).attr("cy", (d) => yMargin(d.margin)).attr("r", 3)
+    .attr("fill", (d) => (d.margin > 0 ? dColor : d.margin < 0 ? rColor : cssVar("--toss"))).attr("fill-opacity", 0.35);
+
+  // Average line, and win-chance line.
+  svg.append("path").datum(trail).attr("fill", "none").attr("stroke", ink).attr("stroke-width", 2)
+    .attr("d", d3.line().x((p) => x(parseDay(p.date))).y((p) => yMargin(p.margin)));
+  const withProbability = trail.filter((p) => p.pD != null);
+  svg.append("path").datum(withProbability).attr("fill", "none").attr("stroke", dColor).attr("stroke-width", 2)
+    .attr("d", d3.line().x((p) => x(parseDay(p.date))).y((p) => yProbability(p.pD)));
+
+  // Hover: a vertical rule plus markers on both lines, with that day's numbers in the tooltip.
+  const hover = svg.append("g").style("display", "none");
+  hover.append("line").attr("class", "hover-line").attr("y1", marginTop).attr("y2", probabilityBottom);
+  const marginMarker = hover.append("circle").attr("r", 4).attr("fill", ink).attr("stroke", "#fff").attr("stroke-width", 1.5);
+  const probabilityMarker = hover.append("circle").attr("r", 4).attr("fill", dColor).attr("stroke", "#fff").attr("stroke-width", 1.5);
+  const bisectDay = d3.bisector((p) => parseDay(p.date)).center;
+  svg.append("rect").attr("x", margin.left).attr("y", marginTop).attr("width", width - margin.left - margin.right)
+    .attr("height", probabilityBottom - marginTop).attr("fill", "transparent")
+    .on("mousemove", (event) => {
+      const [pointerX] = d3.pointer(event);
+      const point = trail[bisectDay(trail, x.invert(pointerX))];
+      const pointX = x(parseDay(point.date));
+      hover.style("display", null);
+      hover.select("line").attr("x1", pointX).attr("x2", pointX);
+      marginMarker.attr("cx", pointX).attr("cy", yMargin(point.margin));
+      probabilityMarker.attr("cx", pointX).attr("cy", point.pD == null ? -99 : yProbability(point.pD));
+      const pollsThatDay = pollDots.filter((d) => d.poll.endDate === point.date);
+      showTooltip(event, `<b>${esc(race.office)}</b>, ${fmtDate(point.date)}
+        <div class="row"><span>Polling average</span><span>${marginText(point.margin)}</span></div>
+        <div class="row"><span>${esc(lastName(race.democrat))} win chance</span><span>${pct(point.pD)}</span></div>
+        <div class="row"><span>Polls in average</span><span>${point.pollCount}</span></div>
+        ${pollsThatDay.map((d) => `<div class="row"><span>${esc(d.poll.pollster)}</span><span>${marginText(d.margin)}</span></div>`).join("")}`);
+    })
+    .on("mouseleave", () => { hover.style("display", "none"); hideTooltip(); });
 }
 
 // ---------- texas legislature ----------

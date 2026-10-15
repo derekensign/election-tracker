@@ -91,11 +91,12 @@ export async function build() {
     const consensus = ratingConsensus(ratings);
     const average = pollingAverage(polls, { asOf, ratePollster });
     const pollModel = pollModelFor(average, consensus?.label, asOf, { allowPrior: false });
+    const trail = buildTrail(polls, asOf);
     return {
       id: race.id, office: race.office, democrat: race.democrat, republican: race.republican,
       wikipediaUrl: page?.url ?? previousRace?.wikipediaUrl ?? `https://en.wikipedia.org/wiki/${race.wikipedia}`,
       ratings, consensus,
-      polls: polls.slice(0, 40), pollingAverage: average, aggregates: polling.aggregates,
+      polls: polls.filter((poll, index) => index < 40 || (trail[0] && poll.endDate >= trail[0].date)), pollingAverage: average, aggregates: polling.aggregates, trail,
       pollModel, pD: pollModel?.pD ?? null, pR: pollModel ? 1 - pollModel.pD : null, pI: 0, probabilitySource: pollModel?.source ?? null,
     };
   });
@@ -199,6 +200,29 @@ function pollModelFor(average, consensusLabel, asOf, { allowPrior = true } = {})
   if (!allowPrior) return null;
   const pD = priorFromRating(consensusLabel);
   return { pD, sigma: null, margin: null, effectiveN: 0, daysToElection, source: "rating prior" };
+}
+
+/**
+ * Daily history of a race's polling average and polls-model win chance, rebuilt from the dated poll list.
+ * Each day only sees polls that had ended by that day, so the line shows what the average was at the time
+ * (with today's pollster ratings). Starts at the third poll or TRAIL_DAYS before asOf, whichever is later.
+ */
+const TRAIL_DAYS = 90;
+function buildTrail(polls, asOf) {
+  const pollEndDates = polls.map((poll) => poll.endDate).filter(Boolean).sort();
+  if (pollEndDates.length === 0) return [];
+  const asOfMs = Date.parse(asOf);
+  const thirdPollMs = Date.parse(pollEndDates[Math.min(2, pollEndDates.length - 1)]);
+  const startMs = Math.max(thirdPollMs, asOfMs - TRAIL_DAYS * 86_400_000);
+  const trail = [];
+  for (let dayMs = startMs; dayMs <= asOfMs; dayMs += 86_400_000) {
+    const date = new Date(dayMs).toISOString().slice(0, 10);
+    const dayAverage = pollingAverage(polls, { asOf: date, ratePollster });
+    if (!dayAverage) continue;
+    const dayModel = pollModelFor(dayAverage, null, date, { allowPrior: false });
+    trail.push({ date, margin: dayAverage.margin, pD: dayModel?.pD ?? null, pollCount: dayAverage.pollCount });
+  }
+  return trail;
 }
 
 function buildChamber(kind, page, previousChamber, { environment }) {
