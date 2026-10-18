@@ -1,10 +1,12 @@
 Texas Polls Tracker, Sunday, October 18, 2026
 
-Talarico 68% to win the Senate seat on a polling average of D+2.7. Hinojosa 41% for governor. Democrats 74% to control the U.S. Senate, 87% for the House, 7% for the Texas House.
+Talarico 67% to win the Senate seat on a polling average of D+2.6. Hinojosa 38% for governor. Democrats 74% to control the U.S. Senate, 87% for the House, 7% for the Texas House.
 
 WHAT MOVED
 - South Dakota Senate: FiftyPlusOne moved Safe R → Likely R
 - TX Railroad Commissioner: poll-model D win chance 49% → 41% (−8.5 pts)
+- TX Governor: poll-model D win chance 41% → 38% (−3.2 pts)
+- Texas Governor: poll-model D win chance 41% → 38% (−3.2 pts)
 - TX Railroad Commissioner: polling average R+0.1 → R+1.4
 - FL-22 (U.S. House): Split Ticket moved Lean R → Tossup
 - KY-6 (U.S. House): Split Ticket moved Lean R → Tossup
@@ -13,12 +15,10 @@ WHAT MOVED
 - MI-7 (U.S. House): Decision Desk HQ moved Lean D → Likely D
 - AL-2 (U.S. House): FiftyPlusOne moved Lean R → Tossup
 - CO-5 (U.S. House): FiftyPlusOne moved Tossup → Lean D
-- MN-1 (U.S. House): FiftyPlusOne moved Lean R → Tossup
-- MO-2 (U.S. House): RealClearPolitics moved Lean R → Tossup
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 68%. Average D+2.7 over 24 polls; latest ActiVote Oct 14 D+3.8.
-- Governor: Hinojosa 41%. Average R+1.3 over 20 polls; latest ActiVote Oct 14 R+1.8.
+- U.S. Senate: Talarico 67%. Average D+2.6 over 25 polls; latest CBS News/YouGov Oct 16 D+2.0.
+- Governor: Hinojosa 38%. Average R+1.8 over 21 polls; latest CBS News/YouGov Oct 16 R+4.0.
 - Lieutenant Governor: Goodwin 52%. Average D+0.3 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 D+3.0.
 - Attorney General: Johnson 44%. Average R+0.9 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 D+1.0.
 - Comptroller: Eckhardt 33%. Average R+2.7 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 R+1.0.
