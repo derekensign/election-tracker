@@ -1,20 +1,9 @@
-Texas Polls Tracker, Sunday, October 18, 2026
+Texas Polls Tracker, Monday, October 19, 2026
 
 Talarico 67% to win the Senate seat on a polling average of D+2.6. Hinojosa 38% for governor. Democrats 74% to control the U.S. Senate, 87% for the House, 7% for the Texas House.
 
 WHAT MOVED
-- South Dakota Senate: FiftyPlusOne moved Safe R → Likely R
-- TX Railroad Commissioner: poll-model D win chance 49% → 41% (−8.5 pts)
-- TX Governor: poll-model D win chance 41% → 38% (−3.2 pts)
-- Texas Governor: poll-model D win chance 41% → 38% (−3.2 pts)
-- TX Railroad Commissioner: polling average R+0.1 → R+1.4
-- FL-22 (U.S. House): Split Ticket moved Lean R → Tossup
-- KY-6 (U.S. House): Split Ticket moved Lean R → Tossup
-- KY-6 (U.S. House): FiftyPlusOne moved Lean R → Tossup
-- ME-2 (U.S. House): Decision Desk HQ moved Lean R → Tossup
-- MI-7 (U.S. House): Decision Desk HQ moved Lean D → Likely D
-- AL-2 (U.S. House): FiftyPlusOne moved Lean R → Tossup
-- CO-5 (U.S. House): FiftyPlusOne moved Tossup → Lean D
+- North Carolina Senate: Split Ticket moved Safe D → Likely D
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 67%. Average D+2.6 over 25 polls; latest CBS News/YouGov Oct 16 D+2.0.
@@ -40,9 +29,9 @@ U.S. HOUSE
 - Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
-- Texas early voting begins: Monday, October 19, 2026 (tomorrow).
-- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 5 days).
-- Texas early voting ends: Friday, October 30, 2026 (in 12 days).
-- Election Day: Tuesday, November 3, 2026 (in 16 days).
+- Texas early voting begins: Monday, October 19, 2026 (today).
+- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 4 days).
+- Texas early voting ends: Friday, October 30, 2026 (in 11 days).
+- Election Day: Tuesday, November 3, 2026 (in 15 days).
 
 https://texas-race-tracker.vercel.app
