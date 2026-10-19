@@ -6,15 +6,15 @@ WHAT MOVED
 - North Carolina Senate: Split Ticket moved Safe D → Likely D
 - TX Lieutenant Governor: poll-model D win chance 52% → 36% (−16.4 pts)
 - TX Lieutenant Governor: polling average D+0.3 → R+2.3
+- NC-11 (U.S. House): The Economist moved Tossup → Lean D
 - FL-22 (U.S. House): The Economist moved Tossup → Lean D
 - ME-2 (U.S. House): The Economist moved Tossup → Lean D
 - MI-7 (U.S. House): The Economist moved Tossup → Lean D
+- PA-1 (U.S. House): The Economist moved Tossup → Lean R
 - AZ-2 (U.S. House): The Economist moved Lean R → Tossup
 - CA-22 (U.S. House): The Economist moved Likely D → Safe D
 - CO-4 (U.S. House): The Economist moved Tossup → Lean R
 - FL-7 (U.S. House): The Economist moved Likely D → Lean D
-- MN-1 (U.S. House): The Economist moved Lean R → Tossup
-- NV-2 (U.S. House): The Economist moved Lean R → Tossup
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 67%. Average D+2.6 over 26 polls; latest CBS News/YouGov Oct 16 D+2.0.
@@ -36,7 +36,7 @@ U.S. SENATE
 - Closest races: AK 49% D (average R+0.1, 3 polls); KS 48% D (average R+0.4, 3 polls); SC 43% D (average R+1.2, 2 polls); IA 58% D (average D+1.2, 6 polls); TX 58% D (average D+1.2, 9 polls); NE 34% D (average R+2.7, 2 polls); ME 66% D (average D+2.5, 8 polls); MI 70% D (average D+3.1, 11 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 78% D (average D+4.7, 7 polls).
 
 U.S. HOUSE
-- Control: 87% for Democrats (expected 232.8 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
+- Control: 87% for Democrats (expected 232.7 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
 - Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
