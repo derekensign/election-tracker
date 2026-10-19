@@ -16,7 +16,7 @@ Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from 
 | U.S. House | National competitive-district ratings (ten forecasters, ~144 seats), our rated-seat model for control and expected seats, the generic congressional ballot (VoteHub polls plus published aggregates), and a zoomable Texas congressional map (2025 Plan C2333) with ratings for all 38 districts and district polls where they exist |
 | Governors | All 36 governorships: Wikipedia ratings table (seven forecasters), candidates from the race summary, VoteHub polls, polls model, map and tables |
 | Texas courts and SBOE | Supreme Court, Court of Criminal Appeals, and State Board of Education nominees; a statewide-environment baseline for judicial seats |
-| Early vote | Scaffold for daily Texas early-voting turnout against 2022 and 2024, fed by a hand-entered `public/data/early-vote.json` (the Secretary of State's site is bot-walled and is not scraped) |
+| Early vote | Daily early-vote turnout for all 254 counties from the Texas Secretary of State's public Early Voting Turnout report, compared with each county's 2024 presidential result (`ingest/early-vote.js`) |
 | Morning digest | Templated daily briefing with an archive and copy-as-text; `public/data/digest.txt` is the plain-text version for a future chat or email post |
 | Scenarios | Browser-side re-runs of the Texas Legislature, U.S. Senate, and U.S. House models with sliders for environment, elasticity, incumbency, rating weight, and uniform polling error |
 | Trends | Daily series for the marquee numbers plus a dated log of every rating and model change |
@@ -48,9 +48,9 @@ Archivo (variable width) for the nameplate, headings, figures, and tables; Sourc
 
 A dialog that opens 12 seconds after load, at most once a week per browser and once more when the phase changes (early voting opening, Election Day), and a permanent "Where and when to vote" button carry the message that polls are not votes, the key Texas dates with countdowns, and a county election-office finder. `scripts/build-counties.mjs` parses the Secretary of State's county directory (all 254 offices: title, official, address, phone, email) and extracts Texas county boundaries from us-atlas so "Use my location" resolves to a county entirely in the browser. The 22 largest counties link to their own voter sites; the rest link to the SOS listing. Visitors outside Texas get vote.gov, Vote.org, and usa.gov links. A strip under the masthead shows the next key date or the open early-voting window.
 
-## Early vote data entry
+## Early vote data
 
-`public/data/early-vote.json` holds `days` (one object per early-voting day: `{ "date": "2026-10-19", "inPerson": 0, "mail": 0 }`) and `benchmarks` for 2024 and 2022 in the same shape, plus `registeredVoters`. Paste the Secretary of State's statewide daily totals; the tab draws cumulative curves and same-day comparisons once the first day is in. The SOS site is behind a bot wall, so this is deliberately manual.
+Early-vote counts come from the file service behind the SOS "Early Voting Turnout (current)" app (`ingest/sources/sos-early-vote.js`). Only county totals are read; the voter-by-voter roster the same service offers is never requested. The 2024 county baseline in `public/data/tx-county-2024.json` is built once by `node scripts/build-county-baseline.mjs`. The older SOS site at earlyvoting.texas-election.com is behind a bot wall and is not used.
 
 ## Running locally
 

@@ -8,6 +8,8 @@ import {
 } from "./config.js";
 import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
+import * as sosEarlyVote from "./sources/sos-early-vote.js";
+import { buildEarlyVote } from "./early-vote.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
 import { ratePollster } from "./pollsters.js";
 import { estimateEnvironment, ratingImpliedMargin, runChamberModel, runRatedChamberModel } from "./legislature.js";
@@ -30,9 +32,11 @@ export async function build() {
   const log = (message) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
 
   // ---- Fetch everything, tolerating individual source failures -------------------------------------------
-  const [votehubPolls, wikiPages] = await Promise.all([
+  const [votehubPolls, wikiPages, earlyVoteTurnout] = await Promise.all([
     guard("votehub", sources, log, votehub.fetchAllPolls),
     guard("wikipedia", sources, log, fetchWikipedia),
+    // Early voting opens October 14 (mail) and October 19 (in person); before then there is nothing to fetch.
+    asOf >= "2026-10-14" ? guard("sosEarlyVote", sources, log, () => sosEarlyVote.fetchEarlyVoteTurnout({ electionDate: "11/03/2026", asOf })) : null,
   ]);
 
   // ---- U.S. Senate -----------------------------------------------------------------------------------------
@@ -121,13 +125,18 @@ export async function build() {
   // ---- Texas courts and SBOE --------------------------------------------------------------------------------
   const txCourts = buildTexasCourts({ pages: wikiPages?.courts, previous: previous?.txCourts, environment });
 
+  // ---- Early vote by county --------------------------------------------------------------------------------
+  const countyBaseline = JSON.parse(readFileSync(join(DATA_DIR, "tx-county-2024.json"), "utf8"));
+  const earlyVote = earlyVoteTurnout ? buildEarlyVote(earlyVoteTurnout, countyBaseline) : previous?.earlyVote ?? null;
+  if (earlyVote?.unmatchedCounties?.length) log(`early vote: no 2024 result matched for ${earlyVote.unmatchedCounties.join(", ")}`);
+
   // ---- U.S. House -------------------------------------------------------------------------------------------
   const usHouse = buildUsHouse({ pages: wikiPages?.usHouse, previous: previous?.usHouse, votehubPolls, sources, asOf });
 
   const snapshot = {
     version: 1, generatedAt: generatedAt.toISOString(), asOf, sources,
     usSenate: { forecasters, races: senateRaces },
-    senateControl, texas, txLegislature, txHouse, txSenate, usHouse, governors, txCourts,
+    senateControl, texas, txLegislature, txHouse, txSenate, usHouse, governors, txCourts, earlyVote,
   };
   snapshot.changes = detectChanges(previous, snapshot);
   snapshot.previousAsOf = previous?.asOf ?? null;
