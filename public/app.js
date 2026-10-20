@@ -711,6 +711,12 @@ function perVoterChange(turnoutChange, registeredChange) {
 }
 const listNames = (names) => names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
 
+/** Wrap margin text in the party color it favors (blue toward D, red toward R), the site's usual convention. */
+function partyColored(text, margin) {
+  if (margin == null || Math.abs(margin) < 0.05) return text;
+  return `<span class="${margin > 0 ? "lean-d" : "lean-r"}">${text}</span>`;
+}
+
 async function renderEarlyVote(s) {
   const earlyVote = s.earlyVote;
   const figures = document.getElementById("early-vote-figures");
@@ -758,12 +764,14 @@ async function renderEarlyVote(s) {
   const yearsNewestFirst = Object.keys(elections).sort().reverse();
   const g2024 = geography.byElection["2024"];
   document.getElementById("early-vote-geography-status").innerHTML = geography.readable
-    ? `Ballots so far come from counties that voted ${pastMarginText(g2024.lean, elections["2024"])} in 2024, against ${pastMarginText(g2024.reportingBaseline, elections["2024"])} for those counties' full 2024 vote. By geography alone, the early vote is ${Math.abs(g2024.shift) < 0.5 ? "about the same as 2024" : `${Math.abs(g2024.shift).toFixed(1)} points ${g2024.shift > 0 ? "bluer" : "redder"} than 2024`}. This is about places, not individual voters.`
+    ? `Ballots so far come from counties that voted ${partyColored(pastMarginText(g2024.lean, elections["2024"]), g2024.lean)} in 2024, against ${partyColored(pastMarginText(g2024.reportingBaseline, elections["2024"]), g2024.reportingBaseline)} for those counties' full 2024 vote. By geography alone, the early vote is ${Math.abs(g2024.shift) < 0.5 ? "about the same as 2024" : partyColored(`${Math.abs(g2024.shift).toFixed(1)} points ${g2024.shift > 0 ? "bluer" : "redder"}`, g2024.shift) + " than 2024"}. This is about places, not individual voters.`
     : `Too early to say. Counties holding ${share(geography.registeredCoverage, 0)} of registered voters have posted in-person votes, and this check waits for ${share(geography.readableRule.minRegisteredCoverage, 0)}${geography.bigCountiesNotPosted?.length ? `. Still missing: ${esc(listNames(geography.bigCountiesNotPosted))}` : ""}.`;
   document.getElementById("early-vote-geography").innerHTML = `<tr><th>Race</th><th>Statewide result</th><th>Ballots so far come from counties that voted</th><th>Those counties' full vote that year</th><th class="num">Tilt of 2026 ballots</th></tr>`
     + yearsNewestFirst.map((year) => {
       const election = elections[year], g = geography.byElection[year];
-      return `<tr${geography.readable ? "" : ' class="muted"'}><td><b>${esc(election.label)}</b> <span class="thin">${esc(election.republican)} against ${esc(election.democrat)}</span></td><td>${pastMarginText(election.margin, election)}</td><td>${pastMarginText(g.lean, election)}</td><td>${pastMarginText(g.reportingBaseline, election)}</td><td class="num"><b>${marginText(g.shift)}</b></td></tr>`;
+      // Colored only once readable; while it's too early the row stays gray so it doesn't look like a finding.
+      const tint = (text, margin) => (geography.readable ? partyColored(text, margin) : text);
+      return `<tr${geography.readable ? "" : ' class="muted"'}><td><b>${esc(election.label)}</b> <span class="thin">${esc(election.republican)} against ${esc(election.democrat)}</span></td><td>${tint(pastMarginText(election.margin, election), election.margin)}</td><td>${tint(pastMarginText(g.lean, election), g.lean)}</td><td>${tint(pastMarginText(g.reportingBaseline, election), g.reportingBaseline)}</td><td class="num"><b>${tint(marginText(g.shift), g.shift)}</b></td></tr>`;
     }).join("");
   const grid = document.getElementById("early-vote-charts");
   grid.innerHTML = "";
@@ -850,8 +858,17 @@ function renderEarlyVoteTable(earlyVote) {
   const rows = EARLY_VOTE_SHOW_ALL ? earlyVote.counties : earlyVote.counties.slice(0, 25);
   const share = (p) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
   const showSameDay2018 = Boolean(earlyVote.pace2018);
-  document.getElementById("early-vote-table").innerHTML = `<tr><th>County</th><th class="num">Ballots</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Share of registered</th><th class="num">Share of ${esc(year)} vote</th><th class="num">${esc(election.label)} result</th>${showSameDay2018 ? `<th class="num">Same day in 2018</th>` : ""}</tr>`
-    + rows.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="num"><b>${c.ballots.toLocaleString()}</b></td><td class="num">${c.inPerson.toLocaleString()}</td><td class="num">${c.mail.toLocaleString()}</td><td class="num">${share(c.shareOfRegistered)}</td><td class="num">${share(c.past?.[year]?.share)}</td><td class="num">${pastMarginText(c.past?.[year]?.margin, election)}</td>${showSameDay2018 ? `<td class="num">${c.sameDay2018 == null ? '<span class="muted">not in 2018 report</span>' : c.sameDay2018.toLocaleString()}</td>` : ""}</tr>`).join("");
+  // In person against in person, the same measure as the big-county table: many counties post in-person votes
+  // days before mail, so a total-ballots comparison would show false drops. Unposted counties stay gray.
+  const bigCountyComparison = new Map((earlyVote.versus2018?.latestCounties || []).map((c) => [c.name, c]));
+  const sameDayCell = (c) => {
+    const comparison = bigCountyComparison.get(c.name);
+    if (!comparison) return '<span class="muted">not in 2018 report</span>';
+    if (!comparison.reported) return `${comparison.inPersonRunning.y2018.toLocaleString()} <span class="muted">not posted yet</span>`;
+    return `${comparison.inPersonRunning.y2018.toLocaleString()} ${changeChip(comparison.inPersonRunning.change)}`;
+  };
+  document.getElementById("early-vote-table").innerHTML = `<tr><th>County</th><th class="num">Ballots</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Share of registered</th><th class="num">Share of ${esc(year)} vote</th><th class="num">${esc(election.label)} result</th>${showSameDay2018 ? `<th class="num">In person, same day of 2018</th>` : ""}</tr>`
+    + rows.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="num"><b>${c.ballots.toLocaleString()}</b></td><td class="num">${c.inPerson.toLocaleString()}</td><td class="num">${c.mail.toLocaleString()}</td><td class="num">${share(c.shareOfRegistered)}</td><td class="num">${share(c.past?.[year]?.share)}</td><td class="num">${partyColored(pastMarginText(c.past?.[year]?.margin, election), c.past?.[year]?.margin)}</td>${showSameDay2018 ? `<td class="num">${sameDayCell(c)}</td>` : ""}</tr>`).join("");
   document.getElementById("early-vote-show-all").textContent = EARLY_VOTE_SHOW_ALL ? "Show the 25 largest" : "Show all 254 counties";
 }
 
