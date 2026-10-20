@@ -126,8 +126,10 @@ export async function build() {
   const txCourts = buildTexasCourts({ pages: wikiPages?.courts, previous: previous?.txCourts, environment });
 
   // ---- Early vote by county --------------------------------------------------------------------------------
-  const countyBaseline = JSON.parse(readFileSync(join(DATA_DIR, "tx-county-2024.json"), "utf8"));
-  const earlyVote = earlyVoteTurnout ? buildEarlyVote(earlyVoteTurnout, countyBaseline) : previous?.earlyVote ?? null;
+  // Past results by county (2024, 2022, 2018) and the 2018 daily benchmark are vendored by scripts/.
+  const countyBaselines = JSON.parse(readFileSync(join(DATA_DIR, "tx-county-baselines.json"), "utf8"));
+  const earlyVote2018 = JSON.parse(readFileSync(join(DATA_DIR, "tx-early-vote-2018.json"), "utf8"));
+  const earlyVote = earlyVoteTurnout ? buildEarlyVote(earlyVoteTurnout, countyBaselines, earlyVote2018, { asOf }) : previous?.earlyVote ?? null;
   if (earlyVote?.unmatchedCounties?.length) log(`early vote: no 2024 result matched for ${earlyVote.unmatchedCounties.join(", ")}`);
 
   // ---- U.S. House -------------------------------------------------------------------------------------------

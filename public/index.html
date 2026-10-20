@@ -79,12 +79,21 @@
     <h2>Early vote</h2>
     <p class="note">In-person early voting runs October 19 through October 30, 2026; mail ballots count from October 14. Turnout by county comes from the Texas Secretary of State's <a href="https://goelect.txelections.civixapps.com/ivis-evr-ui/evr" rel="noopener">Early Voting Turnout</a> report, refreshed every morning. Counts are unofficial and arrive on each county's own schedule, often a day behind. Texas has no party registration, so these numbers say where ballots come from, not who they are for.</p>
     <div class="figures" id="early-vote-figures"></div>
+    <h3 class="trend-title" style="margin-top:22px">Where the ballots come from, against past elections</h3>
+    <p class="note" id="early-vote-geography-status"></p>
+    <div class="table-scroll"><table id="early-vote-geography" class="data"></table></div>
     <div class="trend-grid" id="early-vote-charts"></div>
     <h3 class="trend-title" style="margin-top:28px">Turnout by county</h3>
     <div class="mode-row">
+      <span>Compare with:</span>
+      <button class="mode active" data-ev-year="2024">2024 president</button>
+      <button class="mode" data-ev-year="2022">2022 governor</button>
+      <button class="mode" data-ev-year="2018">2018 U.S. Senate</button>
+    </div>
+    <div class="mode-row">
       <span>Color by:</span>
-      <button class="mode active" data-ev-mode="pace">Ballots as a share of 2024 votes</button>
-      <button class="mode" data-ev-mode="margin">2024 presidential margin</button>
+      <button class="mode active" data-ev-mode="pace">Ballots as a share of that year's vote</button>
+      <button class="mode" data-ev-mode="margin">That year's result</button>
       <span class="zoom-controls" data-zoom-for="early-vote-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span>
     </div>
     <div class="legend" id="early-vote-legend"></div>
@@ -93,7 +102,8 @@
     <div class="table-scroll"><table id="early-vote-table" class="data"></table></div>
     <p><button type="button" class="mode" id="early-vote-show-all">Show all 254 counties</button></p>
     <h3 class="trend-title" style="margin-top:28px">How to read the geography number</h3>
-    <p class="note">Each county's ballots are scored with that county's 2024 presidential margin. The average, weighted by ballots, is the margin the early vote would produce if every county voted exactly as it did in 2024. It is compared with the 2024 result of the same reporting counties, so a county that hasn't reported yet doesn't look like a shift. A positive number means ballots are coming disproportionately from the more Democratic of those counties. It says nothing about individual voters: a high-turnout Republican precinct inside Harris County counts as Harris. Until most counties report in-person votes, the mix is mostly mail ballots, which skew older and differ by county, so the tab labels it too early to read.</p>
+    <p class="note">Each county's ballots are scored with that county's margin in a past race: the 2024 presidential race, the 2022 governor's race (Abbott against Beto O'Rourke), or the 2018 U.S. Senate race (Cruz against O'Rourke). The average, weighted by ballots, is the margin the early vote would produce if every county voted exactly as it did that year. It is compared with the same reporting counties' result that year, so a county that hasn't reported yet doesn't look like a shift. A positive number means ballots are coming disproportionately from the more Democratic of those counties. It says nothing about individual voters: a high-turnout Republican precinct inside Harris County counts as Harris. Until most counties report in-person votes, the mix is mostly mail ballots, which skew older and differ by county, so the tab labels it too early to read.</p>
+    <p class="note">The day-by-day comparison with 2018 uses the Secretary of State's 2018 daily reports, which covered only the 30 counties with the most registered voters, about four in five registered Texans. It adds up the same 30 counties in 2026 and lines up days by in-person early-voting day: day 1 was October 22 in 2018 and October 19 in 2026. Each day counts once it is over, because counties upload their totals overnight. No day-by-day 2022 numbers are available from a source this tracker can use, so 2022 is compared on final turnout only.</p>
   </section>
 </div>
 

@@ -674,9 +674,21 @@ function renderCourts(s) {
 }
 
 // ---------- early vote (hand-entered data file) ----------
-// Early vote by county, from snapshot.earlyVote (built by ingest/early-vote.js from the SOS turnout report).
+// Early vote by county, from snapshot.earlyVote (built by ingest/early-vote.js from the SOS turnout report),
+// compared with the 2024 president, 2022 governor, and 2018 U.S. Senate results and the 2018 daily totals.
 let EARLY_VOTE_MAP_MODE = "pace";
+let EARLY_VOTE_YEAR = "2024";
 let EARLY_VOTE_SHOW_ALL = false;
+let EARLY_VOTE_TOPO = null;
+const EARLY_VOTE_LINE_COLORS = { 2024: "#22252a", 2022: "#8a8f98", 2018: "#b58a00" };
+
+/** A past margin in that race's candidate names: "Trump +13.7", "O'Rourke +2.1". */
+function pastMarginText(margin, election) {
+  if (margin == null) return "—";
+  if (Math.abs(margin) < 0.05) return "Even";
+  return `${margin > 0 ? election.democrat : election.republican} +${Math.abs(margin).toFixed(1)}`;
+}
+
 async function renderEarlyVote(s) {
   const earlyVote = s.earlyVote;
   const figures = document.getElementById("early-vote-figures");
@@ -684,58 +696,76 @@ async function renderEarlyVote(s) {
     figures.innerHTML = `<div class="figure"><div class="k">Status</div><div class="v text">No report yet</div><div class="s">The Secretary of State's first early-voting report will appear here after the next morning refresh.</div></div>`;
     return;
   }
-  const { totals, geography, daily } = earlyVote;
+  const { totals, geography, daily, elections, pace2018 } = earlyVote;
   const count = (n) => (n ?? 0).toLocaleString();
   const share = (p, digits = 1) => (p == null ? "—" : `${(p * 100).toFixed(digits)}%`);
 
-  // Headline strip. The geography figure only reads as a number once in-person voting is broadly reported.
-  const geographyFigure = geography.readable
-    ? { k: "Early vote geography against 2024", v: marginText(geography.shiftFrom2024), s: `Ballots so far come from counties that voted ${presidentialMarginText(geography.lean)} in 2024. The same counties voted ${presidentialMarginText(geography.reportingBaseline2024)} overall.` }
-    : { k: "Early vote geography against 2024", v: "Too early", vClass: " text", s: `${geography.countiesWithInPerson} of 254 counties have posted in-person votes. So far ballots come from counties that voted ${presidentialMarginText(geography.lean)} in 2024, against ${presidentialMarginText(geography.reportingBaseline2024)} for those counties' full 2024 vote, a ${marginText(geography.shiftFrom2024)} tilt that mostly reflects mail ballots.` };
+  // Headline strip: volume, then pace against the 2022 midterm and the 2018 Beto Senate race.
+  const paceFigure = pace2018
+    ? { k: `Pace against 2018, day ${pace2018.dayNumber}`, v: share(pace2018.ratio, 0), s: `${count(pace2018.ballots2026)} ballots in the 30 largest counties, against ${count(pace2018.ballots2018)} on day ${pace2018.dayNumber} in 2018. As a share of registered voters: ${share(pace2018.shareOfRegistered2026)} against ${share(pace2018.shareOfRegistered2018)}.` }
+    : { k: "Pace against 2018", v: "After day 1", vClass: " text", s: "In-person day 1 is October 19. It is compared once the day is fully reported, usually by the next morning." };
   figures.innerHTML = [
-    { k: `Ballots through ${fmtDate(earlyVote.reportDate)}`, v: count(totals.ballots), s: `${count(totals.inPerson)} in person, ${count(totals.mail)} by mail` },
-    { k: "Share of registered voters", v: share(totals.shareOfRegistered), s: `of ${count(earlyVote.registered)} registered` },
-    { k: "Share of the 2024 vote", v: share(totals.shareOf2024Total), s: "of the 11.39 million votes cast in 2024" },
-    geographyFigure,
+    { k: `Ballots through ${fmtDate(earlyVote.reportDate)}`, v: count(totals.ballots), s: `${count(totals.inPerson)} in person, ${count(totals.mail)} by mail. ${share(totals.shareOfRegistered)} of ${count(earlyVote.registered)} registered voters.` },
+    { k: "Share of the 2022 midterm vote", v: share(totals.shareOfPastTotal["2022"]), s: `of ${count(elections["2022"].total)} votes for governor in 2022. ${share(totals.shareOfPastTotal["2018"])} of 2018's ${count(elections["2018"].total)}, ${share(totals.shareOfPastTotal["2024"])} of 2024's ${count(elections["2024"].total)}.` },
+    paceFigure,
   ].map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v${t.vClass || ""}">${esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 
-  // Trend charts across report dates.
+  // Geography against each past election.
+  document.getElementById("early-vote-geography-status").textContent = geography.readable
+    ? `${geography.countiesWithInPerson} of 254 counties have posted in-person votes. A positive tilt means ballots are coming from the more Democratic of the reporting counties.`
+    : `Too early to read: ${geography.countiesWithInPerson} of 254 counties have posted in-person votes, and the mix is mostly mail ballots. The numbers below will settle once at least ${geography.readableRule.minCountiesWithInPerson} counties report and in-person ballots are at least half the total.`;
+  const yearsNewestFirst = Object.keys(elections).sort().reverse();
+  document.getElementById("early-vote-geography").innerHTML = `<tr><th>Race</th><th>Statewide result</th><th>Ballots so far come from counties that voted</th><th>Those counties' full vote that year</th><th class="num">Tilt of 2026 ballots</th></tr>`
+    + yearsNewestFirst.map((year) => {
+      const election = elections[year], g = geography.byElection[year];
+      return `<tr${geography.readable ? "" : ' class="muted"'}><td><b>${esc(election.label)}</b> <span class="thin">${esc(election.republican)} against ${esc(election.democrat)}</span></td><td>${pastMarginText(election.margin, election)}</td><td>${pastMarginText(g.lean, election)}</td><td>${pastMarginText(g.reportingBaseline, election)}</td><td class="num"><b>${marginText(g.shift)}</b></td></tr>`;
+    }).join("");
+
+  // Trend charts.
   const grid = document.getElementById("early-vote-charts");
   grid.innerHTML = "";
-  const charts = [
-    { title: "Ballots cast so far", lines: [{ name: "Total", color: cssVar("--ink"), get: (d) => d.ballots }, { name: "Mail", color: "#8a8f98", get: (d) => d.mail }, { name: "In person", color: "#b58a00", get: (d) => d.inPerson }], format: (v) => compact(v), domain: [0, Math.max(1, ...daily.map((d) => d.ballots)) * 1.1] },
-    { title: `Geography against 2024, same counties${geography.readable ? "" : " (too early to read)"}`, lines: [{ name: "Tilt of ballots so far", color: cssVar("--ink"), get: (d) => d.shiftFrom2024 }], format: (v) => marginText(v), domain: null },
-  ];
-  for (const chart of charts) {
+  const drawChart = (chart, series) => {
     const box = document.createElement("div"); box.className = "trend";
     box.innerHTML = `<h4>${esc(chart.title)}</h4><div class="legend">${chart.lines.map((l) => `<span><i class="sw" style="background:${l.color}"></i>${esc(l.name)}</span>`).join("")}</div>`;
     grid.appendChild(box);
-    drawTrend(box, daily, chart);
-  }
+    drawTrend(box, series, chart);
+  };
+  drawChart({ title: "Ballots cast so far, statewide", lines: [{ name: "Total", color: cssVar("--ink"), get: (d) => d.ballots }, { name: "Mail", color: "#8a8f98", get: (d) => d.mail }, { name: "In person", color: "#b58a00", get: (d) => d.inPerson }], format: (v) => compact(v), domain: [0, Math.max(1, ...daily.map((d) => d.ballots)) * 1.1] }, daily);
+  // 2018 against 2026 by in-person day, 30 largest counties. The 2018 line is complete; 2026 grows daily.
+  const benchmarkDays = earlyVote.benchmark2018?.cumulativeBallots || [];
+  const paceByDay = new Map(daily.filter((d) => d.pace2018).map((d) => [d.pace2018.dayNumber, d.pace2018]));
+  const paceSeries = Array.from({ length: 12 }, (_, i) => ({ date: `Day ${i + 1}`, ballots2018: paceByDay.get(i + 1)?.ballots2018 ?? benchmarkDays[i] ?? null, ballots2026: paceByDay.get(i + 1)?.ballots2026 ?? null }));
+  drawChart({ title: "30 largest counties, ballots by early-voting day", lines: [{ name: "2026", color: cssVar("--ink"), get: (d) => d.ballots2026 }, { name: "2018 (Cruz against O'Rourke)", color: "#b58a00", get: (d) => d.ballots2018 }], format: (v) => compact(v), domain: [0, Math.max(1, ...paceSeries.map((d) => Math.max(d.ballots2018 || 0, d.ballots2026 || 0))) * 1.1] }, paceSeries);
+  drawChart({ title: `Tilt of ballots against each past race${geography.readable ? "" : " (too early to read)"}`, lines: yearsNewestFirst.map((year) => ({ name: elections[year].label, color: EARLY_VOTE_LINE_COLORS[year], get: (d) => d.geography?.[year]?.shift })), format: (v) => marginText(v), domain: null }, daily);
 
+  // County map and table follow the "Compare with" year.
+  document.querySelectorAll("button.mode[data-ev-year]").forEach((b) => { b.onclick = () => { EARLY_VOTE_YEAR = b.dataset.evYear; renderEarlyVoteCounties(earlyVote); }; });
+  document.getElementById("early-vote-show-all").onclick = () => { EARLY_VOTE_SHOW_ALL = !EARLY_VOTE_SHOW_ALL; renderEarlyVoteTable(earlyVote); };
+  EARLY_VOTE_TOPO = await fetchJson("geo/tx-counties.json");
+  renderEarlyVoteCounties(earlyVote);
+}
+
+function renderEarlyVoteCounties(earlyVote) {
+  document.querySelectorAll("button.mode[data-ev-year]").forEach((b) => b.classList.toggle("active", b.dataset.evYear === EARLY_VOTE_YEAR));
   renderEarlyVoteTable(earlyVote);
-  const showAllButton = document.getElementById("early-vote-show-all");
-  showAllButton.onclick = () => { EARLY_VOTE_SHOW_ALL = !EARLY_VOTE_SHOW_ALL; renderEarlyVoteTable(earlyVote); };
-
-  const topo = await fetchJson("geo/tx-counties.json");
-  renderEarlyVoteMap(earlyVote, topo);
+  if (EARLY_VOTE_TOPO) renderEarlyVoteMap(earlyVote, EARLY_VOTE_TOPO);
 }
 
 function renderEarlyVoteTable(earlyVote) {
+  const year = EARLY_VOTE_YEAR, election = earlyVote.elections[year];
   const rows = EARLY_VOTE_SHOW_ALL ? earlyVote.counties : earlyVote.counties.slice(0, 25);
   const share = (p) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
-  document.getElementById("early-vote-table").innerHTML = `<tr><th>County</th><th class="num">Ballots</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Share of registered</th><th class="num">Share of 2024 vote</th><th class="num">2024 result</th></tr>`
-    + rows.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="num"><b>${c.ballots.toLocaleString()}</b></td><td class="num">${c.inPerson.toLocaleString()}</td><td class="num">${c.mail.toLocaleString()}</td><td class="num">${share(c.shareOfRegistered)}</td><td class="num">${share(c.shareOf2024Total)}</td><td class="num">${presidentialMarginText(c.margin2024)}</td></tr>`).join("");
+  const showSameDay2018 = Boolean(earlyVote.pace2018);
+  document.getElementById("early-vote-table").innerHTML = `<tr><th>County</th><th class="num">Ballots</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Share of registered</th><th class="num">Share of ${esc(year)} vote</th><th class="num">${esc(election.label)} result</th>${showSameDay2018 ? `<th class="num">Same day in 2018</th>` : ""}</tr>`
+    + rows.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="num"><b>${c.ballots.toLocaleString()}</b></td><td class="num">${c.inPerson.toLocaleString()}</td><td class="num">${c.mail.toLocaleString()}</td><td class="num">${share(c.shareOfRegistered)}</td><td class="num">${share(c.past?.[year]?.share)}</td><td class="num">${pastMarginText(c.past?.[year]?.margin, election)}</td>${showSameDay2018 ? `<td class="num">${c.sameDay2018 == null ? '<span class="muted">not in 2018 report</span>' : c.sameDay2018.toLocaleString()}</td>` : ""}</tr>`).join("");
   document.getElementById("early-vote-show-all").textContent = EARLY_VOTE_SHOW_ALL ? "Show the 25 largest" : "Show all 254 counties";
 }
 
-/** 2024 margins read as Harris +N / Trump +N, which is clearer than D/R for a past presidential race. */
-function presidentialMarginText(margin) { return margin == null ? "—" : Math.abs(margin) < 0.05 ? "Even" : `${margin > 0 ? "Harris" : "Trump"} +${Math.abs(margin).toFixed(1)}`; }
-
 function renderEarlyVoteMap(earlyVote, topo) {
+  const year = EARLY_VOTE_YEAR, election = earlyVote.elections[year];
   const width = 800, height = 760;
   const byKey = new Map(earlyVote.counties.map((c) => [c.name.toUpperCase().replace(/[^A-Z]/g, ""), c]));
-  const svgRoot = d3.select("#early-vote-map").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "Texas early-vote turnout by county");
+  const svgRoot = d3.select("#early-vote-map").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Texas early-vote turnout by county, compared with the ${election.label}`);
   const svg = svgRoot.append("g").attr("class", "zoom-root");
   const features = topojson.feature(topo, topo.objects.counties).features;
   const path = d3.geoPath(d3.geoMercator().fitSize([width, height], { type: "FeatureCollection", features }));
@@ -743,28 +773,29 @@ function renderEarlyVoteMap(earlyVote, topo) {
 
   // Turnout pace is not partisan, so it uses a neutral paper-to-ink ramp. The top of the scale is the
   // 95th-percentile county so one outlier doesn't wash out the rest.
-  const paces = earlyVote.counties.map((c) => c.shareOf2024Total).filter((v) => v > 0).sort(d3.ascending);
+  const paces = earlyVote.counties.map((c) => c.past?.[year]?.share).filter((v) => v > 0).sort(d3.ascending);
   const paceTop = Math.max(0.001, d3.quantile(paces, 0.95) || 0.01);
   const paceScale = d3.scaleSequential().domain([0, paceTop]).clamp(true).interpolator(d3.interpolateRgb("#f1f1ee", cssVar("--ink")));
   const marginScale = d3.scaleDiverging().domain([-60, 0, 60]).interpolator((t) => d3.interpolateRgbBasis([cssVar("--r4"), cssVar("--r2"), "#f2f2f0", cssVar("--d2"), cssVar("--d4")])(t));
   const fillFor = (county) => {
-    if (!county) return cssVar("--notup");
-    if (EARLY_VOTE_MAP_MODE === "margin") return county.margin2024 == null ? cssVar("--notup") : marginScale(county.margin2024);
-    return county.ballots > 0 ? paceScale(county.shareOf2024Total ?? 0) : cssVar("--notup");
+    const past = county?.past?.[year];
+    if (!county || !past) return cssVar("--notup");
+    if (EARLY_VOTE_MAP_MODE === "margin") return marginScale(past.margin);
+    return county.ballots > 0 ? paceScale(past.share ?? 0) : cssVar("--notup");
   };
   const share = (p) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
   const paths = svg.append("g").selectAll("path").data(features).join("path").attr("d", path)
     .on("mousemove", (event, feature) => {
       const county = countyFor(feature);
       showTooltip(event, county
-        ? `<b>${esc(county.name)} County</b><div class="row"><span>Ballots</span><span>${county.ballots.toLocaleString()}</span></div><div class="row"><span>In person / mail</span><span>${county.inPerson.toLocaleString()} / ${county.mail.toLocaleString()}</span></div><div class="row"><span>Share of registered</span><span>${share(county.shareOfRegistered)}</span></div><div class="row"><span>Share of 2024 vote</span><span>${share(county.shareOf2024Total)}</span></div><div class="row"><span>2024 result</span><span>${presidentialMarginText(county.margin2024)}</span></div>`
+        ? `<b>${esc(county.name)} County</b><div class="row"><span>Ballots</span><span>${county.ballots.toLocaleString()}</span></div><div class="row"><span>In person / mail</span><span>${county.inPerson.toLocaleString()} / ${county.mail.toLocaleString()}</span></div><div class="row"><span>Share of registered</span><span>${share(county.shareOfRegistered)}</span></div><div class="row"><span>Share of ${esc(year)} vote</span><span>${share(county.past?.[year]?.share)}</span></div><div class="row"><span>${esc(election.label)}</span><span>${pastMarginText(county.past?.[year]?.margin, election)}</span></div>${county.sameDay2018 != null ? `<div class="row"><span>Same day in 2018</span><span>${county.sameDay2018.toLocaleString()}</span></div>` : ""}`
         : `<b>${esc(feature.properties.name)} County</b><div class="row"><span>No report</span><span></span></div>`);
     })
     .on("mouseleave", hideTooltip);
   const apply = () => {
     paths.attr("fill", (feature) => fillFor(countyFor(feature)));
     document.getElementById("early-vote-legend").innerHTML = EARLY_VOTE_MAP_MODE === "margin"
-      ? [-60, -30, -10, 0, 10, 30, 60].map((m) => `<span><i class="sw" style="background:${marginScale(m)}"></i>${presidentialMarginText(m)}</span>`).join("")
+      ? [-60, -30, -10, 0, 10, 30, 60].map((m) => `<span><i class="sw" style="background:${marginScale(m)}"></i>${pastMarginText(m, election)}</span>`).join("")
       : [0, 0.25, 0.5, 0.75, 1].map((f) => `<span><i class="sw" style="background:${paceScale(paceTop * f)}"></i>${f === 1 ? "at least " : ""}${share(paceTop * f)}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--notup")}"></i>No ballots reported</span>`;
     document.querySelectorAll("button.mode[data-ev-mode]").forEach((b) => b.classList.toggle("active", b.dataset.evMode === EARLY_VOTE_MAP_MODE));
   };
