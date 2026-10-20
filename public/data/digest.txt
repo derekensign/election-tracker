@@ -7,14 +7,14 @@ WHAT MOVED
 - Kansas Senate: NBC moved Lean R → Tossup
 - Kansas Senate: Split Ticket moved Tossup → Lean R
 - Louisiana Senate: Silver Bulletin moved Solid R → Likely R
+- Minnesota Senate: Cook Political Report moved Likely D → Lean D
+- Mississippi Senate: Cook Political Report moved Solid R → Likely R
 - Montana Senate: The Economist moved Safe R → Likely R
 - Montana Senate: Silver Bulletin moved Solid R → Likely R
+- South Carolina Senate: Cook Political Report moved Likely R → Lean R
 - South Carolina Senate: Silver Bulletin moved Likely R → Lean R
 - South Dakota Senate: FiftyPlusOne moved Likely R → Safe R
 - TX-35 (U.S. House): Sabato's Crystal Ball moved Lean R → Tossup
-- TX-23 (U.S. House): Sabato's Crystal Ball moved Likely R → Lean R
-- TX Comptroller: poll-model D win chance 33% → 24% (−9.4 pts)
-- TX Comptroller: polling average R+2.7 → R+4.5
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 67%. Average D+2.6 over 25 polls; latest CBS News/YouGov Oct 16 D+2.0.
