@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildEarlyVote, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable } from "./early-vote.js";
+import { buildEarlyVote, compareDayWith2018, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange } from "./early-vote.js";
 
 test("countyKey matches SOS and Wikipedia spellings", () => {
   assert.equal(countyKey("DE WITT"), countyKey("DeWitt"));
@@ -59,4 +59,44 @@ test("buildEarlyVote leaves out the run date's in-progress report", () => {
   assert.equal(result.daily.length, 1);
   assert.equal(result.inProgress, false);
   assert.equal(buildEarlyVote({ ...turnout, reports: [report("2026-10-20", 1)] }, baselines, null, { asOf: "2026-10-20" }).inProgress, true);
+});
+
+test("isReadable also needs most registered voters covered", () => {
+  assert.equal(isReadable({ countiesWithInPerson: 204, inPerson: 419376, ballots: 496002, registeredCoverage: 0.64 }), false);
+  assert.equal(isReadable({ countiesWithInPerson: 230, inPerson: 600, ballots: 1000, registeredCoverage: 0.9 }), true);
+});
+
+test("percentChange", () => {
+  assert.equal(percentChange(110, 100), 0.1);
+  assert.equal(percentChange(53, 100), -0.47);
+  assert.equal(percentChange(5, 0), null);
+});
+
+test("compareDayWith2018 skips counties that haven't posted, instead of reading them as a collapse", () => {
+  const day2018 = { date: "2018-10-22", counties: [
+    { key: "DALLAS", name: "Dallas", registered: 100, inPerson: 1000, inPersonOnDate: 1000, mail: 200 },
+    { key: "HARRIS", name: "Harris", registered: 200, inPerson: 2000, inPersonOnDate: 2000, mail: 400 },
+  ] };
+  const counties2026 = [
+    { key: "DALLAS", displayName: "Dallas", registered: 120, inPerson: 1100, inPersonOnDate: 1100, mail: 100 },
+    { key: "HARRIS", displayName: "Harris", registered: 240, inPerson: 4, inPersonOnDate: 4, mail: 300 },
+  ];
+  const result = compareDayWith2018(counties2026, day2018);
+  assert.equal(result.countiesReported, 1);
+  assert.deepEqual(result.notReported, ["Harris"]);
+  assert.deepEqual(result.inPersonDay, { y2026: 1100, y2018: 1000, change: 0.1 });
+  assert.equal(result.coverageOf2018, 0.333);
+  // Dallas mail (100 against 200) and Harris mail (300 against 400) both count as posted.
+  assert.deepEqual(result.mailRunning, { y2026: 400, y2018: 600, change: -0.333 });
+  assert.equal(result.mailCountiesReported, 2);
+  assert.equal(result.counties.find((c) => c.name === "Harris").inPersonRunning.change, null);
+});
+
+test("compareDayWith2018 treats a county with almost no mail ballots as not having posted mail", () => {
+  const day2018 = { date: "2018-10-22", counties: [{ key: "PARKER", name: "Parker", registered: 90, inPerson: 4000, inPersonOnDate: 4000, mail: 1883 }] };
+  const result = compareDayWith2018([{ key: "PARKER", displayName: "Parker", registered: 130, inPerson: 5900, inPersonOnDate: 5900, mail: 0 }], day2018);
+  assert.equal(result.mailCountiesReported, 0);
+  assert.equal(result.mailRunning.change, null);
+  assert.equal(result.counties[0].mailRunning.change, null);
+  assert.equal(result.countiesReported, 1);
 });

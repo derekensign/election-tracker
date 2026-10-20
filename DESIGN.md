@@ -41,3 +41,7 @@ Probability maps use a diverging ramp from `--r3` through a near-neutral `#e9e9e
 ## Things deliberately avoided
 
 Cream backgrounds with a terracotta accent, dark mode with one neon accent, identical rounded cards with soft shadows, uppercase tracked eyebrow labels, monospace data labels, gradient washes, and emoji. Those are the common tells of generated interfaces.
+
+## Exception: turnout change
+
+On the Early vote tab, change in turnout against 2018 is colored green (up) and red (down), always with a + or − sign so color is never the only cue. Turnout isn't partisan, so the blue/red party colors would mislead there. Nowhere else uses green/red.

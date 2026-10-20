@@ -128,6 +128,22 @@ p.note, .meta, .foot, .sources, .seat-note, .moves-list { font-family: var(--ser
 .viewer-hint { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-3); font-family: var(--serif); }
 @media (hover: none) { .viewer-hint { display: none; } }
 @media (max-width: 600px) { .chart-viewer { padding: 14px 12px 10px; } }
+/* Early vote. Turnout change is not partisan, so it uses green for up and red for down, always with a sign,
+   instead of the blue/red party colors used everywhere else. */
+.chg { font-weight: 600; white-space: nowrap; }
+.chg.up { color: #15803d; } .chg.down { color: #b91c1c; } .chg.flat { color: var(--ink-2); }
+.ev-key { white-space: nowrap; }
+.ev-story { margin: 14px 0 6px; padding-left: 20px; font-family: var(--serif); font-size: 16px; line-height: 1.5; max-width: 78ch; }
+.ev-story li { margin: 4px 0; }
+.ev-h { margin-top: 30px; }
+.ev-table td.muted, .ev-table tr.muted td { color: var(--ink-3); }
+.ev-table th.group { text-align: center; border-bottom: 1px solid var(--rule); }
+.ev-chart svg { display: block; width: 100%; max-width: 760px; height: auto; }
+.ev-chart .axis text { fill: var(--ink-2); font-size: 11.5px; font-family: var(--sans); }
+.ev-chart .grid line { stroke: var(--rule-soft); }
+.ev-chart .bar-label { font-size: 11.5px; font-weight: 600; font-family: var(--sans); }
+details.ev-more { margin-top: 26px; border-top: 1px solid var(--rule); padding-top: 10px; }
+details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; }
 .changelog-day { border-top: 1px solid var(--rule-soft); padding: 8px 0; }
 .changelog-day .d { font-weight: 600; font-size: 14px; }
 .changelog-day ul { margin: 4px 0 0; padding-left: 18px; font-family: var(--serif); }

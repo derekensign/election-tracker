@@ -22,6 +22,17 @@
 // comparison sums the same 30 counties in 2026 and lines days up by in-person early-voting day number.
 export const READABLE_MIN_COUNTIES = 200;
 export const READABLE_MIN_IN_PERSON_SHARE = 0.5;
+// Counties with in-person votes must hold at least this share of registered voters. Two hundred small
+// counties can report while Harris, Tarrant, and Collin haven't, and that mix is not the state.
+export const READABLE_MIN_REGISTERED_COVERAGE = 0.8;
+// A big county counts as having reported its in-person votes through day N once its 2026 running in-person
+// total reaches this share of its 2018 total through the same day. Counties that haven't uploaded show a
+// handful of votes (Harris posted 4 on the evening of day 1), so anything under a quarter of 2018's pace
+// is treated as not posted yet rather than as a 75% collapse.
+export const REPORTED_MIN_SHARE_OF_2018 = 0.25;
+// For the statewide geography check (no per-county 2018 days outside the big 30), a county has posted its
+// in-person votes once its in-person rate per registered voter is at least this share of the statewide rate.
+export const POSTED_MIN_SHARE_OF_STATE_RATE = 0.25;
 const DAY_MS = 86_400_000;
 
 /** County names differ in spacing and case across sources ("DE WITT", "DeWitt"); compare on letters only. */
@@ -56,8 +67,54 @@ export function geographyAgainst(counties, electionId) {
 }
 
 /** Whether the early vote is broad enough that its geography means something. */
-export function isReadable({ countiesWithInPerson, inPerson, ballots }) {
-  return countiesWithInPerson >= READABLE_MIN_COUNTIES && ballots > 0 && inPerson / ballots >= READABLE_MIN_IN_PERSON_SHARE;
+export function isReadable({ countiesWithInPerson, inPerson, ballots, registeredCoverage = 1 }) {
+  return countiesWithInPerson >= READABLE_MIN_COUNTIES && ballots > 0 && inPerson / ballots >= READABLE_MIN_IN_PERSON_SHARE && registeredCoverage >= READABLE_MIN_REGISTERED_COVERAGE;
+}
+
+/** Percent change from `before` to `after` as a fraction (0.12 = up 12%), or null without a base. */
+export function percentChange(after, before) { return before ? Math.round(((after - before) / before) * 1000) / 1000 : null; }
+
+/**
+ * Compare one 2026 early-voting day with the same in-person day of 2018, county by county, for the 30 largest
+ * counties. Only counties that have posted their in-person votes through that day are compared, so a county
+ * that hasn't uploaded yet doesn't read as a collapse.
+ * @param {Array<{ key: string, displayName: string, registered: number, inPerson: number, inPersonOnDate: number, mail: number }>} counties2026
+ * @param {{ date: string, counties: Array<{ key: string, name: string, registered: number, inPerson: number, inPersonOnDate: number, mail: number }> }} day2018
+ */
+export function compareDayWith2018(counties2026, day2018) {
+  const byKey2026 = new Map(counties2026.map((c) => [c.key, c]));
+  const counties = day2018.counties.map((old) => {
+    const now = byKey2026.get(old.key);
+    const reported = Boolean(now) && now.inPerson >= REPORTED_MIN_SHARE_OF_2018 * old.inPerson;
+    // Mail gets the same rule on its own: many counties post in-person votes but no mail (Parker showed 0).
+    const mailReported = Boolean(now) && old.mail > 0 && now.mail >= REPORTED_MIN_SHARE_OF_2018 * old.mail;
+    return {
+      name: now?.displayName ?? old.name, key: old.key, reported, mailReported,
+      inPersonDay: { y2026: now?.inPersonOnDate ?? 0, y2018: old.inPersonOnDate },
+      inPersonRunning: { y2026: now?.inPerson ?? 0, y2018: old.inPerson, change: reported ? percentChange(now.inPerson, old.inPerson) : null },
+      mailRunning: { y2026: now?.mail ?? 0, y2018: old.mail, change: mailReported ? percentChange(now.mail, old.mail) : null },
+      registered: { y2026: now?.registered ?? null, y2018: old.registered, change: now?.registered ? percentChange(now.registered, old.registered) : null },
+    };
+  });
+  const reported = counties.filter((c) => c.reported);
+  const sum = (rows, pick) => rows.reduce((total, row) => total + pick(row), 0);
+  const pair = (rows, field) => {
+    const y2026 = sum(rows, (c) => c[field].y2026), y2018 = sum(rows, (c) => c[field].y2018);
+    return { y2026, y2018, change: rows.length ? percentChange(y2026, y2018) : null };
+  };
+  return {
+    countiesReported: reported.length,
+    countiesTotal: counties.length,
+    notReported: counties.filter((c) => !c.reported).map((c) => c.name),
+    // How much of 2018's in-person vote the reporting counties stood for, so a small sample reads as one.
+    coverageOf2018: Math.round((sum(reported, (c) => c.inPersonRunning.y2018) / Math.max(1, sum(counties, (c) => c.inPersonRunning.y2018))) * 1000) / 1000,
+    inPersonDay: pair(reported, "inPersonDay"),
+    inPersonRunning: pair(reported, "inPersonRunning"),
+    mailRunning: pair(counties.filter((c) => c.mailReported), "mailRunning"),
+    mailCountiesReported: counties.filter((c) => c.mailReported).length,
+    registered: pair(reported, "registered"),
+    counties,
+  };
 }
 
 /** In-person early-voting day number for a date: the first in-person day is day 1; earlier dates are ≤ 0. */
@@ -98,13 +155,23 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
       inPerson: sum(counties, "inPerson"), mail: sum(counties, "mail"), ballots: sum(counties, "ballots"),
       inPersonOnDate: sum(counties, "inPersonOnDate"),
       countiesReporting: counties.filter((c) => c.ballots > 0).length,
-      countiesWithInPerson: counties.filter((c) => c.inPerson > 0).length,
+      countiesWithInPerson: 0, registeredCoverage: 0, // filled in below
       geography: Object.fromEntries(electionIds.map((id) => [id, geographyAgainst(counties, id)])),
     };
+    // Which counties have really posted in-person votes: a token handful (Harris showed 4) doesn't count.
+    const registeredTotal = sum(counties, "registered");
+    const statewideInPersonRate = registeredTotal ? day.inPerson / registeredTotal : 0;
+    const posted = counties.filter((c) => c.registered && c.inPerson > 0 && c.inPerson / c.registered >= POSTED_MIN_SHARE_OF_STATE_RATE * statewideInPersonRate);
+    day.countiesWithInPerson = posted.length;
+    day.registeredCoverage = registeredTotal ? Math.round((sum(posted, "registered") / registeredTotal) * 1000) / 1000 : 0;
+    day.countiesNotPosted = counties.filter((c) => c.registered >= 150_000 && !posted.includes(c)).map((c) => c.displayName); // big ones only
     day.readable = isReadable(day);
     // Same 30 counties, same in-person day number, 2018 against 2026.
     const benchmarkDay = day.dayNumber >= 1 ? benchmark2018?.days?.[day.dayNumber - 1] : null;
     if (benchmarkDay) {
+      const { counties: countyComparisons, ...comparison } = compareDayWith2018(counties, benchmarkDay);
+      day.versus2018 = { dayNumber: day.dayNumber, date2018: benchmarkDay.date, ...comparison };
+      day.versus2018Counties = countyComparisons; // dropped from all but the latest day below, to keep the file small
       const largestCounties = counties.filter((c) => benchmarkKeys.has(c.key));
       const ballots = sum(largestCounties, "ballots"), registered = sum(largestCounties, "registered");
       day.pace2018 = {
@@ -121,6 +188,8 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
 
   const latestCounties = joinCounties(latestReport);
   const latestDay = daily[daily.length - 1];
+  const versus2018Counties = latestDay.versus2018Counties ?? null;
+  for (const day of daily) delete day.versus2018Counties;
   const registered = latestCounties.reduce((total, county) => total + (county.registered || 0), 0);
   const benchmarkLatest = latestDay.pace2018 ? new Map(benchmark2018.days[latestDay.pace2018.dayNumber - 1].counties.map((c) => [c.key, c.ballots])) : null;
 
@@ -148,10 +217,20 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
       readable: latestDay.readable,
       countiesReporting: latestDay.countiesReporting,
       countiesWithInPerson: latestDay.countiesWithInPerson,
-      readableRule: { minCountiesWithInPerson: READABLE_MIN_COUNTIES, minInPersonShare: READABLE_MIN_IN_PERSON_SHARE },
+      registeredCoverage: latestDay.registeredCoverage,
+      bigCountiesNotPosted: latestDay.countiesNotPosted,
+      readableRule: { minCountiesWithInPerson: READABLE_MIN_COUNTIES, minInPersonShare: READABLE_MIN_IN_PERSON_SHARE, minRegisteredCoverage: READABLE_MIN_REGISTERED_COVERAGE },
       byElection: latestDay.geography, // positive shift: ballots come from the bluer of the reporting counties
     },
     pace2018: latestDay.pace2018 ?? null,
+    // Day-by-day comparison with 2018 (30 largest counties), plus the 2018-only days still to come.
+    versus2018: benchmark2018 ? {
+      days: benchmark2018.days.map((day2018) => {
+        const day2026 = daily.find((d) => d.versus2018?.dayNumber === day2018.dayNumber);
+        return day2026 ? { date2026: day2026.date, ...day2026.versus2018 } : { dayNumber: day2018.dayNumber, date2018: day2018.date, date2026: null, inPersonDay2018: day2018.total.inPersonOnDate, inPersonRunning2018: day2018.total.inPerson };
+      }),
+      latestCounties: versus2018Counties,
+    } : null,
     // The full 2018 curve (cumulative ballots in the 30 counties on in-person days 1 to 12), for the chart.
     benchmark2018: benchmark2018 ? { firstInPersonDay: benchmark2018.firstInPersonDay, counties: benchmark2018.countyKeys.length, cumulativeBallots: benchmark2018.days.map((d) => d.total.ballots) } : null,
     daily,

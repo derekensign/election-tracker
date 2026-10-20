@@ -689,6 +689,28 @@ function pastMarginText(margin, election) {
   return `${margin > 0 ? election.democrat : election.republican} +${Math.abs(margin).toFixed(1)}`;
 }
 
+/** A percent change as a green/red chip with its sign: +29.6% / −66.7%. `fraction` is 0.296 for up 29.6%. */
+function changeChip(fraction, { digits = 0 } = {}) {
+  if (fraction == null) return '<span class="muted">—</span>';
+  const percent = fraction * 100;
+  const rounded = Number(percent.toFixed(digits));
+  const direction = rounded > 0 ? "up" : rounded < 0 ? "down" : "flat";
+  const text = `${rounded > 0 ? "+" : rounded < 0 ? "−" : ""}${Math.abs(rounded).toFixed(digits)}%`;
+  return `<span class="chg ${direction}" title="${direction === "flat" ? "about even" : direction} against 2018">${text}</span>`;
+}
+/** "up 30%" / "down 67%" in words, colored the same way, for sentences. */
+function changeWords(fraction) {
+  if (fraction == null) return "unknown";
+  const rounded = Math.round(fraction * 100);
+  if (rounded === 0) return '<span class="chg flat">about even</span>';
+  return `<span class="chg ${rounded > 0 ? "up" : "down"}">${rounded > 0 ? "up" : "down"} ${Math.abs(rounded)}%</span>`;
+}
+/** Change per registered voter: turnout change net of growth in registered voters. */
+function perVoterChange(turnoutChange, registeredChange) {
+  return turnoutChange == null || registeredChange == null ? null : (1 + turnoutChange) / (1 + registeredChange) - 1;
+}
+const listNames = (names) => names.length <= 2 ? names.join(" and ") : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+
 async function renderEarlyVote(s) {
   const earlyVote = s.earlyVote;
   const figures = document.getElementById("early-vote-figures");
@@ -696,53 +718,123 @@ async function renderEarlyVote(s) {
     figures.innerHTML = `<div class="figure"><div class="k">Status</div><div class="v text">No report yet</div><div class="s">The Secretary of State's first early-voting report will appear here after the next morning refresh.</div></div>`;
     return;
   }
-  const { totals, geography, daily, elections, pace2018 } = earlyVote;
+  const { totals, geography, elections } = earlyVote;
   const count = (n) => (n ?? 0).toLocaleString();
   const share = (p, digits = 1) => (p == null ? "—" : `${(p * 100).toFixed(digits)}%`);
+  const comparedDays = (earlyVote.versus2018?.days || []).filter((d) => d.date2026);
+  const latest = comparedDays[comparedDays.length - 1] || null;
 
-  // Headline strip: volume, then pace against the 2022 midterm and the 2018 Beto Senate race.
-  const paceFigure = pace2018
-    ? { k: `Pace against 2018, day ${pace2018.dayNumber}`, v: share(pace2018.ratio, 0), s: `${count(pace2018.ballots2026)} ballots in the 30 largest counties, against ${count(pace2018.ballots2018)} on day ${pace2018.dayNumber} in 2018. As a share of registered voters: ${share(pace2018.shareOfRegistered2026)} against ${share(pace2018.shareOfRegistered2018)}.` }
-    : { k: "Pace against 2018", v: "After day 1", vClass: " text", s: "In-person day 1 is October 19. It is compared once the day is fully reported, usually by the next morning." };
+  // Headline strip: the three numbers worth remembering.
   figures.innerHTML = [
-    { k: `Ballots through ${fmtDate(earlyVote.reportDate)}`, v: count(totals.ballots), s: `${count(totals.inPerson)} in person, ${count(totals.mail)} by mail. ${share(totals.shareOfRegistered)} of ${count(earlyVote.registered)} registered voters.` },
-    { k: "Share of the 2022 midterm vote", v: share(totals.shareOfPastTotal["2022"]), s: `of ${count(elections["2022"].total)} votes for governor in 2022. ${share(totals.shareOfPastTotal["2018"])} of 2018's ${count(elections["2018"].total)}, ${share(totals.shareOfPastTotal["2024"])} of 2024's ${count(elections["2024"].total)}.` },
-    paceFigure,
-  ].map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v${t.vClass || ""}">${esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
+    { k: `Ballots through ${fmtDate(earlyVote.reportDate)}`, v: count(totals.ballots), s: `${count(totals.inPerson)} in person, ${count(totals.mail)} by mail, statewide` },
+    latest
+      ? { k: `In person against 2018, through day ${latest.dayNumber}`, vHtml: changeChip(latest.inPersonRunning.change), s: `in the ${latest.countiesReported} of 30 big counties that have posted` }
+      : { k: "In person against 2018", v: "After day 1", vClass: " text", s: "Day 1 is compared once it is fully posted, usually the next morning." },
+    { k: "Share of the 2022 midterm vote", v: share(totals.shareOfPastTotal["2022"]), s: `already cast, of ${count(elections["2022"].total)} votes for governor in 2022` },
+  ].map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v${t.vClass || ""}">${t.vHtml ?? esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 
-  // Geography against each past election.
-  document.getElementById("early-vote-geography-status").textContent = geography.readable
-    ? `${geography.countiesWithInPerson} of 254 counties have posted in-person votes. A positive tilt means ballots are coming from the more Democratic of the reporting counties.`
-    : `Too early to read: ${geography.countiesWithInPerson} of 254 counties have posted in-person votes, and the mix is mostly mail ballots. The numbers below will settle once at least ${geography.readableRule.minCountiesWithInPerson} counties report and in-person ballots are at least half the total.`;
+  // The story so far, in sentences.
+  const story = [];
+  if (latest) {
+    const dayName = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+    story.push(`In-person voting on day ${latest.dayNumber} (${dayName(latest.date2026)}) was ${changeWords(latest.inPersonDay.change)} from day ${latest.dayNumber} of 2018, in the ${latest.countiesReported} of 30 big counties that have posted it.`);
+    if (latest.dayNumber > 1) story.push(`Over the first ${latest.dayNumber} days, in-person votes are ${changeWords(latest.inPersonRunning.change)} from the same point in 2018.`);
+    const perVoter = perVoterChange(latest.inPersonRunning.change, latest.registered.change);
+    story.push(`Those counties have ${Math.round(latest.registered.change * 100)}% more registered voters than in 2018, so per registered voter, in-person turnout is ${changeWords(perVoter)}.`);
+    if (latest.mailRunning.change != null) story.push(`Mail ballots are ${changeWords(latest.mailRunning.change)} from the same point in 2018, in the ${latest.mailCountiesReported} big counties that have posted mail ballots. Texas tightened mail-ballot ID rules in 2021.`);
+    if (latest.notReported.length) story.push(`Not posted yet for day ${latest.dayNumber}: ${esc(listNames(latest.notReported))}. They haven't sent the state their in-person numbers yet, so they're left out of the comparison until they do.`);
+  } else {
+    story.push("In-person early voting began October 19. The first comparison with 2018 appears once day 1 is fully posted.");
+  }
+  document.getElementById("early-vote-story").innerHTML = story.map((line) => `<li>${line}</li>`).join("");
+
+  renderEarlyVoteDaysChart(earlyVote.versus2018?.days || []);
+  renderEarlyVoteDaysTable(earlyVote.versus2018?.days || []);
+  renderEarlyVoteBigCounties(earlyVote.versus2018?.latestCounties || [], latest);
+
+  // Bluer or redder places, in plain words.
   const yearsNewestFirst = Object.keys(elections).sort().reverse();
+  const g2024 = geography.byElection["2024"];
+  document.getElementById("early-vote-geography-status").innerHTML = geography.readable
+    ? `Ballots so far come from counties that voted ${pastMarginText(g2024.lean, elections["2024"])} in 2024, against ${pastMarginText(g2024.reportingBaseline, elections["2024"])} for those counties' full 2024 vote. By geography alone, the early vote is ${Math.abs(g2024.shift) < 0.5 ? "about the same as 2024" : `${Math.abs(g2024.shift).toFixed(1)} points ${g2024.shift > 0 ? "bluer" : "redder"} than 2024`}. This is about places, not individual voters.`
+    : `Too early to say. Counties holding ${share(geography.registeredCoverage, 0)} of registered voters have posted in-person votes, and this check waits for ${share(geography.readableRule.minRegisteredCoverage, 0)}${geography.bigCountiesNotPosted?.length ? `. Still missing: ${esc(listNames(geography.bigCountiesNotPosted))}` : ""}.`;
   document.getElementById("early-vote-geography").innerHTML = `<tr><th>Race</th><th>Statewide result</th><th>Ballots so far come from counties that voted</th><th>Those counties' full vote that year</th><th class="num">Tilt of 2026 ballots</th></tr>`
     + yearsNewestFirst.map((year) => {
       const election = elections[year], g = geography.byElection[year];
       return `<tr${geography.readable ? "" : ' class="muted"'}><td><b>${esc(election.label)}</b> <span class="thin">${esc(election.republican)} against ${esc(election.democrat)}</span></td><td>${pastMarginText(election.margin, election)}</td><td>${pastMarginText(g.lean, election)}</td><td>${pastMarginText(g.reportingBaseline, election)}</td><td class="num"><b>${marginText(g.shift)}</b></td></tr>`;
     }).join("");
-
-  // Trend charts.
   const grid = document.getElementById("early-vote-charts");
   grid.innerHTML = "";
-  const drawChart = (chart, series) => {
+  if (geography.readable) {
     const box = document.createElement("div"); box.className = "trend";
+    const chart = { title: "Tilt of ballots against each past race", lines: yearsNewestFirst.map((year) => ({ name: elections[year].label, color: EARLY_VOTE_LINE_COLORS[year], get: (d) => (d.readable ? d.geography?.[year]?.shift : null) })), format: (v) => marginText(v), domain: null };
     box.innerHTML = `<h4>${esc(chart.title)}</h4><div class="legend">${chart.lines.map((l) => `<span><i class="sw" style="background:${l.color}"></i>${esc(l.name)}</span>`).join("")}</div>`;
     grid.appendChild(box);
-    drawTrend(box, series, chart);
-  };
-  drawChart({ title: "Ballots cast so far, statewide", lines: [{ name: "Total", color: cssVar("--ink"), get: (d) => d.ballots }, { name: "Mail", color: "#8a8f98", get: (d) => d.mail }, { name: "In person", color: "#b58a00", get: (d) => d.inPerson }], format: (v) => compact(v), domain: [0, Math.max(1, ...daily.map((d) => d.ballots)) * 1.1] }, daily);
-  // 2018 against 2026 by in-person day, 30 largest counties. The 2018 line is complete; 2026 grows daily.
-  const benchmarkDays = earlyVote.benchmark2018?.cumulativeBallots || [];
-  const paceByDay = new Map(daily.filter((d) => d.pace2018).map((d) => [d.pace2018.dayNumber, d.pace2018]));
-  const paceSeries = Array.from({ length: 12 }, (_, i) => ({ date: `Day ${i + 1}`, ballots2018: paceByDay.get(i + 1)?.ballots2018 ?? benchmarkDays[i] ?? null, ballots2026: paceByDay.get(i + 1)?.ballots2026 ?? null }));
-  drawChart({ title: "30 largest counties, ballots by early-voting day", lines: [{ name: "2026", color: cssVar("--ink"), get: (d) => d.ballots2026 }, { name: "2018 (Cruz against O'Rourke)", color: "#b58a00", get: (d) => d.ballots2018 }], format: (v) => compact(v), domain: [0, Math.max(1, ...paceSeries.map((d) => Math.max(d.ballots2018 || 0, d.ballots2026 || 0))) * 1.1] }, paceSeries);
-  drawChart({ title: `Tilt of ballots against each past race${geography.readable ? "" : " (too early to read)"}`, lines: yearsNewestFirst.map((year) => ({ name: elections[year].label, color: EARLY_VOTE_LINE_COLORS[year], get: (d) => d.geography?.[year]?.shift })), format: (v) => marginText(v), domain: null }, daily);
+    drawTrend(box, earlyVote.daily, chart);
+  }
 
-  // County map and table follow the "Compare with" year.
+  // All-county map and table, inside the collapsed section.
   document.querySelectorAll("button.mode[data-ev-year]").forEach((b) => { b.onclick = () => { EARLY_VOTE_YEAR = b.dataset.evYear; renderEarlyVoteCounties(earlyVote); }; });
   document.getElementById("early-vote-show-all").onclick = () => { EARLY_VOTE_SHOW_ALL = !EARLY_VOTE_SHOW_ALL; renderEarlyVoteTable(earlyVote); };
   EARLY_VOTE_TOPO = await fetchJson("geo/tx-counties.json");
   renderEarlyVoteCounties(earlyVote);
+}
+
+/** Bars: each day's in-person change against the same day of 2018. Line: the running total's change. */
+function renderEarlyVoteDaysChart(days) {
+  const box = document.getElementById("early-vote-days-chart");
+  box.innerHTML = "";
+  const compared = days.filter((d) => d.date2026 && d.inPersonDay.change != null);
+  if (!compared.length) return;
+  // Draw at the container's own width (up to 760) so labels stay legible on phones.
+  const width = Math.max(320, Math.min(760, box.clientWidth || 760)), height = width < 500 ? 200 : 230;
+  const margin = { top: 22, right: 10, bottom: 34, left: 44 };
+  const narrow = width < 500;
+  const x = d3.scaleBand().domain(days.map((d) => d.dayNumber)).range([margin.left, width - margin.right]).padding(0.28);
+  const extreme = Math.max(0.1, ...compared.flatMap((d) => [Math.abs(d.inPersonDay.change), Math.abs(d.inPersonRunning.change ?? 0)]));
+  const y = d3.scaleLinear().domain([-extreme * 1.25, extreme * 1.25]).nice().range([height - margin.bottom, margin.top]);
+  const svg = d3.select(box).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "In-person turnout change against 2018, by early-voting day");
+  const signed = (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v * 100))}%`;
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(4)).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => y(v)).attr("y2", (v) => y(v));
+  svg.append("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", cssVar("--ink-3"));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(signed).tickSize(0)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x).tickFormat((n) => (narrow ? String(n) : `Day ${n}`)).tickSize(0)).select(".domain").remove();
+  const colorFor = (v) => (v > 0.005 ? "#15803d" : v < -0.005 ? "#b91c1c" : cssVar("--ink-3"));
+  svg.append("g").selectAll("rect").data(compared).join("rect")
+    .attr("x", (d) => x(d.dayNumber)).attr("width", x.bandwidth())
+    .attr("y", (d) => Math.min(y(0), y(d.inPersonDay.change))).attr("height", (d) => Math.abs(y(d.inPersonDay.change) - y(0)))
+    .attr("fill", (d) => colorFor(d.inPersonDay.change)).attr("rx", 2)
+    .on("mousemove", (event, d) => showTooltip(event, `<b>Day ${d.dayNumber}</b>, ${fmtDate(d.date2026)} (2018: ${fmtDate(d.date2018)})<div class="row"><span>In person that day</span><span>${d.inPersonDay.y2026.toLocaleString()} against ${d.inPersonDay.y2018.toLocaleString()}</span></div><div class="row"><span>Change</span><span>${signed(d.inPersonDay.change)}</span></div><div class="row"><span>Counties posted</span><span>${d.countiesReported} of 30</span></div>`))
+    .on("mouseleave", hideTooltip);
+  svg.append("g").selectAll("text").data(compared).join("text").attr("class", "bar-label").attr("text-anchor", "middle")
+    .attr("x", (d) => x(d.dayNumber) + x.bandwidth() / 2).attr("y", (d) => (d.inPersonDay.change >= 0 ? y(d.inPersonDay.change) - 5 : y(d.inPersonDay.change) + 13))
+    .attr("fill", (d) => colorFor(d.inPersonDay.change)).text((d) => signed(d.inPersonDay.change));
+  if (compared.length >= 2) {
+    const line = d3.line().x((d) => x(d.dayNumber) + x.bandwidth() / 2).y((d) => y(d.inPersonRunning.change));
+    svg.append("path").datum(compared).attr("fill", "none").attr("stroke", cssVar("--ink")).attr("stroke-width", 2).attr("d", line);
+    svg.append("g").selectAll("circle").data(compared).join("circle").attr("cx", (d) => x(d.dayNumber) + x.bandwidth() / 2).attr("cy", (d) => y(d.inPersonRunning.change)).attr("r", 3.5).attr("fill", cssVar("--ink")).attr("stroke", "#fff").attr("stroke-width", 1.5);
+  }
+  box.insertAdjacentHTML("beforeend", `<div class="legend"><span><i class="sw" style="background:#15803d"></i>Day up from 2018</span><span><i class="sw" style="background:#b91c1c"></i>Day down from 2018</span>${compared.length >= 2 ? `<span><i class="sw" style="background:${cssVar("--ink")}"></i>Running total</span>` : ""}</div>`);
+}
+
+function renderEarlyVoteDaysTable(days) {
+  const count = (n) => (n == null ? "—" : n.toLocaleString());
+  document.getElementById("early-vote-days").innerHTML = `<tr><th rowspan="2">Day</th><th rowspan="2">Date</th><th colspan="3" class="group">In person that day</th><th colspan="3" class="group">In person so far</th><th rowspan="2" class="num">Mail so far</th><th rowspan="2" class="num">Counties posted</th></tr>
+    <tr><th class="num">2026</th><th class="num">2018</th><th class="num">Change</th><th class="num">2026</th><th class="num">2018</th><th class="num">Change</th></tr>`
+    + days.map((d) => d.date2026
+      ? `<tr><td><b>Day ${d.dayNumber}</b></td><td>${fmtDate(d.date2026)} <span class="thin">2018: ${fmtDate(d.date2018)}</span></td><td class="num">${count(d.inPersonDay.y2026)}</td><td class="num">${count(d.inPersonDay.y2018)}</td><td class="num">${changeChip(d.inPersonDay.change, { digits: 1 })}</td><td class="num">${count(d.inPersonRunning.y2026)}</td><td class="num">${count(d.inPersonRunning.y2018)}</td><td class="num">${changeChip(d.inPersonRunning.change, { digits: 1 })}</td><td class="num">${changeChip(d.mailRunning.change, { digits: 1 })}</td><td class="num">${d.countiesReported} of 30</td></tr>`
+      : `<tr class="muted"><td>Day ${d.dayNumber}</td><td>2018: ${fmtDate(d.date2018)}</td><td class="num">—</td><td class="num">${count(d.inPersonDay2018)}</td><td></td><td class="num">—</td><td class="num">${count(d.inPersonRunning2018)}</td><td></td><td></td><td></td></tr>`).join("");
+}
+
+function renderEarlyVoteBigCounties(counties, latest) {
+  const table = document.getElementById("early-vote-big-counties");
+  if (!latest || !counties.length) { table.innerHTML = ""; return; }
+  const count = (n) => (n == null ? "—" : n.toLocaleString());
+  const sorted = [...counties].sort((a, b) => (b.reported - a.reported) || ((b.inPersonRunning.change ?? -9) - (a.inPersonRunning.change ?? -9)));
+  table.innerHTML = `<tr><th>County</th><th class="num">In person 2026</th><th class="num">Same day 2018</th><th class="num">Change</th><th class="num">Per registered voter</th><th class="num">Mail 2026</th><th class="num">Mail 2018</th><th class="num">Mail change</th></tr>`
+    + sorted.map((c) => c.reported
+      ? `<tr><td><b>${esc(c.name)}</b></td><td class="num">${count(c.inPersonRunning.y2026)}</td><td class="num">${count(c.inPersonRunning.y2018)}</td><td class="num">${changeChip(c.inPersonRunning.change)}</td><td class="num">${changeChip(perVoterChange(c.inPersonRunning.change, c.registered.change))}</td><td class="num">${count(c.mailRunning.y2026)}</td><td class="num">${count(c.mailRunning.y2018)}</td><td class="num">${c.mailReported ? changeChip(c.mailRunning.change) : '<span class="muted">not posted yet</span>'}</td></tr>`
+      : `<tr class="muted"><td><b>${esc(c.name)}</b></td><td class="num">${count(c.inPersonRunning.y2026)}</td><td class="num">${count(c.inPersonRunning.y2018)}</td><td class="num" colspan="2">not posted yet</td><td class="num">${count(c.mailRunning.y2026)}</td><td class="num">${count(c.mailRunning.y2018)}</td><td class="num">${c.mailReported ? changeChip(c.mailRunning.change) : '<span class="muted">not posted yet</span>'}</td></tr>`).join("");
 }
 
 function renderEarlyVoteCounties(earlyVote) {
