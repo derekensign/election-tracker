@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildEarlyVote, compareDayWith2018, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange } from "./early-vote.js";
+import { buildEarlyVote, compareDayWith2018, mergeCountyReports, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange } from "./early-vote.js";
 
 test("countyKey matches SOS and Wikipedia spellings", () => {
   assert.equal(countyKey("DE WITT"), countyKey("DeWitt"));
@@ -99,4 +99,25 @@ test("compareDayWith2018 treats a county with almost no mail ballots as not havi
   assert.equal(result.mailRunning.change, null);
   assert.equal(result.counties[0].mailRunning.change, null);
   assert.equal(result.countiesReported, 1);
+});
+
+test("mergeCountyReports uses a county's own count when the state feed is behind", () => {
+  const state = (date, inPerson, inPersonOnDate, mail) => ({ date, counties: [{ name: "HARRIS", registered: 100, inPerson, inPersonOnDate, mail }, { name: "DALLAS", registered: 100, inPerson: 50, inPersonOnDate: 50, mail: 5 }] });
+  const reports = [state("2026-10-18", 0, 0, 20000), state("2026-10-19", 4, 4, 22028), state("2026-10-20", 7458, 423, 22028)];
+  const harris = { county: "Harris", sourceUrl: "x", inPersonByDate: { "2026-10-19": 104659, "2026-10-20": 90000 }, mail: 24794 };
+  const { reports: merged, used } = mergeCountyReports(reports, [harris]);
+  const harrisOn = (i) => merged[i].counties.find((c) => c.name === "HARRIS");
+  assert.equal(harrisOn(0).inPerson, 0); // county report starts on the 19th
+  assert.deepEqual([harrisOn(1).inPerson, harrisOn(1).inPersonOnDate, harrisOn(1).mail], [104659, 104659, 22028]); // mail only on the latest date
+  assert.deepEqual([harrisOn(2).inPerson, harrisOn(2).inPersonOnDate, harrisOn(2).mail], [194659, 90000, 24794]);
+  assert.equal(merged[1].counties.find((c) => c.name === "DALLAS").inPerson, 50); // untouched
+  assert.deepEqual(used.Harris.inPersonDates, ["2026-10-19", "2026-10-20"]);
+  assert.equal(used.Harris.mail, true);
+});
+
+test("mergeCountyReports keeps the state's count when it is higher, and handles cumulative-only reports", () => {
+  const reports = [{ date: "2026-10-19", counties: [{ name: "BEXAR", registered: 1, inPerson: 50000, inPersonOnDate: 50000, mail: 9 }] }];
+  const { reports: merged, used } = mergeCountyReports(reports, [{ county: "Bexar", sourceUrl: "x", inPersonThrough: { date: "2026-10-19", inPerson: 42776 }, mail: null }]);
+  assert.equal(merged[0].counties[0].inPerson, 50000);
+  assert.deepEqual(used, {});
 });

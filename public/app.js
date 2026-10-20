@@ -742,6 +742,8 @@ async function renderEarlyVote(s) {
     const perVoter = perVoterChange(latest.inPersonRunning.change, latest.registered.change);
     story.push(`Those counties have ${Math.round(latest.registered.change * 100)}% more registered voters than in 2018, so per registered voter, in-person turnout is ${changeWords(perVoter)}.`);
     if (latest.mailRunning.change != null) story.push(`Mail ballots are ${changeWords(latest.mailRunning.change)} from the same point in 2018, in the ${latest.mailCountiesReported} big counties that have posted mail ballots. Texas tightened mail-ballot ID rules in 2021.`);
+    const countyNames = Object.keys(earlyVote.countySources || {}).filter((name) => earlyVote.countySources[name].inPersonDates.length).sort();
+    if (countyNames.length) story.push(`The state's feed runs behind for some big counties, so counts for ${esc(listNames(countyNames))} come from their own election offices.`);
     if (latest.notReported.length) story.push(`Not posted yet for day ${latest.dayNumber}: ${esc(listNames(latest.notReported))}. They haven't sent the state their in-person numbers yet, so they're left out of the comparison until they do.`);
   } else {
     story.push("In-person early voting began October 19. The first comparison with 2018 appears once day 1 is fully posted.");
@@ -831,10 +833,10 @@ function renderEarlyVoteBigCounties(counties, latest) {
   if (!latest || !counties.length) { table.innerHTML = ""; return; }
   const count = (n) => (n == null ? "—" : n.toLocaleString());
   const sorted = [...counties].sort((a, b) => (b.reported - a.reported) || ((b.inPersonRunning.change ?? -9) - (a.inPersonRunning.change ?? -9)));
-  table.innerHTML = `<tr><th>County</th><th class="num">In person 2026</th><th class="num">Same day 2018</th><th class="num">Change</th><th class="num">Per registered voter</th><th class="num">Mail 2026</th><th class="num">Mail 2018</th><th class="num">Mail change</th></tr>`
+  table.innerHTML = `<tr><th>County</th><th>Source</th><th class="num">In person 2026</th><th class="num">Same day 2018</th><th class="num">Change</th><th class="num">Per registered voter</th><th class="num">Mail 2026</th><th class="num">Mail 2018</th><th class="num">Mail change</th></tr>`
     + sorted.map((c) => c.reported
-      ? `<tr><td><b>${esc(c.name)}</b></td><td class="num">${count(c.inPersonRunning.y2026)}</td><td class="num">${count(c.inPersonRunning.y2018)}</td><td class="num">${changeChip(c.inPersonRunning.change)}</td><td class="num">${changeChip(perVoterChange(c.inPersonRunning.change, c.registered.change))}</td><td class="num">${count(c.mailRunning.y2026)}</td><td class="num">${count(c.mailRunning.y2018)}</td><td class="num">${c.mailReported ? changeChip(c.mailRunning.change) : '<span class="muted">not posted yet</span>'}</td></tr>`
-      : `<tr class="muted"><td><b>${esc(c.name)}</b></td><td class="num">${count(c.inPersonRunning.y2026)}</td><td class="num">${count(c.inPersonRunning.y2018)}</td><td class="num" colspan="2">not posted yet</td><td class="num">${count(c.mailRunning.y2026)}</td><td class="num">${count(c.mailRunning.y2018)}</td><td class="num">${c.mailReported ? changeChip(c.mailRunning.change) : '<span class="muted">not posted yet</span>'}</td></tr>`).join("");
+      ? `<tr><td><b>${esc(c.name)}</b></td><td class="thin">${c.source === "county" ? "county office" : "state"}</td><td class="num">${count(c.inPersonRunning.y2026)}</td><td class="num">${count(c.inPersonRunning.y2018)}</td><td class="num">${changeChip(c.inPersonRunning.change)}</td><td class="num">${changeChip(perVoterChange(c.inPersonRunning.change, c.registered.change))}</td><td class="num">${count(c.mailRunning.y2026)}</td><td class="num">${count(c.mailRunning.y2018)}</td><td class="num">${c.mailReported ? changeChip(c.mailRunning.change) : '<span class="muted">not posted yet</span>'}</td></tr>`
+      : `<tr class="muted"><td><b>${esc(c.name)}</b></td><td class="thin">${c.source === "county" ? "county office" : "state"}</td><td class="num">${count(c.inPersonRunning.y2026)}</td><td class="num">${count(c.inPersonRunning.y2018)}</td><td class="num" colspan="2">not posted yet</td><td class="num">${count(c.mailRunning.y2026)}</td><td class="num">${count(c.mailRunning.y2018)}</td><td class="num">${c.mailReported ? changeChip(c.mailRunning.change) : '<span class="muted">not posted yet</span>'}</td></tr>`).join("");
 }
 
 function renderEarlyVoteCounties(earlyVote) {

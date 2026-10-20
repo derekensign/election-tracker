@@ -24,6 +24,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
+      - name: Install dependencies (pdf.js, for county early-vote reports)
+        run: npm ci --omit=dev
       - name: Build today's snapshot
         run: node ingest/build.js
       - name: Confirm the snapshot is for today (Central time)

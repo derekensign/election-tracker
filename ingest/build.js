@@ -9,6 +9,7 @@ import {
 import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
 import * as sosEarlyVote from "./sources/sos-early-vote.js";
+import { fetchCountyReports } from "./sources/county-early-vote.js";
 import { buildEarlyVote } from "./early-vote.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
 import { ratePollster } from "./pollsters.js";
@@ -32,11 +33,13 @@ export async function build() {
   const log = (message) => console.log(`[${new Date().toISOString().slice(11, 19)}] ${message}`);
 
   // ---- Fetch everything, tolerating individual source failures -------------------------------------------
-  const [votehubPolls, wikiPages, earlyVoteTurnout] = await Promise.all([
+  const [votehubPolls, wikiPages, earlyVoteTurnout, countyEarlyVote] = await Promise.all([
     guard("votehub", sources, log, votehub.fetchAllPolls),
     guard("wikipedia", sources, log, fetchWikipedia),
     // Early voting opens October 14 (mail) and October 19 (in person); before then there is nothing to fetch.
     asOf >= "2026-10-14" ? guard("sosEarlyVote", sources, log, () => sosEarlyVote.fetchEarlyVoteTurnout({ electionDate: "11/03/2026", asOf })) : null,
+    // Big counties' own election-office reports, for when the state feed lags (from in-person day 1 on).
+    asOf >= "2026-10-19" ? guard("countyEarlyVote", sources, log, () => fetchCountyReports({ asOf, log })) : null,
   ]);
 
   // ---- U.S. Senate -----------------------------------------------------------------------------------------
@@ -129,7 +132,8 @@ export async function build() {
   // Past results by county (2024, 2022, 2018) and the 2018 daily benchmark are vendored by scripts/.
   const countyBaselines = JSON.parse(readFileSync(join(DATA_DIR, "tx-county-baselines.json"), "utf8"));
   const earlyVote2018 = JSON.parse(readFileSync(join(DATA_DIR, "tx-early-vote-2018.json"), "utf8"));
-  const earlyVote = earlyVoteTurnout ? buildEarlyVote(earlyVoteTurnout, countyBaselines, earlyVote2018, { asOf }) : previous?.earlyVote ?? null;
+  const earlyVote = earlyVoteTurnout ? buildEarlyVote(earlyVoteTurnout, countyBaselines, earlyVote2018, { asOf, countyReports: countyEarlyVote?.reports ?? [] }) : previous?.earlyVote ?? null;
+  if (countyEarlyVote) sources.countyEarlyVote.counties = countyEarlyVote.status;
   if (earlyVote?.unmatchedCounties?.length) log(`early vote: no 2024 result matched for ${earlyVote.unmatchedCounties.join(", ")}`);
 
   // ---- U.S. House -------------------------------------------------------------------------------------------

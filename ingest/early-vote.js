@@ -90,6 +90,7 @@ export function compareDayWith2018(counties2026, day2018) {
     const mailReported = Boolean(now) && old.mail > 0 && now.mail >= REPORTED_MIN_SHARE_OF_2018 * old.mail;
     return {
       name: now?.displayName ?? old.name, key: old.key, reported, mailReported,
+      source: now?.inPersonSource === "county" ? "county" : "state", // where the in-person count came from
       inPersonDay: { y2026: now?.inPersonOnDate ?? 0, y2018: old.inPersonOnDate },
       inPersonRunning: { y2026: now?.inPerson ?? 0, y2018: old.inPerson, change: reported ? percentChange(now.inPerson, old.inPerson) : null },
       mailRunning: { y2026: now?.mail ?? 0, y2018: old.mail, change: mailReported ? percentChange(now.mail, old.mail) : null },
@@ -123,15 +124,66 @@ export function earlyVotingDayNumber(date, firstInPersonDay) {
 }
 
 /**
+ * Fold county election offices' own reports into the Secretary of State's daily reports. For each county and
+ * report date, the county's cumulative in-person count through that date replaces the state's when it is
+ * higher: the state feed lags, and it is never ahead of a county's own count. Mail ballots from a county report
+ * are as of the report, so they only update the latest report date. Returns new reports plus, per county, what
+ * was used.
+ * @param {Array<{ date: string, counties: Array<{ name: string, inPerson: number, inPersonOnDate: number, mail: number }> }>} reports
+ * @param {Array<{ county: string, sourceUrl: string, inPersonByDate?: Record<string, number>, inPersonThrough?: { date: string, inPerson: number }, mail?: number|null }>} countyReports
+ */
+export function mergeCountyReports(reports, countyReports) {
+  const byKey = new Map(countyReports.map((report) => [countyKey(report.county), report]));
+  const used = {};
+  const latestDate = reports[reports.length - 1]?.date;
+  // Each county's cumulative in-person count through a date, or null when its report doesn't cover that date.
+  const countyCumulative = (report, date) => {
+    if (report.inPersonByDate) {
+      const days = Object.keys(report.inPersonByDate).sort();
+      if (!days.length || days[0] > date) return null;
+      return days.filter((day) => day <= date).reduce((sum, day) => sum + report.inPersonByDate[day], 0);
+    }
+    if (report.inPersonThrough && report.inPersonThrough.date <= date) return report.inPersonThrough.inPerson;
+    return null;
+  };
+  const previousMerged = new Map(); // county key -> merged cumulative in-person through the previous report date
+  const merged = reports.map((report) => ({
+    ...report,
+    counties: report.counties.map((county) => {
+      const key = countyKey(county.name);
+      const countyReport = byKey.get(key);
+      let result = county;
+      if (countyReport) {
+        const cumulative = countyCumulative(countyReport, report.date);
+        if (cumulative != null && cumulative > county.inPerson) {
+          const before = previousMerged.get(key) ?? (county.inPerson - county.inPersonOnDate);
+          result = { ...result, inPerson: cumulative, inPersonOnDate: Math.max(0, cumulative - before), inPersonSource: "county" };
+          (used[countyReport.county] ??= { sourceUrl: countyReport.sourceUrl, inPersonDates: [], mail: false }).inPersonDates.push(report.date);
+        }
+        if (report.date === latestDate && countyReport.mail != null && countyReport.mail > county.mail) {
+          result = { ...result, mail: countyReport.mail, mailSource: "county" };
+          (used[countyReport.county] ??= { sourceUrl: countyReport.sourceUrl, inPersonDates: [], mail: false }).mail = true;
+        }
+      }
+      previousMerged.set(key, result.inPerson);
+      return result;
+    }),
+  }));
+  return { reports: merged, used };
+}
+
+/**
  * Build the early-vote section of the snapshot.
  * @param {{ reports: Array<{ date: string, updated: string|null, counties: Array<object> }>, earlyVotingDates: string[], electionName: string }} turnout
  * @param {{ elections: Record<string, { label: string, democrat: string, republican: string, statewide: { margin: number, total: number }, counties: Array<{ name: string, key: string, margin: number, total: number }> }> }} baselines
  * @param {{ firstInPersonDay: string, countyKeys: string[], days: Array<{ date: string, dayNumber: number, total: { ballots: number, registered: number }, counties: Array<{ key: string, ballots: number }> }> }|null} benchmark2018
- * @param {{ firstInPersonDay?: string, asOf?: string|null }} [options] asOf: the run date; reports on or after it are in progress
+ * @param {{ firstInPersonDay?: string, asOf?: string|null, countyReports?: Array<object> }} [options] asOf: the run date;
+ *   reports on or after it are in progress. countyReports: county election offices' own counts (see mergeCountyReports).
  */
-export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { firstInPersonDay = "2026-10-19", asOf = null } = {}) {
-  const completeReports = asOf ? turnout.reports.filter((report) => report.date < asOf) : turnout.reports;
-  const reports = completeReports.length ? completeReports : turnout.reports;
+export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { firstInPersonDay = "2026-10-19", asOf = null, countyReports = [] } = {}) {
+  const finishedReports = asOf ? turnout.reports.filter((report) => report.date < asOf) : turnout.reports;
+  const { reports: completeReports, used: countySourcesUsed } = mergeCountyReports(finishedReports, countyReports);
+  const reports = completeReports.length ? completeReports : mergeCountyReports(turnout.reports, countyReports).reports;
   const latestReport = reports[reports.length - 1];
   if (!latestReport) return null;
   const electionIds = Object.keys(baselines.elections).sort().reverse(); // newest first: 2024, 2022, 2018
@@ -199,8 +251,10 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
     electionName: turnout.electionName,
     reportDate: latestReport.date,
     updated: latestReport.updated,
+    // Counties whose numbers came from their own election office because the state feed was behind.
+    countySources: countySourcesUsed,
     // True only when every report is still in progress (the very first run of early voting).
-    inProgress: !completeReports.length && Boolean(asOf),
+    inProgress: !finishedReports.length && Boolean(asOf),
     earlyVotingDates: turnout.earlyVotingDates,
     firstInPersonDay,
     registered,
