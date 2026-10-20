@@ -4,30 +4,30 @@ Talarico 67% to win the Senate seat on a polling average of D+2.6. Hinojosa 37% 
 
 WHAT MOVED
 - North Carolina Senate: Split Ticket moved Safe D → Likely D
+- TX-35 (U.S. House): The Economist moved Tossup → Lean R
 - TX Lieutenant Governor: poll-model D win chance 52% → 36% (−16.4 pts)
+- TX Attorney General: poll-model D win chance 44% → 32% (−12.3 pts)
 - TX Lieutenant Governor: polling average D+0.3 → R+2.3
-- NC-11 (U.S. House): The Economist moved Tossup → Lean D
+- TX Attorney General: polling average R+0.9 → R+2.9
 - FL-22 (U.S. House): The Economist moved Tossup → Lean D
+- FL-22 (U.S. House): Decision Desk HQ moved Tossup → Lean R
+- NC-11 (U.S. House): The Economist moved Tossup → Lean D
 - ME-2 (U.S. House): The Economist moved Tossup → Lean D
 - MI-7 (U.S. House): The Economist moved Tossup → Lean D
 - PA-1 (U.S. House): The Economist moved Tossup → Lean R
-- AZ-2 (U.S. House): The Economist moved Lean R → Tossup
-- CA-22 (U.S. House): The Economist moved Likely D → Safe D
-- CO-4 (U.S. House): The Economist moved Tossup → Lean R
-- FL-7 (U.S. House): The Economist moved Likely D → Lean D
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 67%. Average D+2.6 over 26 polls; latest CBS News/YouGov Oct 16 D+2.0.
 - Governor: Hinojosa 37%. Average R+1.9 over 22 polls; latest CBS News/YouGov Oct 16 R+4.0.
 - Lieutenant Governor: Goodwin 36%. Average R+2.3 over 5 polls; latest University of Houston Oct 14 R+5.0.
-- Attorney General: Johnson 44%. Average R+0.9 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 D+1.0.
+- Attorney General: Johnson 32%. Average R+2.9 over 5 polls; latest University of Houston Oct 14 R+5.0.
 - Comptroller: Eckhardt 33%. Average R+2.7 over 4 polls; latest University of Texas/Texas Politics Project Oct 5 R+1.0.
-- Railroad Commissioner: Rosenthal 41%. Average R+1.4 over 5 polls; latest ActiVote Oct 17 R+4.0.
+- Railroad Commissioner: Rosenthal 40%. Average R+1.6 over 6 polls; latest ActiVote Oct 17 R+4.0.
 - Land Commissioner: Flores 20%. Average R+5.5 over 3 polls; latest Texas Public Opinion Research Sep 22 R+3.0.
 - Agriculture Commissioner: Tucker 24%. Average R+4.5 over 3 polls; latest Stratus Intelligence (R) Sep 24 R+6.0.
 
 TEXAS LEGISLATURE
-- Statewide environment R+2.7: legislative generic ballot R+2.5 over 3 polls, down-ballot statewide races R+2.9; a D+11.0 swing from Trump's 2024 margin.
+- Statewide environment R+2.8: legislative generic ballot R+2.5 over 3 polls, down-ballot statewide races R+3.2; a D+10.9 swing from Trump's 2024 margin.
 - Texas House: 62 D today; model expects 68.8 D seats, 6% for a Democratic majority (76). Closest: HD-94 51% D (Tilt D), HD-52 46% D (Tilt D), HD-108 44% D (Tilt R), HD-37 38% D (Tilt D), HD-96 38% D (Tilt R).
 - Texas Senate: 12 D today; model expects 11.6 D seats, 0% for a majority (16). Closest: SD-9 59% D (Likely D), SD-11 7% D, SD-19 94% D.
 
@@ -36,7 +36,7 @@ U.S. SENATE
 - Closest races: AK 49% D (average R+0.1, 3 polls); KS 48% D (average R+0.4, 3 polls); SC 43% D (average R+1.2, 2 polls); IA 58% D (average D+1.2, 6 polls); TX 58% D (average D+1.2, 9 polls); NE 34% D (average R+2.7, 2 polls); ME 66% D (average D+2.5, 8 polls); MI 70% D (average D+3.1, 11 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 78% D (average D+4.7, 7 polls).
 
 U.S. HOUSE
-- Control: 87% for Democrats (expected 232.7 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
+- Control: 87% for Democrats (expected 232.5 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
 - Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
