@@ -1,24 +1,15 @@
-Texas Polls Tracker, Tuesday, October 20, 2026
+Texas Polls Tracker, Wednesday, October 21, 2026
 
-Talarico 67% to win the Senate seat on a polling average of D+2.6. Hinojosa 37% for governor. Democrats 72% to control the U.S. Senate, 87% for the House, 6% for the Texas House.
+Talarico 66% to win the Senate seat on a polling average of D+2.5. Hinojosa 37% for governor. Democrats 72% to control the U.S. Senate, 87% for the House, 6% for the Texas House.
 
 WHAT MOVED
-- Idaho Senate: The Economist moved Safe R → Likely R
-- Kansas Senate: NBC moved Lean R → Tossup
-- Kansas Senate: Split Ticket moved Tossup → Lean R
-- Louisiana Senate: Silver Bulletin moved Solid R → Likely R
-- Minnesota Senate: Cook Political Report moved Likely D → Lean D
-- Mississippi Senate: Cook Political Report moved Solid R → Likely R
-- Montana Senate: The Economist moved Safe R → Likely R
-- Montana Senate: Silver Bulletin moved Solid R → Likely R
-- Montana Senate: polling average R+24.5 → R+18.5
-- North Carolina Senate: Split Ticket moved Likely D → Safe D
-- South Carolina Senate: Cook Political Report moved Likely R → Lean R
-- South Carolina Senate: Silver Bulletin moved Likely R → Lean R
+- Michigan Governor: poll-model D win chance 90% → 86% (−3.8 pts)
+- Michigan Governor: polling average D+8.4 → D+7.0
+- TX-28 (U.S. House): new poll — DCCC (through 2026-10-13): D+20.0
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 67%. Average D+2.6 over 25 polls; latest CBS News/YouGov Oct 16 D+2.0.
-- Governor: Hinojosa 37%. Average R+1.9 over 21 polls; latest CBS News/YouGov Oct 16 R+4.0.
+- U.S. Senate: Talarico 66%. Average D+2.5 over 24 polls; latest CBS News/YouGov Oct 16 D+2.0.
+- Governor: Hinojosa 37%. Average R+2.0 over 20 polls; latest CBS News/YouGov Oct 16 R+4.0.
 - Lieutenant Governor: Goodwin 37%. Average R+2.0 over 4 polls; latest University of Houston Oct 14 R+5.0.
 - Attorney General: Johnson 33%. Average R+2.7 over 4 polls; latest University of Houston Oct 14 R+5.0.
 - Comptroller: Eckhardt 24%. Average R+4.5 over 4 polls; latest University of Houston Oct 14 R+7.0.
@@ -33,15 +24,15 @@ TEXAS LEGISLATURE
 
 U.S. SENATE
 - Control: 72% for Democrats. Expected 51.5 Democratic-caucus seats; 51 needed.
-- Closest races: AK 49% D (average R+0.1, 3 polls); KS 48% D (average R+0.4, 3 polls); IA 53% D (average D+0.5, 8 polls); SC 43% D (average R+1.2, 2 polls); TX 58% D (average D+1.2, 8 polls); NE 34% D (average R+2.7, 2 polls); ME 66% D (average D+2.5, 8 polls); MI 70% D (average D+3.1, 11 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 76% D (average D+4.4, 8 polls).
+- Closest races: AK 49% D (average R+0.1, 3 polls); IA 51% D (average D+0.2, 7 polls); KS 48% D (average R+0.4, 3 polls); SC 43% D (average R+1.2, 2 polls); TX 58% D (average D+1.2, 8 polls); NE 34% D (average R+2.7, 2 polls); ME 66% D (average D+2.5, 8 polls); MI 68% D (average D+2.8, 10 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 76% D (average D+4.4, 8 polls).
 
 U.S. HOUSE
 - Control: 87% for Democrats (expected 232.8 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
-- Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+11.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
+- Texas seats in play: TX-15 50% D (Tossup, polls D+13.0); TX-23 23% D (Lean R, polls R+2.0); TX-28 77% D (Lean D, polls D+20.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls R+1.0).
 
 COMING UP
-- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 3 days).
-- Texas early voting ends: Friday, October 30, 2026 (in 10 days).
-- Election Day: Tuesday, November 3, 2026 (in 14 days).
+- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (in 2 days).
+- Texas early voting ends: Friday, October 30, 2026 (in 9 days).
+- Election Day: Tuesday, November 3, 2026 (in 13 days).
 
 https://texas-race-tracker.vercel.app
