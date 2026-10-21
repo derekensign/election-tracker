@@ -677,7 +677,7 @@ function renderCourts(s) {
 // Early vote by county, from snapshot.earlyVote (built by ingest/early-vote.js from the SOS turnout report),
 // compared with the 2024 president, 2022 governor, and 2018 U.S. Senate results and the 2018 daily totals.
 let EARLY_VOTE_MAP_MODE = "pace";
-let EARLY_VOTE_YEAR = "2024";
+let EARLY_VOTE_YEAR = "2018"; // the only year with day-by-day county counts, so every column has data
 let EARLY_VOTE_SHOW_ALL = false;
 let EARLY_VOTE_TOPO = null;
 const EARLY_VOTE_LINE_COLORS = { 2024: "#22252a", 2022: "#8a8f98", 2018: "#b58a00" };
@@ -857,18 +857,23 @@ function renderEarlyVoteTable(earlyVote) {
   const year = EARLY_VOTE_YEAR, election = earlyVote.elections[year];
   const rows = EARLY_VOTE_SHOW_ALL ? earlyVote.counties : earlyVote.counties.slice(0, 25);
   const share = (p) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
-  const showSameDay2018 = Boolean(earlyVote.pace2018);
-  // In person against in person, the same measure as the big-county table: many counties post in-person votes
-  // days before mail, so a total-ballots comparison would show false drops. Unposted counties stay gray.
+  // The last three columns all describe the picked year. Day-by-day county counts exist only for 2018
+  // (the 30 biggest counties), so the same-day column is filled only for that year.
+  const hasSameDay = year === "2018" && Boolean(earlyVote.pace2018);
   const bigCountyComparison = new Map((earlyVote.versus2018?.latestCounties || []).map((c) => [c.name, c]));
   const sameDayCell = (c) => {
+    if (!hasSameDay) return '<span class="muted">—</span>';
     const comparison = bigCountyComparison.get(c.name);
     if (!comparison) return '<span class="muted">not in 2018 report</span>';
+    // In person against in person: many counties post mail days later, so totals would show false drops.
     if (!comparison.reported) return `${comparison.inPersonRunning.y2018.toLocaleString()} <span class="muted">not posted yet</span>`;
     return `${comparison.inPersonRunning.y2018.toLocaleString()} ${changeChip(comparison.inPersonRunning.change)}`;
   };
-  document.getElementById("early-vote-table").innerHTML = `<tr><th>County</th><th class="num">Ballots</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Share of registered</th><th class="num">Share of ${esc(year)} vote</th><th class="num">${esc(election.label)} result</th>${showSameDay2018 ? `<th class="num">In person, same day of 2018</th>` : ""}</tr>`
-    + rows.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="num"><b>${c.ballots.toLocaleString()}</b></td><td class="num">${c.inPerson.toLocaleString()}</td><td class="num">${c.mail.toLocaleString()}</td><td class="num">${share(c.shareOfRegistered)}</td><td class="num">${share(c.past?.[year]?.share)}</td><td class="num">${partyColored(pastMarginText(c.past?.[year]?.margin, election), c.past?.[year]?.margin)}</td>${showSameDay2018 ? `<td class="num">${sameDayCell(c)}</td>` : ""}</tr>`).join("");
+  document.getElementById("early-vote-table").innerHTML = `<tr><th>County</th><th class="num">Ballots</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Share of registered</th><th class="num">Share of ${esc(year)} vote</th><th class="num">${esc(year)} result</th><th class="num">In person, same day of ${esc(year)}</th></tr>`
+    + rows.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="num"><b>${c.ballots.toLocaleString()}</b></td><td class="num">${c.inPerson.toLocaleString()}</td><td class="num">${c.mail.toLocaleString()}</td><td class="num">${share(c.shareOfRegistered)}</td><td class="num">${share(c.past?.[year]?.share)}</td><td class="num">${partyColored(pastMarginText(c.past?.[year]?.margin, election), c.past?.[year]?.margin)}</td><td class="num">${sameDayCell(c)}</td></tr>`).join("");
+  document.getElementById("early-vote-table-note").textContent = hasSameDay
+    ? "Same-day 2018 numbers cover the 30 biggest counties, the only ones in the Secretary of State's 2018 daily reports."
+    : `No day-by-day county counts from ${year} are available from a source this tracker can use, so the same-day column is blank. Pick 2018 to compare day by day.`;
   document.getElementById("early-vote-show-all").textContent = EARLY_VOTE_SHOW_ALL ? "Show the 25 largest" : "Show all 254 counties";
 }
 
