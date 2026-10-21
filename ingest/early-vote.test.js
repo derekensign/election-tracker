@@ -121,3 +121,16 @@ test("mergeCountyReports keeps the state's count when it is higher, and handles 
   assert.equal(merged[0].counties[0].inPerson, 50000);
   assert.deepEqual(used, {});
 });
+
+test("buildEarlyVote compares with other years' daily reports for the counties they cover", () => {
+  const baselines = { elections: { 2024: { label: "x", office: "x", democrat: "D", republican: "R", statewide: { margin: 0, total: 100 }, counties: [{ name: "Harris", key: "HARRIS", margin: 0, total: 100 }, { name: "Travis", key: "TRAVIS", margin: 0, total: 100 }] } } };
+  const report = { date: "2026-10-19", updated: null, counties: [{ name: "HARRIS", registered: 10, inPerson: 120, inPersonOnDate: 120, mail: 0 }, { name: "TRAVIS", registered: 10, inPerson: 50, inPersonOnDate: 50, mail: 0 }] };
+  const benchmark2022 = { firstInPersonDay: "2022-10-24", sources: { Harris: "u" }, days: [{ date: "2022-10-24", dayNumber: 1, total: { inPerson: 100, inPersonOnDate: 100 }, counties: [{ key: "HARRIS", name: "Harris", registered: null, inPerson: 100, inPersonOnDate: 100, mail: null }] }, { date: "2022-10-25", dayNumber: 2, total: { inPerson: 190, inPersonOnDate: 90 }, counties: [] }] };
+  const result = buildEarlyVote({ electionName: "T", earlyVotingDates: [], reports: [report] }, baselines, null, { asOf: "2026-10-20", otherBenchmarks: { 2022: benchmark2022 } });
+  const v = result.versusYears["2022"];
+  assert.deepEqual(v.days[0].inPersonDay, { y2026: 120, y2018: 100, change: 0.2 }); // Travis isn't in the 2022 file, so it is left out
+  assert.equal(v.days[1].date2026, null);
+  assert.equal(v.days[1].inPersonRunningThen, 190);
+  assert.equal(v.latestCounties[0].inPersonRunning.change, 0.2);
+  assert.equal(v.latestCounties[0].registered.change, null); // no 2022 registration figures
+});

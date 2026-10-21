@@ -177,10 +177,11 @@ export function mergeCountyReports(reports, countyReports) {
  * @param {{ reports: Array<{ date: string, updated: string|null, counties: Array<object> }>, earlyVotingDates: string[], electionName: string }} turnout
  * @param {{ elections: Record<string, { label: string, democrat: string, republican: string, statewide: { margin: number, total: number }, counties: Array<{ name: string, key: string, margin: number, total: number }> }> }} baselines
  * @param {{ firstInPersonDay: string, countyKeys: string[], days: Array<{ date: string, dayNumber: number, total: { ballots: number, registered: number }, counties: Array<{ key: string, ballots: number }> }> }|null} benchmark2018
- * @param {{ firstInPersonDay?: string, asOf?: string|null, countyReports?: Array<object> }} [options] asOf: the run date;
+ * @param {{ firstInPersonDay?: string, asOf?: string|null, countyReports?: Array<object>, otherBenchmarks?: Record<string, object> }} [options]
+ *   otherBenchmarks: 2022 and 2024 daily county reports in the 2018 file's shape (fewer counties, no mail). asOf: the run date;
  *   reports on or after it are in progress. countyReports: county election offices' own counts (see mergeCountyReports).
  */
-export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { firstInPersonDay = "2026-10-19", asOf = null, countyReports = [] } = {}) {
+export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { firstInPersonDay = "2026-10-19", asOf = null, countyReports = [], otherBenchmarks = {} } = {}) {
   const finishedReports = asOf ? turnout.reports.filter((report) => report.date < asOf) : turnout.reports;
   const { reports: completeReports, used: countySourcesUsed } = mergeCountyReports(finishedReports, countyReports);
   const reports = completeReports.length ? completeReports : mergeCountyReports(turnout.reports, countyReports).reports;
@@ -235,6 +236,12 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
         shareOfRegistered2018: round4(benchmarkDay.total.ballots / benchmarkDay.total.registered),
       };
     }
+    // The same day-matched comparison against 2022 and 2024, for the counties whose daily reports survive.
+    day.versusOther = {};
+    for (const [year, benchmark] of Object.entries(otherBenchmarks)) {
+      const dayThen = day.dayNumber >= 1 ? benchmark.days?.[day.dayNumber - 1] : null;
+      if (dayThen) day.versusOther[year] = { dayNumber: day.dayNumber, ...compareDayWith2018(counties, dayThen) };
+    }
     return day;
   });
 
@@ -242,6 +249,25 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
   const latestDay = daily[daily.length - 1];
   const versus2018Counties = latestDay.versus2018Counties ?? null;
   for (const day of daily) delete day.versus2018Counties;
+  // Per past year: each compared day (county rows trimmed), the latest day's county rows, and the days still to come.
+  const versusYears = {};
+  for (const [year, benchmark] of Object.entries(otherBenchmarks)) {
+    const comparedDays = daily.filter((d) => d.versusOther?.[year]);
+    const latestCountyRows = comparedDays.length ? comparedDays[comparedDays.length - 1].versusOther[year].counties : null;
+    versusYears[year] = {
+      firstInPersonDay: benchmark.firstInPersonDay,
+      counties: (benchmark.days?.[0]?.counties || []).map((c) => c.name),
+      sources: benchmark.sources ?? null,
+      days: benchmark.days.map((dayThen) => {
+        const compared = comparedDays.find((d) => d.versusOther[year].dayNumber === dayThen.dayNumber);
+        if (!compared) return { dayNumber: dayThen.dayNumber, dateThen: dayThen.date, date2026: null, inPersonDayThen: dayThen.total.inPersonOnDate, inPersonRunningThen: dayThen.total.inPerson };
+        const { counties: _countyRows, ...summary } = compared.versusOther[year];
+        return { date2026: compared.date, dateThen: dayThen.date, ...summary };
+      }),
+      latestCounties: latestCountyRows,
+    };
+  }
+  for (const day of daily) delete day.versusOther;
   const registered = latestCounties.reduce((total, county) => total + (county.registered || 0), 0);
   const benchmarkLatest = latestDay.pace2018 ? new Map(benchmark2018.days[latestDay.pace2018.dayNumber - 1].counties.map((c) => [c.key, c.ballots])) : null;
 
@@ -277,6 +303,8 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
       byElection: latestDay.geography, // positive shift: ballots come from the bluer of the reporting counties
     },
     pace2018: latestDay.pace2018 ?? null,
+    // Day-matched comparisons with 2022 and 2024 for the big counties whose daily reports still exist.
+    versusYears,
     // Day-by-day comparison with 2018 (30 largest counties), plus the 2018-only days still to come.
     versus2018: benchmark2018 ? {
       days: benchmark2018.days.map((day2018) => {

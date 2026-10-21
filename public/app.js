@@ -748,6 +748,12 @@ async function renderEarlyVote(s) {
     const perVoter = perVoterChange(latest.inPersonRunning.change, latest.registered.change);
     story.push(`Those counties have ${Math.round(latest.registered.change * 100)}% more registered voters than in 2018, so per registered voter, in-person turnout is ${changeWords(perVoter)}.`);
     if (latest.mailRunning.change != null) story.push(`Mail ballots are ${changeWords(latest.mailRunning.change)} from the same point in 2018, in the ${latest.mailCountiesReported} big counties that have posted mail ballots. Texas tightened mail-ballot ID rules in 2021.`);
+    for (const [year, label] of [["2022", "the 2022 midterm"], ["2024", "the 2024 presidential election"]]) {
+      const comparison = (earlyVote.versusYears?.[year]?.days || []).filter((d) => d.date2026).pop();
+      if (!comparison || comparison.countiesReported === 0) continue;
+      const counties = (earlyVote.versusYears[year].counties || []);
+      story.push(`Against ${label}, in-person votes through day ${comparison.dayNumber} are ${changeWords(comparison.inPersonRunning.change)}, in the ${comparison.countiesReported} big ${comparison.countiesReported === 1 ? "county" : "counties"} whose ${year} daily reports still exist (${esc(listNames(counties))}).`);
+    }
     const countyNames = Object.keys(earlyVote.countySources || {}).filter((name) => earlyVote.countySources[name].inPersonDates.length).sort();
     if (countyNames.length) story.push(`The state's feed runs behind for some big counties, so counts for ${esc(listNames(countyNames))} come from their own election offices.`);
     if (latest.notReported.length) story.push(`Not posted yet for day ${latest.dayNumber}: ${esc(listNames(latest.notReported))}. They haven't sent the state their in-person numbers yet, so they're left out of the comparison until they do.`);
@@ -857,23 +863,27 @@ function renderEarlyVoteTable(earlyVote) {
   const year = EARLY_VOTE_YEAR, election = earlyVote.elections[year];
   const rows = EARLY_VOTE_SHOW_ALL ? earlyVote.counties : earlyVote.counties.slice(0, 25);
   const share = (p) => (p == null ? "—" : `${(p * 100).toFixed(1)}%`);
-  // The last three columns all describe the picked year. Day-by-day county counts exist only for 2018
-  // (the 30 biggest counties), so the same-day column is filled only for that year.
-  const hasSameDay = year === "2018" && Boolean(earlyVote.pace2018);
-  const bigCountyComparison = new Map((earlyVote.versus2018?.latestCounties || []).map((c) => [c.name, c]));
+  // The last three columns all describe the picked year. Same-day counts come from the SOS's 2018 daily
+  // reports (30 biggest counties) or, for 2022 and 2024, the counties whose own daily reports survive.
+  const comparisonRows = year === "2018" ? earlyVote.versus2018?.latestCounties : earlyVote.versusYears?.[year]?.latestCounties;
+  const hasSameDay = Boolean(comparisonRows?.length);
+  const bigCountyComparison = new Map((comparisonRows || []).map((c) => [c.name, c]));
   const sameDayCell = (c) => {
     if (!hasSameDay) return '<span class="muted">—</span>';
     const comparison = bigCountyComparison.get(c.name);
-    if (!comparison) return '<span class="muted">not in 2018 report</span>';
+    if (!comparison) return `<span class="muted">no ${esc(year)} daily report</span>`;
     // In person against in person: many counties post mail days later, so totals would show false drops.
     if (!comparison.reported) return `${comparison.inPersonRunning.y2018.toLocaleString()} <span class="muted">not posted yet</span>`;
     return `${comparison.inPersonRunning.y2018.toLocaleString()} ${changeChip(comparison.inPersonRunning.change)}`;
   };
   document.getElementById("early-vote-table").innerHTML = `<tr><th>County</th><th class="num">Ballots</th><th class="num">In person</th><th class="num">Mail</th><th class="num">Share of registered</th><th class="num">Share of ${esc(year)} vote</th><th class="num">${esc(year)} result</th><th class="num">In person, same day of ${esc(year)}</th></tr>`
     + rows.map((c) => `<tr><td><b>${esc(c.name)}</b></td><td class="num"><b>${c.ballots.toLocaleString()}</b></td><td class="num">${c.inPerson.toLocaleString()}</td><td class="num">${c.mail.toLocaleString()}</td><td class="num">${share(c.shareOfRegistered)}</td><td class="num">${share(c.past?.[year]?.share)}</td><td class="num">${partyColored(pastMarginText(c.past?.[year]?.margin, election), c.past?.[year]?.margin)}</td><td class="num">${sameDayCell(c)}</td></tr>`).join("");
-  document.getElementById("early-vote-table-note").textContent = hasSameDay
+  const coveredCounties = earlyVote.versusYears?.[year]?.counties || [];
+  document.getElementById("early-vote-table-note").textContent = year === "2018"
     ? "Same-day 2018 numbers cover the 30 biggest counties, the only ones in the Secretary of State's 2018 daily reports."
-    : `No day-by-day county counts from ${year} are available from a source this tracker can use, so the same-day column is blank. Pick 2018 to compare day by day.`;
+    : hasSameDay
+      ? `Same-day ${year} numbers come from the counties whose own ${year} daily early-voting reports are still published: ${listNames(coveredCounties)}. The state's daily reports for ${year} are no longer online.`
+      : `No same-day ${year} numbers yet; they appear once the first early-voting day is fully posted.`;
   document.getElementById("early-vote-show-all").textContent = EARLY_VOTE_SHOW_ALL ? "Show the 25 largest" : "Show all 254 counties";
 }
 

@@ -132,7 +132,12 @@ export async function build() {
   // Past results by county (2024, 2022, 2018) and the 2018 daily benchmark are vendored by scripts/.
   const countyBaselines = JSON.parse(readFileSync(join(DATA_DIR, "tx-county-baselines.json"), "utf8"));
   const earlyVote2018 = JSON.parse(readFileSync(join(DATA_DIR, "tx-early-vote-2018.json"), "utf8"));
-  const earlyVote = earlyVoteTurnout ? buildEarlyVote(earlyVoteTurnout, countyBaselines, earlyVote2018, { asOf, countyReports: countyEarlyVote?.reports ?? [] }) : previous?.earlyVote ?? null;
+  const otherBenchmarks = Object.fromEntries(["2022", "2024"].map((year) => [year, JSON.parse(readFileSync(join(DATA_DIR, `tx-early-vote-${year}.json`), "utf8"))]));
+  // If the SOS feed is down, keep the newest early-vote section already published (often an earlier run today),
+  // not the previous day's snapshot, so a transient outage never rolls the tab back a day.
+  const earlyVote = earlyVoteTurnout
+    ? buildEarlyVote(earlyVoteTurnout, countyBaselines, earlyVote2018, { asOf, countyReports: countyEarlyVote?.reports ?? [], otherBenchmarks })
+    : newestPublishedEarlyVote() ?? previous?.earlyVote ?? null;
   if (countyEarlyVote) sources.countyEarlyVote.counties = countyEarlyVote.status;
   if (earlyVote?.unmatchedCounties?.length) log(`early vote: no 2024 result matched for ${earlyVote.unmatchedCounties.join(", ")}`);
 
@@ -385,6 +390,11 @@ function loadPreviousSnapshot(asOf) {
   const files = readdirSync(HISTORY_DIR).filter((f) => /^\d{4}-\d{2}-\d{2}\.json$/.test(f) && f.slice(0, 10) < asOf).sort();
   if (files.length === 0) return null;
   return JSON.parse(readFileSync(join(HISTORY_DIR, files[files.length - 1]), "utf8"));
+}
+
+/** The early-vote section of the currently published latest.json, if any. */
+function newestPublishedEarlyVote() {
+  try { return JSON.parse(readFileSync(join(DATA_DIR, "latest.json"), "utf8")).earlyVote ?? null; } catch { return null; }
 }
 
 /** Compact per-day time series for sparklines, rebuilt from every history file. */
