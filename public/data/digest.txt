@@ -1,6 +1,6 @@
 Texas Polls Tracker, Wednesday, October 21, 2026
 
-Talarico 66% to win the Senate seat on a polling average of D+2.5. Hinojosa 37% for governor. Democrats 75% to control the U.S. Senate, 87% for the House, 6% for the Texas House.
+Talarico 67% to win the Senate seat on a polling average of D+2.6. Hinojosa 37% for governor. Democrats 75% to control the U.S. Senate, 87% for the House, 6% for the Texas House.
 
 WHAT MOVED
 - South Carolina Governor: polling average R+8.0 → R+16.0
@@ -17,8 +17,8 @@ WHAT MOVED
 - Florida Senate: polling average R+6.8 → R+5.5
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 66%. Average D+2.5 over 24 polls; latest CBS News/YouGov Oct 16 D+2.0.
-- Governor: Hinojosa 37%. Average R+2.0 over 20 polls; latest CBS News/YouGov Oct 16 R+4.0.
+- U.S. Senate: Talarico 67%. Average D+2.6 over 25 polls; latest CBS News/YouGov Oct 16 D+2.0.
+- Governor: Hinojosa 37%. Average R+2.0 over 21 polls; latest CBS News/YouGov Oct 16 R+4.0.
 - Lieutenant Governor: Goodwin 37%. Average R+2.0 over 4 polls; latest University of Houston Oct 14 R+5.0.
 - Attorney General: Johnson 33%. Average R+2.7 over 4 polls; latest University of Houston Oct 14 R+5.0.
 - Comptroller: Eckhardt 24%. Average R+4.5 over 4 polls; latest University of Houston Oct 14 R+7.0.
@@ -44,5 +44,4 @@ COMING UP
 - Texas early voting ends: Friday, October 30, 2026 (in 9 days).
 - Election Day: Tuesday, November 3, 2026 (in 13 days).
 
-Could not reach sosEarlyVote this morning; those figures are carried over from the previous snapshot.
 https://texas-race-tracker.vercel.app
