@@ -1,6 +1,6 @@
 Texas Polls Tracker, Thursday, October 22, 2026
 
-Talarico 66% to win the Senate seat on a polling average of D+2.4. Hinojosa 34% for governor. Democrats 74% to control the U.S. Senate, 87% for the House, 6% for the Texas House.
+Talarico 66% to win the Senate seat on a polling average of D+2.4. Hinojosa 34% for governor. Democrats 74% to control the U.S. Senate, 89% for the House, 6% for the Texas House.
 
 WHAT MOVED
 - Florida Senate: FiftyPlusOne moved Likely R → Lean R
@@ -36,8 +36,8 @@ U.S. SENATE
 - Closest races: IA 51% D (average D+0.2, 7 polls); KS 48% D (average R+0.4, 3 polls); SC 43% D (average R+1.2, 2 polls); TX 58% D (average D+1.2, 8 polls); AK 60% D (average D+1.5, 3 polls); ME 65% D (average D+2.4, 7 polls); MI 65% D (average D+2.4, 10 polls); NE 34% D (average R+2.7, 2 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 76% D (average D+4.3, 9 polls); FL 20% D (average R+5.3, 6 polls).
 
 U.S. HOUSE
-- Control: 87% for Democrats (expected 233.0 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
-- Texas seats in play: TX-15 70% D (Tossup, polls D+7.6); TX-23 23% D (Lean R, polls Even); TX-28 77% D (Lean D, polls D+20.0); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls D+2.0).
+- Control: 89% for Democrats (expected 233.8 seats, 218 needed). Generic ballot D+7.6 over 4 polls.
+- Texas seats in play: TX-15 70% D (Tossup, polls D+7.6); TX-23 23% D (Lean R, polls Even); TX-34 77% D (Lean D, polls D+3.0); TX-35 37% D (Tilt R, polls D+2.0).
 
 COMING UP
 - Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (tomorrow).
