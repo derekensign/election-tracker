@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildEarlyVote, compareDayWith2018, mergeCountyReports, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange } from "./early-vote.js";
+import { buildEarlyVote, compareDayWith2018, countyGroup, groupBreakdown, mergeCountyReports, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange } from "./early-vote.js";
 
 test("countyKey matches SOS and Wikipedia spellings", () => {
   assert.equal(countyKey("DE WITT"), countyKey("DeWitt"));
@@ -141,4 +141,18 @@ test("compareDayWith2018 treats a county that hasn't posted today's votes as not
   const result = compareDayWith2018([{ key: "BEXAR", displayName: "Bexar", registered: 1, inPerson: 90500, inPersonOnDate: 500, mail: 0 }], day2018);
   assert.equal(result.countiesReported, 0);
   assert.deepEqual(result.notReported, ["Bexar"]);
+});
+
+test("countyGroup and groupBreakdown", () => {
+  assert.equal(countyGroup("HARRIS"), "Big cities");
+  assert.equal(countyGroup("DE WITT"), "Rural and small-town");
+  assert.equal(countyGroup("FORT BEND"), "Suburbs");
+  const counties = [
+    { name: "Harris", ballots: 100, registered: 1000, past: { 2022: { total: 400 }, 2024: { total: 500, margin: 5 } } },
+    { name: "Dallas", ballots: 100, registered: 1000, past: { 2022: { total: 600 }, 2024: { total: 500, margin: 25 } } },
+  ];
+  const v18 = [{ name: "Harris", reported: true, inPersonRunning: { y2026: 150, y2018: 100 } }, { name: "Dallas", reported: false, inPersonRunning: { y2026: 1, y2018: 100 } }];
+  const big = groupBreakdown(counties, v18).find((g) => g.group === "Big cities");
+  assert.deepEqual([big.counties, big.ballots, big.shareOf2022Vote, big.margin2024], [2, 200, 0.2, 15]);
+  assert.deepEqual(big.versus2018, { counties: 1, change: 0.5 }); // Dallas hasn't posted, so it is left out
 });

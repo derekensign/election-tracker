@@ -35,6 +35,46 @@ export const REPORTED_MIN_SHARE_OF_2018 = 0.25;
 export const POSTED_MIN_SHARE_OF_STATE_RATE = 0.25;
 const DAY_MS = 86_400_000;
 
+// County types for the "read so far" breakdown. A judgment call, kept short and explicit. Every county not
+// listed is "Rural and small-town".
+export const COUNTY_GROUPS = {
+  "Big cities": ["Harris", "Dallas", "Tarrant", "Bexar", "Travis", "El Paso"],
+  "Rio Grande Valley and border": ["Hidalgo", "Cameron", "Webb", "Starr", "Willacy", "Zapata", "Maverick", "Val Verde", "Jim Hogg", "Brooks", "Duval", "Dimmit", "Zavala", "Presidio"],
+  "Suburbs": ["Collin", "Denton", "Fort Bend", "Montgomery", "Williamson", "Brazoria", "Galveston", "Ellis", "Comal", "Guadalupe", "Hays", "Johnson", "Parker", "Kaufman", "Rockwall", "Chambers", "Waller", "Liberty", "Bastrop", "Kendall", "Medina", "Wilson", "Hunt", "Wise"],
+  "Midsize cities": ["Lubbock", "Nueces", "Bell", "Jefferson", "McLennan", "Smith", "Brazos", "Randall", "Potter", "Midland", "Ector", "Taylor", "Tom Green", "Wichita", "Gregg", "Grayson"],
+};
+export const RURAL_GROUP = "Rural and small-town";
+/** Which group a county belongs to. */
+export function countyGroup(name) {
+  const key = countyKey(name);
+  for (const [group, names] of Object.entries(COUNTY_GROUPS)) if (names.some((n) => countyKey(n) === key)) return group;
+  return RURAL_GROUP;
+}
+
+/**
+ * Turnout by county type for the latest day: ballots so far as a share of each group's 2022 vote (all 254
+ * counties), and in-person change against the same day of 2018 for the group's big counties that have posted.
+ * @param {Array<{ name: string, ballots: number, registered: number, past: Record<string, { margin: number, total: number, share: number }|null> }>} counties
+ * @param {Array<{ name: string, reported: boolean, inPersonRunning: { y2026: number, y2018: number } }>|null} versus2018Counties
+ */
+export function groupBreakdown(counties, versus2018Counties) {
+  const groups = [...Object.keys(COUNTY_GROUPS), RURAL_GROUP].map((group) => {
+    const members = counties.filter((c) => countyGroup(c.name) === group);
+    const sum = (pick) => members.reduce((total, c) => total + (pick(c) || 0), 0);
+    const total2022 = sum((c) => c.past?.["2022"]?.total), total2024 = sum((c) => c.past?.["2024"]?.total);
+    const margin2024 = total2024 ? Math.round((members.reduce((t, c) => t + (c.past?.["2024"]?.margin ?? 0) * (c.past?.["2024"]?.total ?? 0), 0) / total2024) * 10) / 10 : null;
+    const posted = (versus2018Counties || []).filter((c) => c.reported && countyGroup(c.name) === group);
+    const now = posted.reduce((t, c) => t + c.inPersonRunning.y2026, 0), then = posted.reduce((t, c) => t + c.inPersonRunning.y2018, 0);
+    return {
+      group, counties: members.length, ballots: sum((c) => c.ballots), registered: sum((c) => c.registered),
+      shareOf2022Vote: total2022 ? Math.round((sum((c) => c.ballots) / total2022) * 1000) / 1000 : null,
+      margin2024,
+      versus2018: posted.length ? { counties: posted.length, change: percentChange(now, then) } : null,
+    };
+  });
+  return groups;
+}
+
 /** County names differ in spacing and case across sources ("DE WITT", "DeWitt"); compare on letters only. */
 export function countyKey(name) { return String(name).toUpperCase().replace(/[^A-Z]/g, ""); }
 
@@ -228,6 +268,16 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
     const benchmarkDay = day.dayNumber >= 1 ? benchmark2018?.days?.[day.dayNumber - 1] : null;
     if (benchmarkDay) {
       const { counties: countyComparisons, ...comparison } = compareDayWith2018(counties, benchmarkDay);
+      // Where ballots come from, against 2018's early vote on the same day (not 2018's whole electorate): the
+      // like-for-like test of a "2018-style" electorate. Only posted counties, scored with each race's margins.
+      const posted = countyComparisons.filter((c) => c.reported);
+      const marginOf = (key, year) => counties.find((c) => c.key === key)?.past?.[year]?.margin ?? null;
+      const geographyVs2018EarlyVote = Object.fromEntries(["2018", "2024"].map((year) => {
+        const now = geographyLean(posted.map((c) => ({ ballots: c.inPersonRunning.y2026, margin: marginOf(c.key, year) })));
+        const then = geographyLean(posted.map((c) => ({ ballots: c.inPersonRunning.y2018, margin: marginOf(c.key, year) })));
+        return [year, { lean2026: now, lean2018: then, shift: now == null || then == null ? null : Math.round((now - then) * 10) / 10 }];
+      }));
+      comparison.geographyVs2018EarlyVote = geographyVs2018EarlyVote;
       day.versus2018 = { dayNumber: day.dayNumber, date2018: benchmarkDay.date, ...comparison };
       day.versus2018Counties = countyComparisons; // dropped from all but the latest day below, to keep the file small
       const largestCounties = counties.filter((c) => benchmarkKeys.has(c.key));
@@ -276,7 +326,7 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
   const registered = latestCounties.reduce((total, county) => total + (county.registered || 0), 0);
   const benchmarkLatest = latestDay.pace2018 ? new Map(benchmark2018.days[latestDay.pace2018.dayNumber - 1].counties.map((c) => [c.key, c.ballots])) : null;
 
-  return {
+  const result = {
     source: "Texas Secretary of State, Early Voting Turnout (unofficial, as reported by counties)",
     sourceUrl: "https://goelect.txelections.civixapps.com/ivis-evr-ui/evr",
     electionName: turnout.electionName,
@@ -310,6 +360,8 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
     pace2018: latestDay.pace2018 ?? null,
     // Day-matched comparisons with 2022 and 2024 for the big counties whose daily reports still exist.
     versusYears,
+    // Turnout by county type (latest day), for the "read so far".
+    groups: null, // filled in below, once the county rows exist
     // Day-by-day comparison with 2018 (30 largest counties), plus the 2018-only days still to come.
     versus2018: benchmark2018 ? {
       days: benchmark2018.days.map((day2018) => {
@@ -331,6 +383,8 @@ export function buildEarlyVote(turnout, baselines, benchmark2018 = null, { first
       .sort((a, b) => b.ballots - a.ballots),
     unmatchedCounties: latestCounties.filter((county) => electionIds.some((id) => !county.past[id])).map((county) => county.name),
   };
+  result.groups = groupBreakdown(result.counties, versus2018Counties);
+  return result;
 }
 
 function round4(value) { return Math.round(value * 10000) / 10000; }

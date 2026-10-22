@@ -762,6 +762,7 @@ async function renderEarlyVote(s) {
   }
   document.getElementById("early-vote-story").innerHTML = story.map((line) => `<li>${line}</li>`).join("");
 
+  renderEarlyVoteRead(earlyVote);
   renderEarlyVoteDaysChart(earlyVote.versus2018?.days || []);
   renderEarlyVoteDaysTable(earlyVote.versus2018?.days || []);
   renderEarlyVoteBigCounties(earlyVote.versus2018?.latestCounties || [], latest);
@@ -794,6 +795,54 @@ async function renderEarlyVote(s) {
   document.getElementById("early-vote-show-all").onclick = () => { EARLY_VOTE_SHOW_ALL = !EARLY_VOTE_SHOW_ALL; renderEarlyVoteTable(earlyVote); };
   EARLY_VOTE_TOPO = await fetchJson("geo/tx-counties.json");
   renderEarlyVoteCounties(earlyVote);
+}
+
+/**
+ * "The read so far": a short, rules-based verdict from the tracker's own numbers, plus turnout by county type.
+ * Waits for at least two compared days and 20 posted big counties so day-1 noise can't drive the headline.
+ */
+function renderEarlyVoteRead(earlyVote) {
+  const box = document.getElementById("early-vote-read");
+  const groupsTable = document.getElementById("early-vote-groups");
+  const latestOf = (days) => (days || []).filter((d) => d.date2026).pop() || null;
+  const v18 = latestOf(earlyVote.versus2018?.days), v22 = latestOf(earlyVote.versusYears?.["2022"]?.days), v24 = latestOf(earlyVote.versusYears?.["2024"]?.days);
+  if (!v18 || v18.dayNumber < 2 || v18.countiesReported < 20) {
+    box.innerHTML = `<p class="verdict">Too early for a read. It starts once two early-voting days are fully posted in most big counties.</p>`;
+    groupsTable.innerHTML = "";
+    return;
+  }
+  // Direction words for a turnout change: ahead of / behind / about even with.
+  const versus = (change) => (change > 0.05 ? "ahead of" : change < -0.05 ? "behind" : "about even with");
+  const geo2018 = v18.geographyVs2018EarlyVote?.["2018"]?.shift ?? null;
+  const geo2024 = earlyVote.geography?.readable ? earlyVote.geography.byElection?.["2024"]?.shift : null;
+  const points = (value) => `${Math.abs(value).toFixed(1)} point${Math.abs(value) >= 0.95 && Math.abs(value) < 1.05 ? "" : "s"}`;
+  const tilt = (value) => partyColored(value > 0 ? "bluer" : "redder", value);
+
+  // The one-sentence verdict: turnout against 2018, then where ballots come from against 2018's early vote.
+  const turnoutPart = v18.inPersonRunning.change > 0.05 ? "higher turnout than 2018" : v18.inPersonRunning.change < -0.05 ? "lower turnout than 2018" : "turnout about like 2018";
+  const placePart = geo2018 == null ? "" : Math.abs(geo2018) <= 2
+    ? `, with ballots coming from much the same places as 2018's early vote`
+    : `, with ballots coming from ${tilt(geo2018)} places than 2018's early vote`;
+  const verdict = Math.abs(geo2018 ?? 0) <= 2 && v18.inPersonRunning.change > 0.05
+    ? `So far this looks like a 2018-style electorate with higher turnout.`
+    : `So far: ${turnoutPart}${placePart}.`;
+
+  const lines = [];
+  lines.push(`Through day ${v18.dayNumber}, in-person turnout is ${versus(v18.inPersonRunning.change)} 2018 (${changeChip(v18.inPersonRunning.change)}, ${v18.countiesReported} big counties)${v22 ? `, ${versus(v22.inPersonRunning.change)} 2022 (${changeChip(v22.inPersonRunning.change)}, ${v22.countiesReported} counties)` : ""}${v24 ? `, and ${versus(v24.inPersonRunning.change)} the 2024 presidential pace (${changeChip(v24.inPersonRunning.change)}, ${v24.countiesReported} counties)` : ""}.`);
+  if (geo2018 != null) lines.push(`Matched day for day with 2018's early vote, ballots are coming from places ${Math.abs(geo2018) < 0.5 ? "almost exactly like 2018's" : `${points(geo2018)} ${tilt(geo2018)} than 2018's`}${geo2024 != null ? `, and ${points(geo2024)} ${tilt(geo2024)} than the 2024 electorate` : ""}.`);
+  const groups = earlyVote.groups || [];
+  // How each area reads inside a sentence ("biggest in the suburbs").
+  const inSentence = { "Big cities": "big cities", "Rio Grande Valley and border": "Rio Grande Valley and border counties", "Suburbs": "suburbs", "Midsize cities": "midsize cities", "Rural and small-town": "rural and small-town counties" };
+  const phrase = (group) => esc(inSentence[group] ?? group.toLowerCase());
+  const ranked = groups.filter((g) => g.versus2018 && g.versus2018.counties >= 2).sort((a, b) => b.versus2018.change - a.versus2018.change);
+  if (ranked.length >= 2) lines.push(`Gains over 2018 are biggest in the ${phrase(ranked[0].group)} (${changeChip(ranked[0].versus2018.change)}) and smallest in the ${phrase(ranked[ranked.length - 1].group)} (${changeChip(ranked[ranked.length - 1].versus2018.change)}).`);
+  const byShare = groups.filter((g) => g.shareOf2022Vote != null).sort((a, b) => b.shareOf2022Vote - a.shareOf2022Vote);
+  if (byShare.length >= 2) lines.push(`Against each area's 2022 vote, the ${phrase(byShare[0].group)} have cast the most so far (${(byShare[0].shareOf2022Vote * 100).toFixed(1)}%) and the ${phrase(byShare[byShare.length - 1].group)} the least (${(byShare[byShare.length - 1].shareOf2022Vote * 100).toFixed(1)}%).`);
+  box.innerHTML = `<p class="verdict">${verdict}</p><ul>${lines.map((l) => `<li>${l}</li>`).join("")}</ul>`;
+
+  const election2024 = earlyVote.elections["2024"];
+  groupsTable.innerHTML = `<tr><th>Area</th><th class="num">Counties</th><th class="num">2024 result</th><th class="num">Ballots so far</th><th class="num">Share of 2022 vote</th><th class="num">In person against same day of 2018</th></tr>`
+    + groups.map((g) => `<tr><td><b>${esc(g.group)}</b></td><td class="num">${g.counties}</td><td class="num">${partyColored(pastMarginText(g.margin2024, election2024), g.margin2024)}</td><td class="num">${g.ballots.toLocaleString()}</td><td class="num">${g.shareOf2022Vote == null ? "—" : `${(g.shareOf2022Vote * 100).toFixed(1)}%`}</td><td class="num">${g.versus2018 ? `${changeChip(g.versus2018.change)} <span class="thin">${g.versus2018.counties} ${g.versus2018.counties === 1 ? "county" : "counties"}</span>` : '<span class="muted">no 2018 daily data</span>'}</td></tr>`).join("");
 }
 
 /** Bars: each day's in-person change against the same day of 2018. Line: the running total's change. */
