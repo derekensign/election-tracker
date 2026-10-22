@@ -134,3 +134,11 @@ test("buildEarlyVote compares with other years' daily reports for the counties t
   assert.equal(v.latestCounties[0].inPersonRunning.change, 0.2);
   assert.equal(v.latestCounties[0].registered.change, null); // no 2022 registration figures
 });
+
+test("compareDayWith2018 treats a county that hasn't posted today's votes as not posted, even with earlier days in", () => {
+  const day2018 = { date: "2018-10-24", counties: [{ key: "BEXAR", name: "Bexar", registered: 1, inPerson: 100000, inPersonOnDate: 30000, mail: 0 }] };
+  // Days 1-2 are in (90,000), day 3 shows only 500 so far.
+  const result = compareDayWith2018([{ key: "BEXAR", displayName: "Bexar", registered: 1, inPerson: 90500, inPersonOnDate: 500, mail: 0 }], day2018);
+  assert.equal(result.countiesReported, 0);
+  assert.deepEqual(result.notReported, ["Bexar"]);
+});

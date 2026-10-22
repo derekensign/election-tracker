@@ -85,7 +85,12 @@ export function compareDayWith2018(counties2026, day2018) {
   const byKey2026 = new Map(counties2026.map((c) => [c.key, c]));
   const counties = day2018.counties.map((old) => {
     const now = byKey2026.get(old.key);
-    const reported = Boolean(now) && now.inPerson >= REPORTED_MIN_SHARE_OF_2018 * old.inPerson;
+    // Posted means both the running total AND that day's own count look complete. Checking only the running
+    // total let a county that had posted days 1-2 but not yet day 3 count as posted, which showed day 3 of
+    // 2026 as a 27% drop from 2018 on the morning of October 22.
+    const reported = Boolean(now)
+      && now.inPerson >= REPORTED_MIN_SHARE_OF_2018 * old.inPerson
+      && now.inPersonOnDate >= REPORTED_MIN_SHARE_OF_2018 * old.inPersonOnDate;
     // Mail gets the same rule on its own: many counties post in-person votes but no mail (Parker showed 0).
     const mailReported = Boolean(now) && old.mail > 0 && now.mail >= REPORTED_MIN_SHARE_OF_2018 * old.mail;
     return {
