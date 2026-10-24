@@ -1,47 +1,46 @@
-Texas Polls Tracker, Friday, October 23, 2026
+Texas Polls Tracker, Saturday, October 24, 2026
 
-Talarico 66% to win the Senate seat on a polling average of D+2.5. Hinojosa 34% for governor. Democrats 74% to control the U.S. Senate, 89% for the House, 12% for the Texas House.
+Talarico 66% to win the Senate seat on a polling average of D+2.5. Hinojosa 34% for governor. Democrats 72% to control the U.S. Senate, 89% for the House, 13% for the Texas House.
 
 WHAT MOVED
-- Kansas Senate: Split Ticket moved Tossup → Lean R
-- South Dakota Senate: Split Ticket moved Likely R → Safe R
-- Florida Governor: Silver Bulletin moved Lean R → Likely R
-- Georgia Governor: Silver Bulletin moved Tossup → Lean D
-- New Hampshire Governor: Silver Bulletin moved Solid R → Likely R
-- Ohio Governor: Decision Desk HQ moved Tossup → Lean D
-- TX-35 (U.S. House): Cook Political Report moved Lean R → Tossup
-- TX-35 (U.S. House): FiftyPlusOne moved Tossup → Lean D
-- TX-23 (U.S. House): Cook Political Report moved Likely R → Lean R
-- TX-34 (U.S. House): Cook Political Report moved Tossup → Lean D
-- TX-28 (U.S. House): Cook Political Report moved Lean D → Likely D
-- TX-31 (U.S. House): Decision Desk HQ moved Safe R → Likely R
+- Ohio Senate: The Economist moved Tossup → Lean D
+- South Dakota Senate: The Economist moved Likely R → Safe R
+- Georgia Governor: Silver Bulletin moved Lean D → Tossup
+- Ohio Governor: Cook Political Report moved Tossup → Lean D
+- TX-35 (U.S. House): FiftyPlusOne moved Lean D → Tossup
+- TX-23 (U.S. House): Decision Desk HQ moved Likely R → Lean R
+- TX Land Commissioner: poll-model D win chance 16% → 26% (+10.5 pts)
+- TX Land Commissioner: polling average R+6.7 → R+4.0
+- TX Agriculture Commissioner: poll-model D win chance 20% → 25% (+5.2 pts)
+- Iowa Senate: poll-model D win chance 52% → 48% (−4.0 pts)
+- TX Comptroller: poll-model D win chance 24% → 28% (+3.9 pts)
+- TX Agriculture Commissioner: polling average R+5.5 → R+4.2
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 66%. Average D+2.5 over 33 polls; latest ActiVote Oct 21 D+2.0.
-- Governor: Hinojosa 34%. Average R+2.5 over 27 polls; latest ActiVote Oct 21 R+5.0.
-- Lieutenant Governor: Goodwin 38%. Average R+1.9 over 3 polls; latest University of Houston Oct 14 R+5.0.
-- Attorney General: Johnson 33%. Average R+2.7 over 3 polls; latest University of Houston Oct 14 R+5.0.
-- Comptroller: Eckhardt 24%. Average R+4.6 over 3 polls; latest University of Houston Oct 14 R+7.0.
-- Railroad Commissioner: Rosenthal 40%. Average R+1.6 over 4 polls; latest ActiVote Oct 17 R+4.0.
-- Land Commissioner: Flores 16%. Average R+6.7 over 3 polls; latest University of Houston Oct 14 R+7.0.
-- Agriculture Commissioner: Tucker 20%. Average R+5.5 over 3 polls; latest University of Houston Oct 14 R+6.0.
+- U.S. Senate: Talarico 66%. Average D+2.5 over 36 polls; latest Rasmussen Reports Oct 21 Even.
+- Governor: Hinojosa 34%. Average R+2.5 over 31 polls; latest ActiVote Oct 21 R+5.0.
+- Lieutenant Governor: Goodwin 35%. Average R+2.3 over 4 polls; latest Texas Public Opinion Research Oct 18 R+3.0.
+- Attorney General: Johnson 35%. Average R+2.4 over 4 polls; latest Texas Public Opinion Research Oct 18 R+2.0.
+- Comptroller: Eckhardt 28%. Average R+3.7 over 4 polls; latest Texas Public Opinion Research Oct 18 R+2.0.
+- Railroad Commissioner: Rosenthal 39%. Average R+1.7 over 5 polls; latest Texas Public Opinion Research Oct 18 R+2.0.
+- Land Commissioner: Flores 26%. Average R+4.0 over 3 polls; latest Texas Public Opinion Research Oct 18 R+1.0.
+- Agriculture Commissioner: Tucker 25%. Average R+4.2 over 3 polls; latest Texas Public Opinion Research Oct 18 R+2.0.
 
 TEXAS LEGISLATURE
-- Statewide environment R+3.0: legislative generic ballot R+2.5 over 3 polls, down-ballot statewide races R+3.8; a D+10.6 swing from Trump's 2024 margin.
-- Texas House: 62 D today; model expects 70.5 D seats, 12% for a Democratic majority (76). Closest: HD-138 53% D (Lean D), HD-63 47% D (Lean D), HD-52 54% D (Lean D), HD-37 46% D (Lean D), HD-94 45% D (Tossup).
-- Texas Senate: 12 D today; model expects 12.0 D seats, 0% for a majority (16). Closest: SD-9 58% D (Likely D), SD-11 19% D (Tossup), SD-2 15% D (Tossup).
+- Statewide environment R+2.7: legislative generic ballot R+2.4 over 4 polls, down-ballot statewide races R+3.0; a D+11.0 swing from Trump's 2024 margin.
+- Texas House: 62 D today; model expects 70.7 D seats, 13% for a Democratic majority (76). Closest: HD-63 47% D (Lean D), HD-138 53% D (Lean D), HD-37 46% D (Lean D), HD-94 46% D (Tossup), HD-52 54% D (Lean D).
+- Texas Senate: 12 D today; model expects 12.0 D seats, 0% for a majority (16). Closest: SD-9 59% D (Likely D), SD-11 20% D (Tossup), SD-2 15% D (Tossup).
 
 U.S. SENATE
-- Control: 74% for Democrats. Expected 51.6 Democratic-caucus seats; 51 needed.
-- Closest races: IA 52% D (average D+0.3, 8 polls); KS 48% D (average R+0.4, 3 polls); SC 43% D (average R+1.2, 2 polls); AK 60% D (average D+1.5, 3 polls); ME 60% D (average D+1.5, 6 polls); TX 63% D (average D+1.9, 14 polls); MI 64% D (average D+2.2, 9 polls); NE 32% D (average R+2.9, 3 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 78% D (average D+4.7, 11 polls).
+- Control: 72% for Democrats. Expected 51.5 Democratic-caucus seats; 51 needed.
+- Closest races: IA 48% D (average R+0.3, 9 polls); KS 48% D (average R+0.4, 3 polls); SC 43% D (average R+1.2, 2 polls); AK 60% D (average D+1.5, 3 polls); ME 60% D (average D+1.5, 6 polls); MI 62% D (average D+1.8, 9 polls); TX 63% D (average D+1.9, 14 polls); NE 32% D (average R+2.9, 3 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 77% D (average D+4.4, 11 polls).
 
 U.S. HOUSE
-- Control: 89% for Democrats (expected 234.1 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
+- Control: 89% for Democrats (expected 234.2 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
 - Texas seats in play: TX-15 70% D (Tossup, polls D+7.6); TX-23 23% D (Lean R, polls Even); TX-34 77% D (Lean D, polls D+7.0); TX-35 51% D (Tossup, polls D+0.2).
 
 COMING UP
-- Deadline to apply for a Texas mail ballot: Friday, October 23, 2026 (today).
-- Texas early voting ends: Friday, October 30, 2026 (in 7 days).
-- Election Day: Tuesday, November 3, 2026 (in 11 days).
+- Texas early voting ends: Friday, October 30, 2026 (in 6 days).
+- Election Day: Tuesday, November 3, 2026 (in 10 days).
 
 https://texas-race-tracker.vercel.app
