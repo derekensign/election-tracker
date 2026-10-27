@@ -9,12 +9,12 @@ WHAT MOVED
 - Mississippi Senate: Fox News moved Solid R → Likely R
 - Mississippi Senate: RealClearPolitics moved Solid R → Likely R
 - North Carolina Senate: Sabato's Crystal Ball moved Lean D → Likely D
+- Ohio Senate: The Economist moved Lean D → Tossup
 - Ohio Senate: Fox News moved Tossup → Lean D
 - South Carolina Senate: Fox News moved Likely R → Lean R
 - South Carolina Senate: Sabato's Crystal Ball moved Likely R → Lean R
 - South Carolina Senate: Split Ticket moved Likely R → Lean R
 - Arizona Governor: Sabato's Crystal Ball moved Lean D → Likely D
-- Kansas Governor: Cook Political Report moved Lean R → Tossup
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 69%. Average D+2.9 over 35 polls; latest Univision/YouGov Oct 21 D+5.0.
