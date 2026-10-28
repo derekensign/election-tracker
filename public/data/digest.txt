@@ -3,6 +3,9 @@ Texas Polls Tracker, Wednesday, October 28, 2026
 Talarico 69% to win the Senate seat on a polling average of D+2.9. Hinojosa 34% for governor. Democrats 76% to control the U.S. Senate, 90% for the House, 14% for the Texas House.
 
 WHAT MOVED
+- Minnesota Senate: RealClearPolitics moved Tossup → Lean D
+- Arizona Governor: Decision Desk HQ moved Lean D → Likely D
+- Ohio Governor: Decision Desk HQ moved Lean D → Tossup
 - TX-35 (U.S. House): Fox News moved Lean R → Tossup
 - TX-23 (U.S. House): Fox News moved Likely R → Lean R
 - KY-6 (U.S. House): Fox News moved Lean R → Tossup
@@ -12,9 +15,6 @@ WHAT MOVED
 - AK-AL (U.S. House): RealClearPolitics moved Lean R → Tossup
 - MI-7 (U.S. House): Fox News moved Tossup → Lean D
 - NC-1 (U.S. House): Fox News moved Tossup → Lean D
-- NC-11 (U.S. House): Fox News moved Tossup → Lean D
-- SC-1 (U.S. House): Fox News moved Likely R → Lean R
-- CA-13 (U.S. House): Fox News moved Lean D → Likely D
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 69%. Average D+2.9 over 34 polls; latest Univision/YouGov Oct 21 D+5.0.
