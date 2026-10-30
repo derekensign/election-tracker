@@ -1,10 +1,11 @@
 Texas Polls Tracker, Friday, October 30, 2026
 
-Talarico 71% to win the Senate seat on a polling average of D+3.3. Hinojosa 34% for governor. Democrats 83% to control the U.S. Senate, 90% for the House, 11% for the Texas House.
+Talarico 71% to win the Senate seat on a polling average of D+3.3. Hinojosa 34% for governor. Democrats 83% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
 
 WHAT MOVED
 - Florida Senate: Cook Political Report moved Solid R → Likely R
 - Kansas Senate: Silver Bulletin moved Tossup → Lean D
+- Kansas Senate: Split Ticket moved Lean R → Tossup
 - Louisiana Senate: Sabato's Crystal Ball moved Safe R → Likely R
 - Louisiana Senate: Silver Bulletin moved Solid R → Likely R
 - Minnesota Senate: Sabato's Crystal Ball moved Lean D → Likely D
@@ -12,9 +13,8 @@ WHAT MOVED
 - Montana Senate: polling average R+21.8 → R+12.5
 - Nebraska Senate: Cook Political Report moved Likely R → Lean R
 - Ohio Senate: FiftyPlusOne moved Tossup → Lean D
+- South Dakota Senate: Split Ticket moved Safe R → Likely R
 - Arizona Governor: Cook Political Report moved Lean D → Likely D
-- Illinois Governor: Decision Desk HQ moved Likely D → Safe D
-- Kansas Governor: Silver Bulletin moved Lean R → Likely R
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 71%. Average D+3.3 over 36 polls; latest Quantus Insights Oct 28 R+1.0.
@@ -36,7 +36,7 @@ U.S. SENATE
 - Closest races: IA 49% D (average R+0.2, 10 polls); AK 60% D (average D+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); SC 34% D (average R+2.5, 3 polls); TX 68% D (average D+2.7, 17 polls); ME 68% D (average D+2.8, 9 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 73% D (average D+3.7, 9 polls); KS 75% D (average D+4.2, 4 polls); MI 79% D (average D+4.8, 12 polls).
 
 U.S. HOUSE
-- Control: 90% for Democrats (expected 235.5 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
+- Control: 91% for Democrats (expected 235.6 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
 - Texas seats in play: TX-9 19% D (Likely R, polls R+3.2); TX-15 63% D (Tilt D, polls D+7.0); TX-23 37% D (Tilt R, polls Even); TX-34 77% D (Lean D, polls D+7.0); TX-35 51% D (Tossup, polls D+0.2).
 
 COMING UP
