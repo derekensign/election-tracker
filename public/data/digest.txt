@@ -3,18 +3,22 @@ Texas Polls Tracker, Saturday, October 31, 2026
 Talarico 71% to win the Senate seat on a polling average of D+3.3. Hinojosa 34% for governor. Democrats 83% to control the U.S. Senate, 90% for the House, 11% for the Texas House.
 
 WHAT MOVED
+- Alaska Senate: FiftyPlusOne moved Lean D → Tossup
 - Alaska Senate: Silver Bulletin moved Lean D → Tossup
+- Arkansas Senate: The Economist moved Likely R → Safe R
+- Michigan Senate: Split Ticket moved Lean D → Likely D
+- Minnesota Senate: The Economist moved Likely D → Lean D
+- Nebraska Senate: RealClearPolitics moved Tossup → Lean R
 - TX-32 (U.S. House): Silver Bulletin moved Likely R → Solid R
 - MT-1 (U.S. House): Silver Bulletin moved Tossup → Lean D
+- MI-10 (U.S. House): The Economist moved Lean D → Tossup
+- SC-1 (U.S. House): The Economist moved Tossup → Lean R
 - CA-22 (U.S. House): Silver Bulletin moved Likely D → Solid D
 - NV-2 (U.S. House): Silver Bulletin moved Likely R → Lean R
-- NC-5 (U.S. House): Silver Bulletin moved Solid R → Likely R
-- MN-8 (U.S. House): Silver Bulletin moved Likely R → Solid R
-- TX U.S. Senate: new poll — Data for Progress (through 2026-10-26): D+4.0
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 71%. Average D+3.3 over 36 polls; latest Quantus Insights Oct 28 R+1.0.
-- Governor: Hinojosa 34%. Average R+2.5 over 30 polls; latest ActiVote Oct 29 R+4.2.
+- U.S. Senate: Talarico 71%. Average D+3.3 over 37 polls; latest KStrat Oct 30 D+3.0.
+- Governor: Hinojosa 34%. Average R+2.4 over 31 polls; latest KStrat Oct 30 R+2.0.
 - Lieutenant Governor: Goodwin 31%. Average R+3.0 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
 - Attorney General: Johnson 31%. Average R+3.1 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
 - Comptroller: Eckhardt 23%. Average R+4.7 over 4 polls; latest Texas Southern University Oct 25 R+6.0.
