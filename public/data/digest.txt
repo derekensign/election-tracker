@@ -5,9 +5,7 @@ Talarico 72% to win the Senate seat on a polling average of D+3.4. Hinojosa 35% 
 WHAT MOVED
 - Alaska Senate: FiftyPlusOne moved Tossup → Lean D
 - Kansas Senate: Fox News moved Lean R → Tossup
-- Kentucky Senate: Decision Desk HQ moved Safe R → Likely R
 - Maine Senate: Decision Desk HQ moved Tossup → Lean D
-- Nebraska Senate: Decision Desk HQ moved Lean R → Likely R
 - Nebraska Senate: Fox News moved Likely R → Lean R
 - Ohio Senate: FiftyPlusOne moved Lean D → Tossup
 - Georgia Governor: Decision Desk HQ moved Tossup → Lean D
@@ -15,6 +13,8 @@ WHAT MOVED
 - Ohio Governor: Decision Desk HQ moved Lean D → Tossup
 - TX-9 (U.S. House): Split Ticket moved Safe R → Likely R
 - TX-2 (U.S. House): Split Ticket moved Safe R → Likely R
+- TX-17 (U.S. House): Decision Desk HQ moved Safe R → Likely R
+- FL-22 (U.S. House): Split Ticket moved Tossup → Lean D
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 72%. Average D+3.4 over 38 polls; latest Kreate Strategies Oct 30 D+3.0.
