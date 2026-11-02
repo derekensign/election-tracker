@@ -1,0 +1,6 @@
+# The Vercel CLI uploads the working folder as it is, ignored files included. Keep local-only files off the site:
+# the simulated election night (scripts/simulate-needle.mjs) must never be public.
+public/data/needle-demo.json
+.claude/
+aws/needle/package/
+aws/.aws-sam/
