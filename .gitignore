@@ -4,3 +4,4 @@ node_modules/
 *.log
 aws/.aws-sam/
 public/data/needle-demo.json
+aws/needle/package/

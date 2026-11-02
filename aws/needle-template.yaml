@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Election-night recorder for the Texas Polls Tracker. Every two minutes on election night a Lambda reads the
+  Secretary of State's county returns, runs the needle model, and writes needle.json to a public S3 object the page
+  reads. Independent of GitHub; the GitHub Actions recorder (.github/workflows/needle.yml) keeps running as a backup.
+
+Parameters:
+  SnapshotUrl:
+    Type: String
+    Default: https://texas-race-tracker.vercel.app/data/latest.json
+    Description: The published morning snapshot; the night's model inputs are frozen from it on the first pass.
+  FreshAfter:
+    Type: String
+    Default: "2026-11-03T18:00:00Z"
+    Description: A needle.json created before this (a test run) is replaced rather than resumed. Noon Central.
+
+Resources:
+  NeedleBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      # Public reads come from the bucket policy below (needle.json only); ACLs stay blocked.
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins: ["*"]
+            AllowedMethods: [GET, HEAD]
+            AllowedHeaders: ["*"]
+            MaxAge: 3000
+
+  NeedleBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref NeedleBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: PublicReadNeedleOnly
+            Effect: Allow
+            Principal: "*"
+            Action: s3:GetObject
+            Resource: !Sub "${NeedleBucket.Arn}/needle.json"
+
+  NeedleRecorderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: election-tracker-needle
+      CodeUri: needle/package/
+      Handler: index.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 1024
+      # The state's 4 MB county file can be slow on election night; a pass must still finish before the next.
+      Timeout: 110
+      Environment:
+        Variables:
+          BUCKET: !Ref NeedleBucket
+          OBJECT_KEY: needle.json
+          SNAPSHOT_URL: !Ref SnapshotUrl
+          FRESH_AFTER: !Ref FreshAfter
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref NeedleBucket
+      Events:
+        ElectionNight:
+          Type: Schedule
+          Properties:
+            Name: election-tracker-needle-night
+            # Every two minutes from 6 p.m. Central on November 3 (00:00 UTC November 4) through 7:58 a.m.
+            Schedule: cron(0/2 0-13 4 11 ? 2026)
+            Description: Record the Texas election-night needle every two minutes
+
+Outputs:
+  NeedleUrl:
+    Description: The public needle.json the page reads
+    Value: !Sub "https://${NeedleBucket}.s3.${AWS::Region}.amazonaws.com/needle.json"
+  FunctionName:
+    Value: !Ref NeedleRecorderFunction

@@ -1007,7 +1007,13 @@ function renderEarlyVoteMap(earlyVote, topo) {
 // branch. If the recorder falls behind, the browser reads the Secretary of State's feed itself, runs the same
 // model on top of the recorder's history, and keeps that copy in localStorage so a reload keeps the night.
 // ?demo loads data/needle-demo.json, a simulated night from scripts/simulate-needle.mjs (local preview only).
-const NEEDLE_RECORDER_URL = "https://raw.githubusercontent.com/derekensign/election-tracker/needle-data/needle.json";
+// Two recorders write the same document: AWS (aws/needle-template.yaml; a Lambda every two minutes, served from S3
+// with a 20-second cache) and GitHub Actions (needle.yml; the raw CDN holds files five minutes). In priority order;
+// a recorder counts as alive while its last check is younger than staleMs.
+const NEEDLE_RECORDERS = [
+  { name: "AWS", url: "https://election-tracker-needle-needlebucket-92bzmtfdaxc0.s3.us-east-1.amazonaws.com/needle.json", staleMs: 6 * 60_000 },
+  { name: "GitHub", url: "https://raw.githubusercontent.com/derekensign/election-tracker/needle-data/needle.json", staleMs: 12 * 60_000 },
+];
 const NEEDLE_SOS_URL = "https://goelect.txelections.civixapps.com/api-ivis-system/api/s3/enr/election/countyInfo/53815";
 const NEEDLE_TIMING = {
   windowOpens: Date.parse("2026-11-04T00:00:00Z"), // 6 p.m. Central on Election Day
@@ -1076,21 +1082,30 @@ async function refreshNeedle({ initial = false, forceSos = false } = {}) {
     if (needleState.demo) {
       if (initial) { needleState.doc = await fetchJson("data/needle-demo.json"); needleState.source = "demo"; }
     } else {
-      const recorded = await fetch(NEEDLE_RECORDER_URL, { cache: "no-cache", signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       const valid = (doc) => doc?.version === 1 && doc.election?.enrId === model.NEEDLE_ELECTION.enrId;
       // A recorder file from a test run before Election Day carries that day's polls; the snapshot is newer.
       const fromElectionDay = (doc) => Date.parse(doc?.createdAt) >= NEEDLE_TIMING.recorderFreshAfter;
-      const candidates = [valid(recorded) && fromElectionDay(recorded) ? { doc: recorded, source: "recorder" } : null, needleState.doc ? { doc: needleState.doc, source: needleState.source } : null].filter(Boolean);
-      // The freshest returns win (a document built from the snapshot has none); on a tie prefer the recorder,
-      // whose history is the fullest.
+      const now = Date.now();
+      const isAlive = (entry) => now - Date.parse(entry.doc.checkedAt) < entry.recorder.staleMs;
       const freshness = (doc) => Date.parse(doc.latest?.fetchedAt ?? "") || 0;
-      candidates.sort((a, b) => freshness(b.doc) - freshness(a.doc) || (a.source === "recorder" ? -1 : b.source === "recorder" ? 1 : 0));
-      const pick = candidates[0];
-      if (pick && pick.doc !== needleState.doc) { needleState.doc = pick.doc; needleState.source = pick.source; needleState.memory = {}; }
+      const fetched = await Promise.all(NEEDLE_RECORDERS.map(async (recorder) => ({
+        recorder, doc: await fetch(recorder.url, { cache: "no-cache", signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      })));
+      const recorded = fetched.filter((entry) => valid(entry.doc) && fromElectionDay(entry.doc));
+      // The first live recorder wins outright (AWS, then GitHub), so the chart never flips between two histories.
+      // With none alive, the freshest returns win, a recorder's history over this browser's on a tie.
+      const live = recorded.find(isAlive);
+      let pick = live ? { doc: live.doc, source: "recorder", recorder: live.recorder } : null;
+      if (!pick) {
+        const latestRecorded = recorded.sort((a, b) => freshness(b.doc) - freshness(a.doc))[0];
+        const candidates = [latestRecorded ? { doc: latestRecorded.doc, source: "recorder", recorder: latestRecorded.recorder } : null, needleState.doc ? { doc: needleState.doc, source: needleState.source, recorder: needleState.recorder } : null].filter(Boolean);
+        candidates.sort((a, b) => freshness(b.doc) - freshness(a.doc) || (a.source === "recorder" ? -1 : b.source === "recorder" ? 1 : 0));
+        pick = candidates[0] ?? null;
+      }
+      if (pick && pick.doc !== needleState.doc) { needleState.doc = pick.doc; needleState.source = pick.source; needleState.recorder = pick.recorder ?? null; needleState.memory = {}; }
       if (!needleState.doc) { needleState.doc = model.createNeedleDocument(needleState.snapshot); needleState.source = "browser"; }
 
-      const now = Date.now();
-      const recorderAlive = needleState.source === "recorder" && now - Date.parse(needleState.doc.checkedAt) < NEEDLE_TIMING.recorderStaleMs;
+      const recorderAlive = needleState.source === "recorder" && now - Date.parse(needleState.doc.checkedAt) < (needleState.recorder?.staleMs ?? NEEDLE_TIMING.recorderStaleMs);
       const due = now - needleState.lastSosFetch >= NEEDLE_TIMING.sosPollMs && document.visibilityState === "visible";
       if (forceSos || (needleWindowOpen(now) && !recorderAlive && due)) {
         needleState.lastSosFetch = now;
