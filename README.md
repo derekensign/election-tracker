@@ -17,7 +17,7 @@ Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from 
 | U.S. House | National competitive-district ratings (ten forecasters, ~144 seats), our rated-seat model for control and expected seats, the generic congressional ballot (VoteHub polls plus published aggregates), and a zoomable Texas congressional map (2025 Plan C2333) with ratings for all 38 districts and district polls where they exist |
 | Governors | All 36 governorships: Wikipedia ratings table (seven forecasters), candidates from the race summary, VoteHub polls, polls model, map and tables |
 | Texas courts and SBOE | Supreme Court, Court of Criminal Appeals, and State Board of Education nominees; a statewide-environment baseline for judicial seats |
-| Early vote | Daily early-vote turnout for all 254 counties from the Texas Secretary of State's public Early Voting Turnout report, compared with each county's 2024 presidential result (`ingest/early-vote.js`) |
+| Early vote | Daily early-vote turnout for all 254 counties from the Texas Secretary of State's public Early Voting Turnout report, compared with each county's 2024 presidential result (`ingest/early-vote.js`), and against the March 2026 primaries: where early ballots come from by each county's Democratic share of primary ballots, and early ballots per primary voter by county type |
 | Morning digest | Templated daily briefing with an archive and copy-as-text; `public/data/digest.txt` is the plain-text version for a future chat or email post |
 | Scenarios | Browser-side re-runs of the Texas Legislature, U.S. Senate, and U.S. House models with sliders for environment, elasticity, incumbency, rating weight, and uniform polling error |
 | Trends | Daily series for the marquee numbers plus a dated log of every rating and model change |
@@ -29,6 +29,7 @@ Live site: **https://texas-race-tracker.vercel.app** (Vercel, auto-deploys from 
 - **VoteHub** public polls feed: Senate, governor, and attorney-general polls nationwide.
 - **Wikipedia** (CC BY-SA 4.0) via the MediaWiki API: the national Senate and governor ratings and race-summary tables (ratings and candidates), the House ratings page, each Texas race's Predictions and Polling tables (including aggregator averages from 270toWin, RCP, DDHQ, Silver Bulletin, FiftyPlusOne, Texas Tribune), the Texas congressional, Supreme Court, and SBOE pages, and the Texas House / Senate by-district and competitive-district tables.
 - **Texas Legislative Council** district plans (public domain), converted to TopoJSON once with `npm run build:geo`.
+- **Texas Secretary of State election-night results**: live county returns for the election-night needle, and the certified March 2026 primaries by county (`public/data/tx-primaries-2026.json`, built once by `node scripts/build-primaries-2026.mjs`; ballots per primary are the votes in each county's most-voted statewide race, since the file's own votes-cast field is wrong in places).
 - **us-atlas** state boundaries.
 
 Sources are fetched independently; if one fails, the previous snapshot's values for that source are reused and the page says so.

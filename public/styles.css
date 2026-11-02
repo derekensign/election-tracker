@@ -138,6 +138,7 @@ p.note, .meta, .foot, .sources, .seat-note, .moves-list { font-family: var(--ser
 .ev-h { margin-top: 30px; }
 .ev-table td.muted, .ev-table tr.muted td { color: var(--ink-3); }
 .ev-table th.group { text-align: center; border-bottom: 1px solid var(--rule); }
+.ev-table tr.total td { border-top: 1px solid var(--rule); }
 .ev-chart svg { display: block; width: 100%; max-width: 760px; height: auto; }
 .ev-chart .axis text { fill: var(--ink-2); font-size: 11.5px; font-family: var(--sans); }
 .ev-chart .grid line { stroke: var(--rule-soft); }

@@ -1,6 +1,19 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildEarlyVote, compareDayWith2018, countyGroup, groupBreakdown, mergeCountyReports, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange } from "./early-vote.js";
+import { buildEarlyVote, compareDayWith2018, countyGroup, groupBreakdown, mergeCountyReports, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange, primaryLean } from "./early-vote.js";
+
+test("primaryLean weights each county's primary share by its early ballots", () => {
+  // Harris: 75% Democratic primary, 300 early ballots; Collin: 25%, 100. The primary electorate is 50/50.
+  const read = primaryLean(
+    [{ name: "Harris", ballots: 300 }, { name: "Collin", ballots: 100 }, { name: "Loving", ballots: 5 }],
+    { counties: [{ key: "HARRIS", dem: 150, rep: 50 }, { key: "COLLIN", dem: 50, rep: 150 }, { key: "LOVING", dem: 0, rep: 0 }] },
+  );
+  assert.equal(read.statewide.primaryDemShare, 0.5);
+  assert.equal(read.statewide.earlyWeightedDemShare, 0.625); // (300 × 0.75 + 100 × 0.25) / 400
+  assert.equal(read.statewide.tilt, 12.5);
+  assert.equal(read.statewide.counties, 2); // Loving had no primary ballots
+  assert.equal(read.groups.find((g) => g.group === "Big cities").ballotsPerPrimaryVoter, 1.5);
+});
 
 test("countyKey matches SOS and Wikipedia spellings", () => {
   assert.equal(countyKey("DE WITT"), countyKey("DeWitt"));

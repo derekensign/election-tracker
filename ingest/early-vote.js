@@ -107,6 +107,36 @@ export function geographyAgainst(counties, electionId) {
 }
 
 /** Whether the early vote is broad enough that its geography means something. */
+/**
+ * Early ballots against the March 2026 primaries. A county's Democratic share of primary ballots, weighted by
+ * where this fall's early ballots were cast, against the statewide primary electorate's share: a positive tilt
+ * means early ballots come from counties with more Democratic primary voters. Also by county type, with early
+ * ballots per primary voter (how far the fall electorate reaches past the primary electorate). Primary turnout
+ * depends on which primaries were contested, so like the geography check this is about places, not voters.
+ * @param {Array<{ name: string, ballots: number }>} counties earlyVote.counties
+ * @param {{ counties: Array<{ key: string, dem: number, rep: number }> }} primaries public/data/tx-primaries-2026.json
+ */
+export function primaryLean(counties, primaries) {
+  const byKey = new Map(primaries.counties.map((c) => [c.key, c]));
+  const rows = counties
+    .map((county) => ({ group: countyGroup(county.name), ballots: county.ballots || 0, primary: byKey.get(countyKey(county.name)) }))
+    .filter((row) => row.primary && row.primary.dem + row.primary.rep > 0);
+  const summarize = (items) => {
+    const total = (pick) => items.reduce((t, row) => t + pick(row), 0);
+    const dem = total((r) => r.primary.dem), rep = total((r) => r.primary.rep), ballots = total((r) => r.ballots);
+    const weighted = ballots ? total((r) => (r.ballots * r.primary.dem) / (r.primary.dem + r.primary.rep)) / ballots : null;
+    return {
+      counties: items.length, primaryDem: dem, primaryRep: rep, ballots,
+      primaryDemShare: dem + rep ? round4(dem / (dem + rep)) : null,
+      earlyWeightedDemShare: weighted == null ? null : round4(weighted),
+      ballotsPerPrimaryVoter: dem + rep ? Math.round((ballots / (dem + rep)) * 100) / 100 : null,
+    };
+  };
+  const statewide = summarize(rows);
+  statewide.tilt = Math.round(1000 * (statewide.earlyWeightedDemShare - statewide.primaryDemShare)) / 10;
+  return { statewide, groups: [...Object.keys(COUNTY_GROUPS), RURAL_GROUP].map((group) => ({ group, ...summarize(rows.filter((r) => r.group === group)) })) };
+}
+
 export function isReadable({ countiesWithInPerson, inPerson, ballots, registeredCoverage = 1 }) {
   return countiesWithInPerson >= READABLE_MIN_COUNTIES && ballots > 0 && inPerson / ballots >= READABLE_MIN_IN_PERSON_SHARE && registeredCoverage >= READABLE_MIN_REGISTERED_COVERAGE;
 }

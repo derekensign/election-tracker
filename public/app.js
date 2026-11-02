@@ -791,11 +791,32 @@ async function renderEarlyVote(s) {
     drawTrend(box, earlyVote.daily, chart);
   }
 
+  renderEarlyVotePrimaries(earlyVote).catch((error) => console.error("primaries", error));
+
   // All-county map and table, inside the collapsed section.
   document.querySelectorAll("button.mode[data-ev-year]").forEach((b) => { b.onclick = () => { EARLY_VOTE_YEAR = b.dataset.evYear; renderEarlyVoteCounties(earlyVote); }; });
   document.getElementById("early-vote-show-all").onclick = () => { EARLY_VOTE_SHOW_ALL = !EARLY_VOTE_SHOW_ALL; renderEarlyVoteTable(earlyVote); };
   EARLY_VOTE_TOPO = await fetchJson("geo/tx-counties.json");
   renderEarlyVoteCounties(earlyVote);
+}
+
+/** The March 2026 primaries by county (scripts/build-primaries-2026.mjs), shared by the early-vote and election-night tabs. */
+let PRIMARIES_2026 = null;
+function loadPrimaries() { return (PRIMARIES_2026 ||= fetchJson("data/tx-primaries-2026.json").catch(() => null)); }
+
+/** Early ballots against the March primaries: the tilt toward counties with more Democratic primary voters, by county type. */
+async function renderEarlyVotePrimaries(earlyVote) {
+  const [primaries, { primaryLean }] = await Promise.all([loadPrimaries(), import("./model/early-vote.js")]);
+  const status = document.getElementById("early-vote-primaries-status"), table = document.getElementById("early-vote-primaries");
+  if (!primaries) { status.textContent = "The March primaries baseline could not be loaded."; return; }
+  const read = primaryLean(earlyVote.counties, primaries);
+  const { statewide } = read;
+  const tilt = Math.abs(statewide.tilt) < 0.5 ? "about evenly between them" : partyColored(`${Math.abs(statewide.tilt).toFixed(1)} points toward counties with more ${statewide.tilt > 0 ? "Democratic" : "Republican"} primary voters`, statewide.tilt);
+  status.innerHTML = `In the March 3 primaries, ${pct(statewide.primaryDemShare, 1)} of primary voters took a Democratic ballot (${compact(statewide.primaryDem)} to ${compact(statewide.primaryRep)}). Weighted by where early ballots have been cast, those counties' primary voters were ${pct(statewide.earlyWeightedDemShare, 1)} Democratic, so the early vote leans ${tilt}.`;
+  table.innerHTML = `<tr><th>County type</th><th class="num">Democratic share<span class="sub">of primary ballots</span></th><th class="num">Democratic<span class="sub">primary</span></th><th class="num">Republican<span class="sub">primary</span></th><th class="num">Early ballots</th><th class="num">Early ballots<span class="sub">per primary voter</span></th></tr>`
+    + [...read.groups, { group: "Texas", ...statewide }].map((g) => `<tr${g.group === "Texas" ? ' class="total"' : ""}><td><b>${esc(g.group)}</b> <span class="thin">${g.counties} ${g.counties === 1 ? "county" : "counties"}</span></td>
+      <td class="num">${partyColored(pct(g.primaryDemShare, 1), g.primaryDemShare - 0.5)}</td><td class="num">${compact(g.primaryDem)}</td><td class="num">${compact(g.primaryRep)}</td>
+      <td class="num">${compact(g.ballots)}</td><td class="num"><b>${g.ballotsPerPrimaryVoter?.toFixed(2) ?? "—"}</b></td></tr>`).join("");
 }
 
 /**
@@ -1017,8 +1038,10 @@ const needleHour = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago
 function needleTime(iso) { return needleClock.format(new Date(iso)).replace(/\s+/g, " ").replace(" AM", " a.m.").replace(" PM", " p.m."); }
 
 async function setupNeedle(snapshot) {
-  needleState.model = await import("./model/needle.js");
+  const [model, earlyVoteModel, primaries] = await Promise.all([import("./model/needle.js"), import("./model/early-vote.js"), loadPrimaries()]);
+  needleState.model = model;
   needleState.snapshot = snapshot;
+  if (primaries && snapshot.earlyVote?.counties) needleState.primaryRead = earlyVoteModel.primaryLean(snapshot.earlyVote.counties, primaries).statewide;
   needleState.demo = new URLSearchParams(location.search).has("demo");
   if (!needleState.demo) {
     // Draw right away from this browser's saved copy or the morning snapshot; the recorder's history replaces it
@@ -1373,7 +1396,11 @@ function renderNeedleRead(run, doc) {
     const mixWords = startPoint && Math.abs(startPoint.added) >= 0.1
       ? ` plus ${Math.abs(startPoint.added).toFixed(1)} points toward ${esc(startPoint.added > 0 ? dem : rep)}: early ballots came from counties about ${Math.abs(startPoint.turnoutMix).toFixed(1)} points ${startPoint.turnoutMix > 0 ? "bluer" : "redder"} than the 2022 electorate (see the Early vote tab), and the needle counts half of that, since likely-voter polls already catch some of it`
       : "";
-    list.innerHTML = `<li>Nothing counted yet. The starting projection is <b>${esc(needleMarginWords(startPoint?.margin ?? race.prior.margin, dem, rep))}</b>: the final polling average (${esc(needleMarginWords(race.prior.margin, dem, rep))})${mixWords}.</li>
+    const primaries = needleState.primaryRead;
+    const primaryWords = primaries && Math.abs(primaries.tilt) >= 0.5
+      ? `<li>The March primaries point the same way: early ballots came from counties whose primary voters were ${primaries.tilt > 0 ? "more Democratic" : "more Republican"} than the state's primary electorate by ${Math.abs(primaries.tilt).toFixed(1)} points (${pct(primaries.earlyWeightedDemShare, 1)} against ${pct(primaries.primaryDemShare, 1)}). That is context, not part of the projection.</li>`
+      : "";
+    list.innerHTML = `<li>Nothing counted yet. The starting projection is <b>${esc(needleMarginWords(startPoint?.margin ?? race.prior.margin, dem, rep))}</b>: the final polling average (${esc(needleMarginWords(race.prior.margin, dem, rep))})${mixWords}.</li>${primaryWords}
       <li>About ${compact(run.expectedVotes)} votes expected: ${compact(doc.inputs.counties.reduce((t, c) => t + c.early, 0))} early ballots already cast plus Election Day.</li>`;
     return;
   }
