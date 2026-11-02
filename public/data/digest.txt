@@ -1,24 +1,24 @@
-Texas Polls Tracker, Sunday, November 1, 2026
+Texas Polls Tracker, Monday, November 2, 2026
 
-Talarico 72% to win the Senate seat on a polling average of D+3.4. Hinojosa 35% for governor. Democrats 83% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
+Talarico 74% to win the Senate seat on a polling average of D+3.9. Hinojosa 39% for governor. Democrats 88% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
 
 WHAT MOVED
-- Alaska Senate: FiftyPlusOne moved Tossup → Lean D
-- Kansas Senate: Fox News moved Lean R → Tossup
-- Maine Senate: Decision Desk HQ moved Tossup → Lean D
-- Nebraska Senate: Fox News moved Likely R → Lean R
-- Ohio Senate: FiftyPlusOne moved Lean D → Tossup
-- Georgia Governor: Decision Desk HQ moved Tossup → Lean D
-- Michigan Governor: Silver Bulletin moved Likely D → Solid D
-- Ohio Governor: Decision Desk HQ moved Lean D → Tossup
-- TX-9 (U.S. House): Split Ticket moved Safe R → Likely R
-- TX-2 (U.S. House): Split Ticket moved Safe R → Likely R
-- TX-17 (U.S. House): Decision Desk HQ moved Safe R → Likely R
-- FL-22 (U.S. House): Split Ticket moved Tossup → Lean D
+- U.S. Senate control (polls model): D 83% → 88% (+4.9 pts)
+- Vermont Governor: poll-model D win chance 37% → 77% (+39.5 pts)
+- Alaska Senate: Decision Desk HQ moved Tossup → Lean D
+- Kentucky Senate: Decision Desk HQ moved Safe R → Likely R
+- Louisiana Senate: Split Ticket moved Safe R → Likely R
+- Maine Senate: FiftyPlusOne moved Lean D → Likely D
+- Maine Senate: Silver Bulletin moved Lean D → Likely D
+- Michigan Senate: Decision Desk HQ moved Lean D → Likely D
+- Michigan Senate: FiftyPlusOne moved Lean D → Likely D
+- Mississippi Senate: Split Ticket moved Safe R → Likely R
+- Nebraska Senate: NBC moved Likely R → Lean R
+- New Hampshire Senate: Split Ticket moved Likely D → Safe D
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 72%. Average D+3.4 over 38 polls; latest Kreate Strategies Oct 30 D+3.0.
-- Governor: Hinojosa 35%. Average R+2.2 over 33 polls; latest Kreate Strategies Oct 30 R+2.0.
+- U.S. Senate: Talarico 74%. Average D+3.9 over 41 polls; latest AtlasIntel Nov 1 D+6.0.
+- Governor: Hinojosa 39%. Average R+1.6 over 35 polls; latest AtlasIntel Nov 1 D+1.0.
 - Lieutenant Governor: Goodwin 31%. Average R+3.0 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
 - Attorney General: Johnson 31%. Average R+3.1 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
 - Comptroller: Eckhardt 23%. Average R+4.7 over 4 polls; latest Texas Southern University Oct 25 R+6.0.
@@ -32,14 +32,14 @@ TEXAS LEGISLATURE
 - Texas Senate: 12 D today; model expects 11.8 D seats, 0% for a majority (16). Closest: SD-9 59% D (Likely D), SD-11 13% D (Lean R), SD-2 10% D (Lean R).
 
 U.S. SENATE
-- Control: 83% for Democrats. Expected 52.1 Democratic-caucus seats; 51 needed.
-- Closest races: IA 49% D (average R+0.2, 10 polls); AK 60% D (average D+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); SC 34% D (average R+2.5, 3 polls); TX 68% D (average D+2.7, 17 polls); ME 69% D (average D+2.9, 7 polls); MN 72% D (average D+3.7, 3 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 73% D (average D+3.7, 9 polls); KS 75% D (average D+4.2, 4 polls); MI 78% D (average D+4.8, 9 polls).
+- Control: 88% for Democrats. Expected 52.4 Democratic-caucus seats; 51 needed.
+- Closest races: IA 51% D (average D+0.1, 11 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); SC 34% D (average R+2.5, 3 polls); MN 69% D (average D+3.2, 3 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 11 polls); KS 77% D (average D+4.5, 5 polls); ME 79% D (average D+5.0, 9 polls).
 
 U.S. HOUSE
 - Control: 91% for Democrats (expected 236.1 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
 - Texas seats in play: TX-9 19% D (Likely R, polls R+3.2); TX-15 63% D (Tilt D, polls D+7.0); TX-23 37% D (Tilt R, polls Even); TX-34 77% D (Lean D, polls D+7.0); TX-35 51% D (Tossup, polls D+0.2).
 
 COMING UP
-- Election Day: Tuesday, November 3, 2026 (in 2 days).
+- Election Day: Tuesday, November 3, 2026 (tomorrow).
 
 https://texas-race-tracker.vercel.app
