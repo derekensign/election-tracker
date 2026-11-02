@@ -3,18 +3,18 @@ Texas Polls Tracker, Monday, November 2, 2026
 Talarico 74% to win the Senate seat on a polling average of D+3.9. Hinojosa 39% for governor. Democrats 88% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
 
 WHAT MOVED
-- U.S. Senate control (polls model): D 83% → 88% (+4.9 pts)
+- U.S. Senate control (polls model): D 83% → 88% (+4.6 pts)
 - Vermont Governor: poll-model D win chance 37% → 77% (+39.5 pts)
 - Alaska Senate: Decision Desk HQ moved Tossup → Lean D
+- Iowa Senate: Sabato's Crystal Ball moved Tossup → Lean R
+- Kansas Senate: FiftyPlusOne moved Tossup → Lean D
+- Kansas Senate: Sabato's Crystal Ball moved Tossup → Lean D
 - Kentucky Senate: Decision Desk HQ moved Safe R → Likely R
+- Louisiana Senate: Sabato's Crystal Ball moved Likely R → Lean R
 - Louisiana Senate: Split Ticket moved Safe R → Likely R
 - Maine Senate: FiftyPlusOne moved Lean D → Likely D
+- Maine Senate: Sabato's Crystal Ball moved Tossup → Lean D
 - Maine Senate: Silver Bulletin moved Lean D → Likely D
-- Michigan Senate: Decision Desk HQ moved Lean D → Likely D
-- Michigan Senate: FiftyPlusOne moved Lean D → Likely D
-- Mississippi Senate: Split Ticket moved Safe R → Likely R
-- Nebraska Senate: NBC moved Likely R → Lean R
-- New Hampshire Senate: Split Ticket moved Likely D → Safe D
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 74%. Average D+3.9 over 41 polls; latest AtlasIntel Nov 1 D+6.0.
@@ -33,10 +33,10 @@ TEXAS LEGISLATURE
 
 U.S. SENATE
 - Control: 88% for Democrats. Expected 52.4 Democratic-caucus seats; 51 needed.
-- Closest races: IA 51% D (average D+0.1, 11 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); SC 34% D (average R+2.5, 3 polls); MN 69% D (average D+3.2, 3 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 11 polls); KS 77% D (average D+4.5, 5 polls); ME 79% D (average D+5.0, 9 polls).
+- Closest races: IA 49% D (average R+0.1, 12 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); SC 34% D (average R+2.5, 3 polls); MN 69% D (average D+3.2, 3 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 11 polls); KS 77% D (average D+4.5, 5 polls); ME 79% D (average D+5.0, 9 polls).
 
 U.S. HOUSE
-- Control: 91% for Democrats (expected 236.1 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
+- Control: 91% for Democrats (expected 236.8 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
 - Texas seats in play: TX-9 19% D (Likely R, polls R+3.2); TX-15 63% D (Tilt D, polls D+7.0); TX-23 37% D (Tilt R, polls Even); TX-34 77% D (Lean D, polls D+7.0); TX-35 51% D (Tossup, polls D+0.2).
 
 COMING UP
