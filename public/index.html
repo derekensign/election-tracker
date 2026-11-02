@@ -24,6 +24,7 @@
 <div class="vote-strip wrap" id="vote-strip" hidden></div>
 <nav class="tabs wrap" aria-label="Sections">
   <a href="#overview" data-tab="overview" class="active">Overview</a>
+  <a href="#needle" data-tab="needle">Election night</a>
   <a href="#digest" data-tab="digest">Morning digest</a>
   <a href="#texas" data-tab="texas">Texas statewide</a>
   <a href="#courts" data-tab="courts">Courts and SBOE</a>
@@ -50,6 +51,41 @@
 
   <section id="overview-notes">
     <p class="note">The board above and the "What moved" list are the daily read. Use the tabs for every Texas statewide race with its polls, district-by-district views of the Texas House, Texas Senate, and Texas congressional delegation, and the national Senate and House maps.</p>
+  </section>
+</div>
+
+<div class="panel" data-panel="needle">
+  <section id="needle-section">
+    <h2>Election night</h2>
+    <div class="needle-status" id="needle-status" role="status">Loading the election-night model.</div>
+    <div class="needle-board" id="needle-board"></div>
+
+    <div class="needle-chart-head">
+      <h3 id="needle-chart-title">Win chance through the night</h3>
+      <div class="mode-row" id="needle-race-picker" role="group" aria-label="Race shown in the chart"></div>
+    </div>
+    <div id="needle-chart" class="needle-chart"></div>
+    <p class="note hint" id="needle-chart-note">Hover the chart to read any moment. Numbered markers are the moments the needle moved most; each is explained below.</p>
+    <h3 id="needle-events-title">What moved the needle</h3>
+    <ol class="needle-events" id="needle-events"></ol>
+
+    <h3>Down the ballot</h3>
+    <div class="needle-small" id="needle-small"></div>
+
+    <h3 id="needle-read-title">What the returns say so far</h3>
+    <ul class="needle-read" id="needle-read"></ul>
+
+    <h3>Counties to watch</h3>
+    <p class="note">Counted margins, unofficial, against each county's 2022 governor and 2024 president results. Swing is the Senate margin so far minus 2022; split is Talarico's margin minus Hinojosa's in the same county. "Projected" is where the model expects the county to finish. Early results can lean one way and Election Day the other, so a county's counted margin can move a lot before it is done.</p>
+    <div class="table-scroll"><table id="needle-counties" class="data needle-table"></table></div>
+    <details><summary>All 254 counties</summary><div class="table-scroll"><table id="needle-counties-all" class="data needle-table"></table></div></details>
+
+    <details class="ev-more">
+      <summary>How the needle works</summary>
+      <p class="note">Each needle is the chance that candidate finishes ahead once every vote is counted, from the votes counted so far. With nothing counted it is the polls model from the Texas statewide tab. As counties report, a model compares each county's count with what it expected there, given the county's usual lean (a blend of the 2022 governor, 2024 president, and 2018 Senate results, shifted to match the final polling average). It learns from those differences how far the state is running from the polls, how each region is running from the state (big cities, suburbs, midsize cities, the Rio Grande Valley and border, and rural Texas), how much of each county's 2022-to-2024 shift is reversing, and how differently Election Day votes are breaking from early votes. Then it projects the votes not yet counted.</p>
+      <p class="note">Expected votes start from each county's early-vote turnout, which the Secretary of State already published, plus Election Day votes at 35% of early votes, learned by region as counties finish. Early votes and Election Day votes are modeled separately, because they often lean differently, and a county's partial count is treated as a noisy sample until it is complete. A fat-tailed (Student-t) statewide error and an extra cushion for patterns the model cannot see keep it from being sure too early. Tested on simulated nights, it is slightly cautious: when it said 75%, the leader won about 85% of the time.</p>
+      <p class="note">Returns are the Secretary of State's unofficial county results (the same feed as results.texas-election.com), read every two minutes by a recorder that keeps this chart's history; if the recorder falls behind, your browser reads the state's feed directly and runs the same model. Nothing here is a race call.</p>
+    </details>
   </section>
 </div>
 

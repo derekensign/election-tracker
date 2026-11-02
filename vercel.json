@@ -4,6 +4,7 @@
   "buildCommand": "",
   "installCommand": "",
   "framework": null,
+  "git": { "deploymentEnabled": { "needle-data": false } },
   "headers": [
     { "source": "/data/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=300, s-maxage=600" }] },
     { "source": "/geo/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400, immutable" }] }

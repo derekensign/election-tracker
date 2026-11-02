@@ -151,6 +151,72 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .changelog-day ul { margin: 4px 0 0; padding-left: 18px; font-family: var(--serif); }
 .lean-d { color: var(--to-d); font-weight: 600; } .lean-r { color: var(--to-r); font-weight: 600; }
 
+/* Election night. Gauge bands run Very likely D → Tossup (neutral) → Very likely R; with a neutral middle every
+   adjacent pair clears the CVD check (worst normal-vision ΔE 18, protan 13). */
+.needle-status { margin: 4px 0 18px; padding: 10px 14px; border-left: 4px solid var(--ink-3); font-family: var(--serif); font-size: 15px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; }
+.needle-status b { font-family: var(--sans); color: var(--ink); }
+.needle-status.live { border-left-color: var(--ink); }
+.needle-status.demo { border: 2px solid var(--ink); border-left-width: 8px; color: var(--ink); }
+.needle-status .live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #b91c1c; margin-right: 6px; vertical-align: 1px; }
+.needle-status button { font: inherit; font-family: var(--sans); font-size: 13px; font-weight: 600; border: 1px solid var(--ink); background: var(--paper); border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+.needle-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.needle-board .needle-race { padding: 16px 24px 18px 0; border-right: 1px solid var(--rule); }
+.needle-board .needle-race:last-child { border-right: 0; padding-right: 0; }
+.needle-board .needle-race + .needle-race { padding-left: 24px; }
+.needle-race h4 { margin: 0; font-size: 17px; font-weight: 700; font-stretch: 106%; }
+.needle-race .sub-head { margin: 2px 0 4px; font-size: 13px; color: var(--ink-2); font-family: var(--serif); }
+.needle-gauge svg { display: block; width: 100%; max-width: 380px; height: auto; margin: 0 auto; }
+.needle-gauge .band-label { font-size: 11px; fill: var(--ink-2); font-family: var(--sans); }
+.needle-gauge .prior-label { font-size: 10.5px; fill: var(--ink-3); font-family: var(--sans); }
+.needle-odds { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; max-width: 380px; margin: 2px auto 8px; }
+.needle-odds .side { font-size: 14px; color: var(--ink-2); }
+.needle-odds .side b { display: block; font-size: 34px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; color: var(--ink); font-variant-numeric: proportional-nums; font-feature-settings: "tnum" 0; }
+.needle-odds .side.right { text-align: right; }
+.needle-odds .side.trails b { color: var(--ink-3); font-weight: 600; }
+.needle-race .facts { margin: 0; padding: 0; list-style: none; font-family: var(--serif); font-size: 14px; color: var(--ink-2); max-width: 46ch; }
+.needle-race .facts li { padding: 3px 0; }
+.needle-race .facts b { font-family: var(--sans); color: var(--ink); font-weight: 600; }
+.needle-small { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); border-top: 1px solid var(--rule); }
+.needle-small .needle-race { padding: 12px 18px 12px 0; border-bottom: 1px solid var(--rule-soft); }
+.needle-small .needle-race h4 { font-size: 14.5px; font-weight: 600; font-stretch: 100%; }
+.needle-small .needle-gauge svg { max-width: 220px; margin: 0; }
+.needle-small .needle-odds { max-width: 220px; margin: 0 0 4px; }
+.needle-small .needle-odds .side b { font-size: 22px; }
+.needle-small .facts { font-size: 13px; }
+.needle-chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; margin-top: 30px; }
+.needle-chart-head h3 { margin: 0; }
+.needle-chart svg { display: block; width: 100%; height: auto; }
+.needle-chart .grid line { stroke: var(--rule-soft); }
+.needle-chart .axis text { fill: var(--ink-2); font-size: 11.5px; font-family: var(--sans); }
+.needle-chart .panel-label { fill: var(--ink-2); font-size: 12px; font-family: var(--sans); }
+.needle-chart .even-line { stroke: var(--ink-3); stroke-width: 1; }
+.needle-chart .close-rule { stroke: var(--rule); stroke-width: 1; }
+.needle-chart .close-label { fill: var(--ink-3); font-size: 11px; font-family: var(--sans); }
+.needle-chart .hover-line { stroke: var(--ink); stroke-width: 1; }
+.needle-chart .event-marker circle { fill: var(--ink); stroke: var(--paper); stroke-width: 2; cursor: pointer; }
+.needle-chart .event-marker text { fill: #fff; font-size: 10.5px; font-weight: 700; font-family: var(--sans); pointer-events: none; }
+.needle-chart .event-label { font-size: 11.5px; font-weight: 600; fill: var(--ink); font-family: var(--sans); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.needle-chart .empty-note { fill: var(--ink-3); font-size: 13px; font-family: var(--serif); }
+.needle-events { margin: 0; padding: 0; list-style: none; max-width: 860px; font-family: var(--serif); }
+.needle-events li { display: grid; grid-template-columns: 28px 74px 112px 1fr; gap: 10px; padding: 9px 0; border-top: 1px solid var(--rule-soft); font-size: 15px; align-items: baseline; }
+.needle-events li:first-child { border-top: 0; }
+.needle-events .n { font-family: var(--sans); font-size: 11px; font-weight: 700; color: #fff; background: var(--ink); border-radius: 50%; width: 20px; height: 20px; display: inline-grid; place-items: center; }
+.needle-events .when { font-family: var(--sans); font-size: 13px; color: var(--ink-2); }
+.needle-events .move { font-family: var(--sans); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.needle-events li.empty { display: block; color: var(--ink-3); }
+.needle-read { margin: 6px 0 10px; padding-left: 20px; font-family: var(--serif); font-size: 16px; line-height: 1.5; max-width: 78ch; }
+.needle-read li { margin: 4px 0; }
+.needle-table td.county b { font-weight: 600; }
+.needle-table td.county .thin { display: block; margin: 0; }
+.needle-table .progress { display: inline-block; width: 46px; height: 6px; background: var(--wash); border-radius: 2px; overflow: hidden; vertical-align: 1px; margin-right: 6px; }
+.needle-table .progress span { display: block; height: 100%; background: var(--ink-2); }
+@media (max-width: 640px) {
+  .needle-board .needle-race { border-right: 0; border-bottom: 1px solid var(--rule); padding: 14px 0; }
+  .needle-board .needle-race + .needle-race { padding-left: 0; }
+  .needle-events li { grid-template-columns: 24px 64px 1fr; }
+  .needle-events li .text { grid-column: 2 / -1; }
+}
+
 .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 24px; margin: 8px 0 14px; align-items: end; }
 .controls label { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--ink-2); }
 .controls output { font-weight: 600; color: var(--ink); font-size: 15px; }
@@ -243,6 +309,9 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 14px; margin:
 .foot { color: var(--ink-3); font-size: 13px; padding: 14px 20px 36px; border-top: 1px solid var(--rule); margin-top: 48px; }
 @media (max-width: 640px) {
   body { font-size: 14px; }
+  /* One scrolling row of tabs on phones; wrapped, fifteen tabs covered half the screen. */
+  .tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .tabs a { padding: 11px 12px 9px; }
   .board .lead { border-right: 0; border-bottom: 1px solid var(--rule); padding: 14px 0; }
   .board .lead + .lead { padding-left: 0; }
   .figure { border-right: 0; border-bottom: 1px solid var(--rule-soft); padding-left: 0 !important; }

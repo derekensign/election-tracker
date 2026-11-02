@@ -21,6 +21,7 @@
   renderGovernors(snapshot, usTopo, previousDay);
   renderCourts(snapshot);
   renderEarlyVote(snapshot).catch((error) => console.error("early vote", error));
+  setupNeedle(snapshot).catch((error) => { document.getElementById("needle-status").textContent = `The election-night model could not load: ${error.message}`; console.error("needle", error); });
   renderDigest(snapshot);
   renderPollsters(snapshot);
   setupScenarios(snapshot).catch((error) => { document.getElementById("tx-scenario-figures").innerHTML = `<p class="note">Scenario models could not load: ${esc(error.message)}</p>`; });
@@ -979,6 +980,450 @@ function renderEarlyVoteMap(earlyVote, topo) {
   attachZoom(svgRoot, "early-vote-map", { width, height });
 }
 
+// ---------- election night: needles, the night's chart, counties to watch ----------
+// The needle document (built by ingest/needle.js) comes from the election-night recorder via the needle-data
+// branch. If the recorder falls behind, the browser reads the Secretary of State's feed itself, runs the same
+// model on top of the recorder's history, and keeps that copy in localStorage so a reload keeps the night.
+// ?needle=demo loads data/needle-demo.json, a simulated night from scripts/simulate-needle.mjs (local preview).
+const NEEDLE_RECORDER_URL = "https://raw.githubusercontent.com/derekensign/election-tracker/needle-data/needle.json";
+const NEEDLE_SOS_URL = "https://goelect.txelections.civixapps.com/api-ivis-system/api/s3/enr/election/countyInfo/53815";
+const NEEDLE_TIMING = {
+  windowOpens: Date.parse("2026-11-04T00:00:00Z"), // 6 p.m. Central on Election Day
+  windowCloses: Date.parse("2026-11-05T18:00:00Z"), // noon Central two days later
+  pollsClose: Date.parse("2026-11-04T01:00:00Z"), // 7 p.m. Central
+  lastPollsClose: Date.parse("2026-11-04T02:00:00Z"), // 7 p.m. Mountain, in El Paso and Hudspeth
+  chartStart: Date.parse("2026-11-04T00:30:00Z"), // 6:30 p.m. Central
+  chartMinimumEnd: Date.parse("2026-11-04T07:00:00Z"), // 1 a.m. Central
+  recorderPollMs: 60_000, recorderStaleMs: 12 * 60_000, sosPollMs: 3 * 60_000,
+};
+// The handoff's watch list: the Valley and border, the big metros, the suburbs, and the big red exurbs.
+const NEEDLE_WATCH_COUNTIES = ["Hidalgo", "Cameron", "Webb", "Starr", "El Paso", "Bexar", "Harris", "Fort Bend", "Dallas", "Tarrant", "Collin", "Denton", "Travis", "Williamson", "Hays", "Montgomery", "Comal", "Nueces"];
+const NEEDLE_RACE_LABELS = { "tx-senate": "Senate", "tx-governor": "Governor", "tx-ltgov": "Lt. governor", "tx-ag": "Attorney general", "tx-comptroller": "Comptroller", "tx-railroad": "Railroad", "tx-land": "Land", "tx-agriculture": "Agriculture" };
+const NEEDLE_STORAGE_KEY = "needle-doc-53815";
+// Gauge bands, Very likely D on the left through a neutral tossup middle to Very likely R on the right.
+const NEEDLE_BANDS = [
+  { from: 0.95, to: 1, color: "--d4" }, { from: 0.8, to: 0.95, color: "--d3" }, { from: 0.6, to: 0.8, color: "--d2" },
+  { from: 0.4, to: 0.6, color: null }, { from: 0.2, to: 0.4, color: "--r2" }, { from: 0.05, to: 0.2, color: "--r3" }, { from: 0, to: 0.05, color: "--r4" },
+];
+const needleState = { model: null, snapshot: null, doc: null, memory: {}, runs: null, raceId: "tx-senate", source: null, demo: false, lastSosFetch: 0, sosError: null, refreshing: false };
+
+function needleWindowOpen(now = Date.now()) { return now >= NEEDLE_TIMING.windowOpens && now <= NEEDLE_TIMING.windowCloses; }
+function needleChance(p) { return p >= 0.995 ? ">99%" : p <= 0.005 ? "<1%" : `${Math.round(p * 100)}%`; }
+function needleMarginWords(margin, dem, rep) { return margin == null ? "—" : Math.abs(margin) < 0.05 ? "even" : `${margin > 0 ? dem : rep} +${Math.abs(margin).toFixed(1)}`; }
+const needleClock = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" });
+const needleHour = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric" });
+// Browsers differ on the space before AM/PM (newer ICU uses a narrow no-break space), so normalize it first.
+function needleTime(iso) { return needleClock.format(new Date(iso)).replace(/\s+/g, " ").replace(" AM", " a.m.").replace(" PM", " p.m."); }
+
+async function setupNeedle(snapshot) {
+  needleState.model = await import("./model/needle.js");
+  needleState.snapshot = snapshot;
+  needleState.demo = new URLSearchParams(location.search).get("needle") === "demo";
+  if (!needleState.demo) {
+    // Draw right away from this browser's saved copy or the morning snapshot; the recorder's history replaces it
+    // when it arrives.
+    const saved = loadSavedNeedle((doc) => doc?.version === 1 && doc.election?.enrId === needleState.model.NEEDLE_ELECTION.enrId);
+    needleState.doc = saved?.doc ?? needleState.model.createNeedleDocument(snapshot);
+    needleState.source = "browser";
+    needleState.runs = needleState.model.runNeedle({ counties: needleState.doc.inputs.counties, returns: needleState.doc.latest?.returns ?? null, races: needleState.doc.inputs.races });
+    renderNeedle();
+  }
+  await refreshNeedle({ initial: true });
+  window.addEventListener("resize", debounce(() => { if (needleState.doc) renderNeedleChart(needleState.doc, needleState.raceId); }, 150));
+  if (needleState.demo) return;
+  // Keep checking only on election night; a tab left open from the afternoon starts polling when the window opens.
+  const refreshIfLive = () => { if (needleWindowOpen()) refreshNeedle().catch((error) => console.error("needle", error)); };
+  setInterval(refreshIfLive, NEEDLE_TIMING.recorderPollMs);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshIfLive(); });
+}
+function debounce(fn, ms) { let timer = null; return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); }; }
+
+/**
+ * Pick the freshest needle document (recorder, this browser's saved copy, or a new one from the morning snapshot),
+ * read the Secretary of State directly when the recorder has gone quiet, and redraw.
+ */
+async function refreshNeedle({ initial = false, forceSos = false } = {}) {
+  if (needleState.refreshing) return;
+  needleState.refreshing = true;
+  try {
+    const { model } = needleState;
+    if (needleState.demo) {
+      if (initial) { needleState.doc = await fetchJson("data/needle-demo.json"); needleState.source = "demo"; }
+    } else {
+      const recorded = await fetch(NEEDLE_RECORDER_URL, { cache: "no-cache", signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const valid = (doc) => doc?.version === 1 && doc.election?.enrId === model.NEEDLE_ELECTION.enrId;
+      const candidates = [valid(recorded) ? { doc: recorded, source: "recorder" } : null, needleState.doc ? { doc: needleState.doc, source: needleState.source } : null].filter(Boolean);
+      // The freshest returns win (a document built from the snapshot has none); on a tie prefer the recorder,
+      // whose history is the fullest.
+      const freshness = (doc) => Date.parse(doc.latest?.fetchedAt ?? "") || 0;
+      candidates.sort((a, b) => freshness(b.doc) - freshness(a.doc) || (a.source === "recorder" ? -1 : b.source === "recorder" ? 1 : 0));
+      const pick = candidates[0];
+      if (pick && pick.doc !== needleState.doc) { needleState.doc = pick.doc; needleState.source = pick.source; needleState.memory = {}; }
+      if (!needleState.doc) { needleState.doc = model.createNeedleDocument(needleState.snapshot); needleState.source = "browser"; }
+
+      const now = Date.now();
+      const recorderAlive = needleState.source === "recorder" && now - Date.parse(needleState.doc.checkedAt) < NEEDLE_TIMING.recorderStaleMs;
+      const due = now - needleState.lastSosFetch >= NEEDLE_TIMING.sosPollMs && document.visibilityState === "visible";
+      if (forceSos || (needleWindowOpen(now) && !recorderAlive && due)) {
+        needleState.lastSosFetch = now;
+        try {
+          const returns = await fetchSosReturns(model);
+          const { changed } = model.advanceNeedle(needleState.doc, { returns, fetchedAt: new Date().toISOString() }, needleState.memory);
+          needleState.sosError = null;
+          if (changed) { needleState.source = "browser"; saveNeedle(needleState.doc); }
+        } catch (error) {
+          needleState.sosError = error.message;
+        }
+      }
+    }
+    const { doc } = needleState;
+    needleState.runs = needleState.model.runNeedle({ counties: doc.inputs.counties, returns: doc.latest?.returns ?? null, races: doc.inputs.races });
+    renderNeedle();
+  } finally {
+    needleState.refreshing = false;
+  }
+}
+
+/** The SOS county file, base64 inside JSON; decoded as UTF-8 so accented names survive. */
+async function fetchSosReturns(model) {
+  const response = await fetch(NEEDLE_SOS_URL, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Secretary of State feed: HTTP ${response.status}`);
+  const wrapper = await response.json();
+  if (!wrapper?.upload) throw new Error("Secretary of State feed was empty");
+  const bytes = Uint8Array.from(atob(wrapper.upload), (character) => character.charCodeAt(0));
+  return model.parseCountyReturns(JSON.parse(new TextDecoder().decode(bytes)));
+}
+function loadSavedNeedle(valid) {
+  try { const doc = JSON.parse(localStorage.getItem(NEEDLE_STORAGE_KEY) || "null"); return valid(doc) ? { doc, source: "browser" } : null; } catch { return null; }
+}
+function saveNeedle(doc) { try { localStorage.setItem(NEEDLE_STORAGE_KEY, JSON.stringify(doc)); } catch { /* storage full or blocked: the in-memory copy still works */ } }
+
+function renderNeedle() {
+  const { doc, runs } = needleState;
+  const runById = Object.fromEntries(runs.map((run) => [run.id, run]));
+  renderNeedleStatus(doc, runs[0]);
+  document.getElementById("needle-board").innerHTML = ["tx-senate", "tx-governor"].map((id) => needleRaceBlock(runById[id], doc, { large: true })).join("");
+  document.getElementById("needle-small").innerHTML = runs.filter((run) => run.id !== "tx-senate" && run.id !== "tx-governor").map((run) => needleRaceBlock(run, doc, { large: false })).join("");
+  const picker = document.getElementById("needle-race-picker");
+  picker.innerHTML = runs.map((run) => `<button class="mode${run.id === needleState.raceId ? " active" : ""}" data-needle-race="${run.id}" aria-pressed="${run.id === needleState.raceId}">${esc(NEEDLE_RACE_LABELS[run.id] || run.office)}</button>`).join("");
+  picker.querySelectorAll("button").forEach((button) => button.addEventListener("click", () => { needleState.raceId = button.dataset.needleRace; renderNeedle(); }));
+  renderNeedleChart(doc, needleState.raceId);
+  renderNeedleEvents(doc, needleState.raceId);
+  renderNeedleRead(runById[needleState.raceId], doc);
+  renderNeedleCounties(runById, doc);
+}
+
+function renderNeedleStatus(doc, topRun) {
+  const box = document.getElementById("needle-status");
+  box.className = "needle-status";
+  const now = Date.now();
+  if (needleState.demo) {
+    box.classList.add("demo");
+    box.innerHTML = `<b>Simulated election night.</b><span>Made-up returns from a test run of the model (seed ${esc(doc.simulated?.seed ?? "?")}), not real results.</span>`;
+    return;
+  }
+  const refresh = needleWindowOpen(now) ? ' <button type="button" id="needle-refresh">Check the Secretary of State now</button>' : "";
+  const problem = needleState.sosError ? ` <span>Last direct check failed (${esc(needleState.sosError)}); showing the latest returns we have.</span>` : "";
+  if (!topRun.countedVotes) {
+    box.innerHTML = now < NEEDLE_TIMING.pollsClose
+      ? `<b>Polls close at 7 p.m. Central</b><span>(8 p.m. in El Paso and Hudspeth counties). Until returns arrive, each needle is the pre-election polls model.</span>${refresh}`
+      : `<b>Waiting for the first returns.</b><span>Counties post early votes first, usually within an hour of polls closing.</span>${refresh}${problem}`;
+  } else {
+    box.classList.add("live");
+    const status = doc.status;
+    const reporting = status?.countiesReporting != null ? ` ${status.countiesReporting} of ${status.countiesTotal} counties reporting.` : "";
+    const how = needleState.source === "browser" ? "read directly by your browser" : "checked every two minutes";
+    box.innerHTML = `<b><span class="live-dot" aria-hidden="true"></span>Returns as of ${needleTime(doc.checkedAt)} Central.</b><span>${reporting} Unofficial results from the Texas Secretary of State, ${how}. The needle is a projection, not a race call.</span>${refresh}${problem}`;
+  }
+  document.getElementById("needle-refresh")?.addEventListener("click", () => refreshNeedle({ forceSos: true }).catch((error) => console.error("needle", error)));
+}
+
+/** One race: gauge, both candidates' chances, and the projection in words. */
+function needleRaceBlock(run, doc, { large }) {
+  const prior = doc.timeline[run.id]?.[0]?.p ?? run.prior.pD;
+  const dem = lastName(run.democrat), rep = lastName(run.republican);
+  const range = `${needleMarginWords(run.interval80[0], dem, rep)} to ${needleMarginWords(run.interval80[1], dem, rep)}`;
+  const facts = [`Projected margin <b>${needleMarginWords(run.margin, dem, rep)}</b>${large ? `; 80% range ${esc(range)}` : ""}`];
+  if (run.countedVotes) facts.push(`<b>${pct(run.countedShare)}</b> of about ${compact(run.expectedVotes)} expected votes counted${large ? `; ${esc(needleMarginWords(run.countedMargin, dem, rep))} in the count so far` : ""}`);
+  else if (large) facts.push(`No votes counted yet; about ${compact(run.expectedVotes)} expected`);
+  if (large) facts.push(`Pre-election polls model: ${esc(dem)} ${needleChance(prior)}`);
+  const leaderIsDem = run.pD >= 0.5;
+  return `<div class="needle-race">
+    <h4>${esc(run.office)}</h4>
+    <p class="sub-head">${esc(run.democrat)} (D) against ${esc(run.republican)} (R)</p>
+    <div class="needle-gauge">${needleGaugeSvg(run.pD, prior, { large, dem, rep })}</div>
+    <div class="needle-odds"><div class="side${leaderIsDem ? "" : " trails"}"><b>${needleChance(run.pD)}</b>${esc(dem)}</div><div class="side right${leaderIsDem ? " trails" : ""}"><b>${needleChance(1 - run.pD)}</b>${esc(rep)}</div></div>
+    <ul class="facts">${facts.map((fact) => `<li>${fact}</li>`).join("")}</ul>
+  </div>`;
+}
+
+/**
+ * Semicircle gauge: the Democrat's side on the left, as on every split bar on the site. The hand points at the
+ * Democratic win chance; a small tick outside the arc marks where the pre-election polls model stood.
+ */
+function needleGaugeSvg(p, prior, { large = true, dem, rep } = {}) {
+  const cx = 150, cy = 146, outer = 138, thickness = large ? 30 : 34, inner = outer - thickness;
+  const angle = (probability) => Math.PI / 2 - Math.PI * probability; // d3.arc: 0 points up, clockwise positive
+  const point = (probability, radius) => [cx + radius * Math.sin(angle(probability)), cy - radius * Math.cos(angle(probability))];
+  const arc = d3.arc().innerRadius(inner).outerRadius(outer).padAngle(0.014).cornerRadius(2);
+  const bands = NEEDLE_BANDS.map((band) => `<path d="${arc({ startAngle: angle(band.to), endAngle: angle(band.from) })}" transform="translate(${cx},${cy})" fill="${band.color ? cssVar(band.color) : "#e9e9e6"}"></path>`).join("");
+  const [handX, handY] = point(p, outer - 4);
+  const [tickInnerX, tickInnerY] = point(prior, outer + 3), [tickOuterX, tickOuterY] = point(prior, outer + 12);
+  const [halfInnerX, halfInnerY] = point(0.5, inner - 2), [halfOuterX, halfOuterY] = point(0.5, inner - 9);
+  const height = large ? 172 : 156;
+  // The odds row under the gauge names both sides; on the big gauges a small label marks the polls tick.
+  const ends = large ? `<text class="prior-label" x="${tickOuterX}" y="${tickOuterY - 4}" text-anchor="${prior > 0.55 ? "end" : prior < 0.45 ? "start" : "middle"}">polls</text>` : "";
+  return `<svg viewBox="0 ${large ? -16 : 0} 300 ${height}" role="img" aria-label="${esc(dem)} ${needleChance(p)} chance, ${esc(rep)} ${needleChance(1 - p)}">
+    ${bands}
+    <line x1="${halfInnerX}" y1="${halfInnerY}" x2="${halfOuterX}" y2="${halfOuterY}" stroke="${cssVar("--ink-3")}" stroke-width="1.5"></line>
+    <line x1="${tickInnerX}" y1="${tickInnerY}" x2="${tickOuterX}" y2="${tickOuterY}" stroke="${cssVar("--ink-3")}" stroke-width="2"></line>
+    <line class="needle-hand" x1="${cx}" y1="${cy}" x2="${handX}" y2="${handY}" stroke="${cssVar("--ink")}" stroke-width="${large ? 4 : 5}" stroke-linecap="round"></line>
+    <circle cx="${cx}" cy="${cy}" r="${large ? 8 : 10}" fill="${cssVar("--ink")}"></circle>
+    ${ends}
+  </svg>`;
+}
+
+/**
+ * The night in two stacked panels sharing a Central-time axis: the Democrat's win chance (step line, since the
+ * needle holds its value between updates) with numbered annotations, and the projected margin with its 80% range.
+ */
+function renderNeedleChart(doc, raceId) {
+  const box = document.getElementById("needle-chart");
+  box.innerHTML = "";
+  const race = doc.inputs.races.find((r) => r.id === raceId);
+  const dem = lastName(race.democrat), rep = lastName(race.republican);
+  document.getElementById("needle-chart-title").textContent = `${dem}'s chance through the night, ${NEEDLE_RACE_LABELS[raceId] || race.office}`;
+  const series = (doc.timeline[raceId] || []).map((point) => ({ ...point, time: Math.max(Date.parse(point.t), NEEDLE_TIMING.chartStart) }));
+  const events = needleEventsFor(doc, raceId).filter((event) => event.n);
+  const narrow = window.innerWidth < 600;
+  const width = narrow ? 520 : 1000;
+  const margin = { top: 30, right: narrow ? 44 : 96, bottom: 26, left: 44 };
+  const chanceHeight = narrow ? 210 : 250, gap = 44, marginHeight = narrow ? 110 : 130;
+  const chanceTop = margin.top, chanceBottom = chanceTop + chanceHeight, marginTop = chanceBottom + gap, marginBottom = marginTop + marginHeight;
+  const height = marginBottom + margin.bottom;
+  const lastTime = series.length ? series[series.length - 1].time : NEEDLE_TIMING.chartStart;
+  const now = Date.now();
+  // Live, the last reading holds until now; a finished or simulated night ends at its last reading.
+  const holdUntil = needleState.demo || !needleWindowOpen(now) ? lastTime : Math.max(lastTime, now);
+  const end = Math.max(NEEDLE_TIMING.chartMinimumEnd, holdUntil + 20 * 60_000);
+  const drawn = series.length ? [...series, { ...series[series.length - 1], time: holdUntil }] : [];
+  const x = d3.scaleLinear().domain([NEEDLE_TIMING.chartStart, end]).range([margin.left, width - margin.right]);
+  const yChance = d3.scaleLinear().domain([0, 1]).range([chanceBottom, chanceTop]);
+  const marginValues = [0, ...series.flatMap((p) => [p.lo ?? p.m, p.hi ?? p.m])];
+  const [low, high] = d3.extent(marginValues);
+  const pad = Math.max(1, (high - low) * 0.08);
+  const yMargin = d3.scaleLinear().domain([low - pad, high + pad]).nice().range([marginBottom, marginTop]);
+  const svg = d3.select(box).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img")
+    .attr("aria-label", `${race.office}: ${dem}'s win chance and the projected margin through election night`);
+  const signedMargin = (v) => (v === 0 ? "Even" : `${v > 0 ? "D" : "R"}+${Math.abs(v)}`);
+
+  // Hourly ticks in Central time (Central Standard Time is a whole-hour offset, so UTC hours line up).
+  const hourTicks = d3.range(Math.ceil(NEEDLE_TIMING.chartStart / 3_600_000) * 3_600_000, end + 1, 3_600_000).filter((t, i) => !narrow || i % 2 === 0);
+  svg.append("g").attr("class", "grid").selectAll("line").data([0.25, 0.75, 1]).join("line")
+    .attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => yChance(v)).attr("y2", (v) => yChance(v));
+  svg.append("g").attr("class", "grid").selectAll("line").data(yMargin.ticks(4)).join("line")
+    .attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => yMargin(v)).attr("y2", (v) => yMargin(v));
+  svg.append("line").attr("class", "even-line").attr("stroke-dasharray", "3 3").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", yChance(0.5)).attr("y2", yChance(0.5));
+  svg.append("line").attr("class", "even-line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", yMargin(0)).attr("y2", yMargin(0));
+  // Poll-closing rules; on phones the hour between them is too narrow for both labels.
+  for (const [time, label] of [[NEEDLE_TIMING.pollsClose, "Polls close"], [NEEDLE_TIMING.lastPollsClose, narrow ? "" : "El Paso closes"]]) {
+    svg.append("line").attr("class", "close-rule").attr("x1", x(time)).attr("x2", x(time)).attr("y1", chanceTop - 6).attr("y2", marginBottom);
+    if (label) svg.append("text").attr("class", "close-label").attr("x", x(time) + 4).attr("y", chanceTop - 10).text(label);
+  }
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(yChance).tickValues([0, 0.5, 1]).tickFormat((v) => `${Math.round(v * 100)}%`).tickSize(0)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(yMargin).ticks(4).tickFormat(signedMargin).tickSize(0)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${marginBottom})`)
+    .call(d3.axisBottom(x).tickValues(hourTicks).tickFormat((t) => needleHour.format(new Date(t)).replace(/\s+/g, " ").toLowerCase()).tickSize(0)).select(".domain").remove();
+  svg.append("text").attr("class", "panel-label").attr("x", margin.left + 4).attr("y", marginTop - 10).text("Projected final margin, with its 80% range");
+
+  if (series.length && series[series.length - 1].c > 0) {
+    svg.append("path").datum(drawn).attr("fill", cssVar("--rule-soft"))
+      .attr("d", d3.area().curve(d3.curveStepAfter).x((p) => x(p.time)).y0((p) => yMargin(p.lo ?? p.m)).y1((p) => yMargin(p.hi ?? p.m)));
+    svg.append("path").datum(drawn).attr("fill", "none").attr("stroke", cssVar("--ink")).attr("stroke-width", 2)
+      .attr("d", d3.line().curve(d3.curveStepAfter).x((p) => x(p.time)).y((p) => yMargin(p.m)));
+    svg.append("path").datum(drawn).attr("fill", "none").attr("stroke", cssVar("--d3")).attr("stroke-width", 2)
+      .attr("d", d3.line().curve(d3.curveStepAfter).x((p) => x(p.time)).y((p) => yChance(p.p)));
+    // Direct label at the line's end: beside it on wide screens, above it (inside the plot) on phones.
+    const last = drawn[drawn.length - 1];
+    const endLabel = svg.append("text").attr("class", "event-label").text(`${dem} ${needleChance(last.p)}`);
+    if (narrow) endLabel.attr("x", x(last.time)).attr("y", yChance(last.p) + (last.p > 0.85 ? 18 : -8)).attr("text-anchor", "end");
+    else endLabel.attr("x", x(last.time) + 6).attr("y", yChance(last.p) + 4);
+  } else {
+    // Nothing counted yet: the starting point, and what will happen here.
+    const start = series[0];
+    if (start) {
+      svg.append("circle").attr("cx", x(NEEDLE_TIMING.chartStart)).attr("cy", yChance(start.p)).attr("r", 4.5).attr("fill", cssVar("--d3"));
+      if (start.lo != null) svg.append("line").attr("x1", x(NEEDLE_TIMING.chartStart)).attr("x2", x(NEEDLE_TIMING.chartStart)).attr("y1", yMargin(start.lo)).attr("y2", yMargin(start.hi)).attr("stroke", cssVar("--rule")).attr("stroke-width", 6);
+      svg.append("circle").attr("cx", x(NEEDLE_TIMING.chartStart)).attr("cy", yMargin(start.m)).attr("r", 4.5).attr("fill", cssVar("--ink"));
+    }
+    svg.append("text").attr("class", "empty-note").attr("x", x(NEEDLE_TIMING.pollsClose) + 8).attr("y", yChance(0.5) - 12)
+      .text(start ? `The line starts at the polls model, ${dem} ${needleChance(start.p)}, and moves as counties report.` : "Waiting for returns.");
+  }
+
+  // Numbered annotations; the biggest few also carry their headline on the chart.
+  const markers = events.map((event) => ({ event, x: x(Math.max(Date.parse(event.t), NEEDLE_TIMING.chartStart)), y: yChance(event.p1) }));
+  for (const { event, x: ex, y: ey } of markers) {
+    const marker = svg.append("g").attr("class", "event-marker").attr("transform", `translate(${ex},${ey})`).attr("tabindex", 0)
+      .attr("role", "img").attr("aria-label", `${event.n}: ${event.headline}`);
+    marker.append("circle").attr("r", 9);
+    marker.append("text").attr("text-anchor", "middle").attr("dy", "0.35em").text(event.n);
+    const tip = (e) => showTooltip(e, `<b>${event.n}. ${needleTime(event.t)}</b><div>${esc(event.headline)}</div><hr><div>${esc(event.detail)}</div>`);
+    marker.on("mousemove", tip).on("mouseleave", hideTooltip).on("focus", (e) => { const r = e.target.getBoundingClientRect(); tip({ clientX: r.right, clientY: r.bottom }); }).on("blur", hideTooltip);
+  }
+  // The step line as points every few pixels (runs and risers), for the label placer to steer around.
+  const linePoints = [];
+  for (let i = 0; i + 1 < drawn.length; i += 1) {
+    const x0 = x(drawn[i].time), x1 = x(drawn[i + 1].time), y0 = yChance(drawn[i].p), y1 = yChance(drawn[i + 1].p);
+    for (let px = x0; px < x1; px += 5) linePoints.push({ x: px, y: y0 });
+    for (let py = Math.min(y0, y1); py <= Math.max(y0, y1); py += 5) linePoints.push({ x: x1, y: py });
+  }
+  placeNeedleLabels(svg, markers, linePoints, { count: narrow ? 2 : 3, left: margin.left, right: width - margin.right, top: chanceTop, bottom: chanceBottom });
+
+  // Hover: a rule across both panels and that moment's numbers.
+  if (drawn.length < 2) return;
+  const hover = svg.append("g").style("display", "none");
+  hover.append("line").attr("class", "hover-line").attr("y1", chanceTop).attr("y2", marginBottom);
+  const chanceMarker = hover.append("circle").attr("r", 4).attr("fill", cssVar("--d3")).attr("stroke", "#fff").attr("stroke-width", 1.5);
+  const marginMarker = hover.append("circle").attr("r", 4).attr("fill", cssVar("--ink")).attr("stroke", "#fff").attr("stroke-width", 1.5);
+  const bisect = d3.bisector((p) => p.time).right;
+  svg.insert("rect", ".event-marker").attr("x", margin.left).attr("y", chanceTop).attr("width", x(holdUntil) - margin.left).attr("height", marginBottom - chanceTop).attr("fill", "transparent")
+    .on("mousemove", (event) => {
+      const [pointerX] = d3.pointer(event);
+      const time = x.invert(pointerX);
+      const point = drawn[Math.max(0, bisect(drawn, time) - 1)];
+      hover.style("display", null);
+      hover.select("line").attr("x1", pointerX).attr("x2", pointerX);
+      chanceMarker.attr("cx", pointerX).attr("cy", yChance(point.p));
+      marginMarker.attr("cx", pointerX).attr("cy", yMargin(point.m));
+      showTooltip(event, `<b>${needleTime(new Date(time).toISOString())}</b>
+        <div class="row"><span>${esc(dem)} win chance</span><span>${needleChance(point.p)}</span></div>
+        <div class="row"><span>Projected margin</span><span>${esc(needleMarginWords(point.m, dem, rep))}</span></div>
+        ${point.lo != null ? `<div class="row"><span>80% range</span><span>${esc(needleMarginWords(point.lo, dem, rep))} to ${esc(needleMarginWords(point.hi, dem, rep))}</span></div>` : ""}
+        <div class="row"><span>Expected vote counted</span><span>${pct(point.c)}</span></div>`);
+    })
+    .on("mouseleave", () => { hover.style("display", "none"); hideTooltip(); });
+}
+
+/**
+ * Put headline labels beside the biggest moves. Each label tries eight spots around its marker and takes the one
+ * that collides least with other markers, the line (sampled as points), and labels already placed.
+ */
+function placeNeedleLabels(svg, markers, linePoints, { count, left, right, top, bottom }) {
+  const chosen = [...markers].sort((a, b) => Math.abs(b.event.p1 - b.event.p0) - Math.abs(a.event.p1 - a.event.p0)).slice(0, count);
+  const placed = [];
+  const overlaps = (box, other) => box.x0 < other.x1 && other.x0 < box.x1 && box.y0 < other.y1 && other.y0 < box.y1;
+  for (const { event, x: mx, y: my } of chosen) {
+    const text = event.headline.length > 42 ? `${event.headline.slice(0, 41)}…` : event.headline;
+    const labelWidth = text.length * 6.5, labelHeight = 14;
+    const spots = [[14, -10], [14, 22], [-14 - labelWidth, -10], [-14 - labelWidth, 22], [14, -26], [14, 38], [-14 - labelWidth, -26], [-14 - labelWidth, 38]];
+    let best = null;
+    for (const [dx, dy] of spots) {
+      const box = { x0: mx + dx, x1: mx + dx + labelWidth, y0: my + dy - labelHeight + 3, y1: my + dy + 3 };
+      if (box.x0 < left || box.x1 > right + 90 || box.y0 < top - 4 || box.y1 > bottom) continue;
+      const markerHits = markers.filter((m) => overlaps(box, { x0: m.x - 11, x1: m.x + 11, y0: m.y - 11, y1: m.y + 11 })).length;
+      const lineHits = linePoints.filter((p) => p.x >= box.x0 && p.x <= box.x1 && p.y >= box.y0 - 2 && p.y <= box.y1 + 2).length;
+      const labelHits = placed.filter((other) => overlaps(box, other)).length;
+      const score = markerHits * 4 + labelHits * 10 + Math.min(lineHits, 5);
+      if (!best || score < best.score) best = { score, box, dx, dy };
+    }
+    if (!best) continue;
+    placed.push(best.box);
+    svg.append("text").attr("class", "event-label").attr("x", mx + best.dx).attr("y", my + best.dy).text(text);
+  }
+}
+
+/**
+ * The race's annotations in time order. The first returns and the biggest moves (up to eight) are charted and
+ * numbered, the same numbers on the chart and in the list; the rest are listed without a number.
+ */
+function needleEventsFor(doc, raceId, { charted = 8 } = {}) {
+  const events = doc.events.filter((e) => e.race === raceId).sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+  const biggest = new Set([...events].sort((a, b) => (b.kind === "first") - (a.kind === "first") || Math.abs(b.p1 - b.p0) - Math.abs(a.p1 - a.p0)).slice(0, charted));
+  let n = 0;
+  return events.map((event) => ({ ...event, n: biggest.has(event) ? (n += 1) : null }));
+}
+
+function renderNeedleEvents(doc, raceId) {
+  const events = needleEventsFor(doc, raceId);
+  const race = doc.inputs.races.find((r) => r.id === raceId);
+  const list = document.getElementById("needle-events");
+  document.getElementById("needle-events-title").textContent = `What moved the needle: ${NEEDLE_RACE_LABELS[raceId] || race.office}`;
+  if (!events.length) { list.innerHTML = '<li class="empty">Nothing yet. Annotations mark the first returns and every big move: a jump of 8 points in one update, or a drift of 20.</li>'; return; }
+  list.innerHTML = events.slice().reverse().map((event) => {
+    const towardD = event.p1 >= event.p0;
+    return `<li>${event.n ? `<span class="n">${event.n}</span>` : "<span></span>"}<span class="when">${needleTime(event.t)}</span><span class="move ${towardD ? "lean-d" : "lean-r"}">${needleChance(event.p0)} → ${needleChance(event.p1)}</span><span class="text">${esc(event.detail)}</span></li>`;
+  }).join("");
+}
+
+/** Plain-language read of the shared effects the model has learned for the selected race. */
+function renderNeedleRead(run, doc) {
+  const race = doc.inputs.races.find((r) => r.id === run.id);
+  const dem = lastName(race.democrat), rep = lastName(race.republican);
+  document.getElementById("needle-read-title").textContent = `What the returns say so far: ${NEEDLE_RACE_LABELS[run.id] || race.office}`;
+  const list = document.getElementById("needle-read");
+  if (!run.countedVotes) {
+    list.innerHTML = `<li>Nothing counted yet. The projection is the final polling average, ${esc(needleMarginWords(race.prior.margin, dem, rep))}, with about ${compact(run.expectedVotes)} votes expected: ${compact(doc.inputs.counties.reduce((t, c) => t + c.early, 0))} early ballots already cast plus Election Day.</li>`;
+    return;
+  }
+  const items = [];
+  const versusPolls = run.margin - race.prior.margin;
+  items.push(`The projection is <b>${esc(needleMarginWords(run.margin, dem, rep))}</b>, ${Math.abs(versusPolls) < 0.5 ? "close to" : `${Math.abs(versusPolls).toFixed(1)} points better for ${esc(versusPolls > 0 ? dem : rep)} than`} the final polling average (${esc(needleMarginWords(race.prior.margin, dem, rep))}). ${pct(run.countedShare)} of about ${compact(run.expectedVotes)} expected votes are counted.`);
+  const dayVotes = run.counties.reduce((t, c) => t + c.dayVotes, 0);
+  const day = run.shared.electionDay;
+  if (!dayVotes) items.push("Only early votes are in. Election Day votes often break differently, so the model allows a gap of several points either way until counties report them.");
+  else if (Math.abs(day.mean) >= 1 && Math.abs(day.mean) > day.sd) items.push(`Election Day votes are running about ${Math.abs(day.mean).toFixed(1)} points more ${day.mean > 0 ? "Democratic" : "Republican"} than early votes in the same counties.`);
+  else items.push("Election Day votes are breaking about like early votes in the same counties.");
+  // Realignment: what the learned factor means for Hidalgo, the biggest county that swung hard to Trump in 2024.
+  const realign = run.shared.realignment;
+  const hidalgo = doc.inputs.counties.find((c) => c.key === "HIDALGO");
+  if (hidalgo && Math.abs(realign.mean) > 1.5 * realign.sd) {
+    const totalEarly = doc.inputs.counties.reduce((t, c) => t + c.early, 0);
+    const meanShift = doc.inputs.counties.reduce((t, c) => t + c.early * (c.relativeShift || 0), 0) / totalEarly;
+    const points = realign.mean * -(hidalgo.relativeShift - meanShift);
+    if (Math.abs(points) >= 1) items.push(`Counties that moved hardest toward Trump between 2022 and 2024 are running ${points > 0 ? "more Democratic" : "more Republican"} than the model's starting point expected, by about ${Math.abs(points).toFixed(0)} points in a county like Hidalgo.`);
+  }
+  for (const [region, effect] of Object.entries(run.shared.regions)) {
+    if (Math.abs(effect.mean) >= 1.5 && Math.abs(effect.mean) > 1.5 * effect.sd) items.push(`${esc(region)}: about ${Math.abs(effect.mean).toFixed(1)} points more ${effect.mean > 0 ? "Democratic" : "Republican"} than the rest of the state, against expectations.`);
+  }
+  list.innerHTML = items.map((item) => `<li>${item}</li>`).join("");
+}
+
+function renderNeedleCounties(runById, doc) {
+  const senate = runById["tx-senate"], governor = runById["tx-governor"];
+  const senateRace = doc.inputs.races.find((r) => r.id === "tx-senate"), governorRace = doc.inputs.races.find((r) => r.id === "tx-governor");
+  const senateByKey = new Map(senate.counties.map((c) => [c.key, c])), governorByKey = new Map(governor.counties.map((c) => [c.key, c]));
+  const inputsByKey = new Map(doc.inputs.counties.map((c) => [c.key, c]));
+  const margin = (value) => (value == null ? '<span class="muted">—</span>' : partyColored(marginText(value), value));
+  const swing = (value) => (value == null ? '<span class="muted">—</span>' : `<span class="${value > 0 ? "lean-d" : value < 0 ? "lean-r" : ""}">${value > 0 ? "D" : "R"}+${Math.abs(value).toFixed(1)}</span>`);
+  const header = `<thead><tr><th>County</th><th>Counted</th>
+    <th class="num">${esc(lastName(senateRace.democrat))}<span class="sub">Senate so far</span></th><th class="num">${esc(lastName(governorRace.democrat))}<span class="sub">governor so far</span></th>
+    <th class="num">2022<span class="sub">governor</span></th><th class="num">2024<span class="sub">president</span></th>
+    <th class="num">Swing<span class="sub">Senate vs 2022</span></th><th class="num">Split<span class="sub">Senate − governor</span></th><th class="num">Projected<span class="sub">Senate final</span></th></tr></thead>`;
+  const row = (key) => {
+    const s = senateByKey.get(key), g = governorByKey.get(key), input = inputsByKey.get(key);
+    if (!s || !input) return "";
+    const share = s.expectedVotes ? s.countedVotes / s.expectedVotes : 0;
+    const progress = s.countedVotes
+      ? `${s.earlyShare >= 0.95 ? "early in" : `early ${pct(s.earlyShare)}`}, Election Day ${pct(s.dayReporting)}`
+      : "not yet";
+    const past2022 = input.past?.["2022"], past2024 = input.past?.["2024"];
+    return `<tr>
+      <td class="county"><b>${esc(s.name)}</b><span class="thin">${esc(s.region)}</span></td>
+      <td><span class="progress" aria-hidden="true"><span style="width:${Math.round(Math.min(1, share) * 100)}%"></span></span>${pct(share)}<span class="thin">${esc(progress)}</span></td>
+      <td class="num">${margin(s.countedMargin)}</td><td class="num">${margin(g?.countedMargin)}</td>
+      <td class="num">${margin(past2022)}</td><td class="num">${margin(past2024)}</td>
+      <td class="num">${swing(s.countedMargin != null && past2022 != null ? s.countedMargin - past2022 : null)}</td>
+      <td class="num">${swing(s.countedMargin != null && g?.countedMargin != null ? s.countedMargin - g.countedMargin : null)}</td>
+      <td class="num">${margin(s.projectedMargin)}</td></tr>`;
+  };
+  const watchKeys = NEEDLE_WATCH_COUNTIES.map((name) => name.toUpperCase().replace(/[^A-Z]/g, ""));
+  document.getElementById("needle-counties").innerHTML = `${header}<tbody>${watchKeys.map(row).join("")}</tbody>`;
+  const allKeys = senate.counties.slice().sort((a, b) => b.expectedVotes - a.expectedVotes).map((c) => c.key);
+  document.getElementById("needle-counties-all").innerHTML = `${header}<tbody>${allKeys.map(row).join("")}</tbody>`;
+}
+
 // ---------- governors ----------
 let GOVERNOR_MAP_MODE = "rating";
 function renderGovernors(s, topo, prev) {
@@ -1298,7 +1743,7 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
+const PANELS = ["overview", "needle", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
 function showPanel(name, { push = true } = {}) {
   const panel = PANELS.includes(name) ? name : "overview";
   document.querySelectorAll(".panel").forEach((el) => el.classList.toggle("active", el.dataset.panel === panel));
@@ -1318,4 +1763,5 @@ function scrollToPanelTop() {
 }
 document.querySelectorAll(".tabs a").forEach((a) => a.addEventListener("click", (event) => { event.preventDefault(); showPanel(a.dataset.tab); scrollToPanelTop(); }));
 window.addEventListener("hashchange", () => { showPanel(location.hash.slice(1), { push: false }); scrollToPanelTop(); });
-showPanel(location.hash.slice(1) || "overview", { push: false });
+// On election night the needle is the front page.
+showPanel(location.hash.slice(1) || (needleWindowOpen() ? "needle" : "overview"), { push: false });

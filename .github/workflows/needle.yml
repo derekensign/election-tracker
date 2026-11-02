@@ -1,0 +1,46 @@
+name: Election-night needle
+
+on:
+  schedule:
+    # Election night, November 3, 2026, Central Standard Time (UTC−6). 00:20 UTC is 6:20 pm, ahead of the 7 pm poll
+    # close. The later slots restart the recorder if GitHub skips one or a run reaches the six-hour job limit: only
+    # one recorder runs at a time (concurrency below), so an extra start waits and resumes from needle.json.
+    - cron: "20 0 4 11 *"
+    - cron: "45 0 4 11 *"
+    - cron: "5 6 4 11 *"
+  workflow_dispatch:
+    inputs:
+      until:
+        description: "Stop time, ISO 8601 UTC (default 2026-11-04T13:00:00Z, 7 am Central)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: needle-recorder
+  cancel-in-progress: false
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check out the needle-data branch (created on the first run)
+        run: |
+          git config --global user.name "Derek Ensign"
+          git config --global user.email "derekensign@gmail.com"
+          if git ls-remote --exit-code --heads origin needle-data > /dev/null; then
+            git fetch -q origin needle-data
+            git worktree add -q -B needle-data needle-out origin/needle-data
+          else
+            git worktree add -q --orphan -b needle-data needle-out
+          fi
+      - name: Record the night (commits needle.json to needle-data after every change)
+        env:
+          UNTIL: ${{ inputs.until }}
+        run: node ingest/needle-record.js --out needle-out --push --budget-minutes 335 ${UNTIL:+--until "$UNTIL"}
