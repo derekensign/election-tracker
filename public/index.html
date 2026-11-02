@@ -75,6 +75,17 @@
     <h3 id="needle-read-title">What the returns say so far</h3>
     <ul class="needle-read" id="needle-read"></ul>
 
+    <h3 id="needle-map-title">County map</h3>
+    <div class="mode-row">
+      <span>Color by:</span>
+      <button class="mode" data-needle-map-mode="counted">Votes counted so far</button>
+      <button class="mode" data-needle-map-mode="projected">Projected final margin</button>
+      <span class="zoom-controls" data-zoom-for="needle-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span>
+    </div>
+    <div class="legend" id="needle-map-legend"></div>
+    <div id="needle-map" class="map zoomable needle-map" tabindex="0"></div>
+    <p class="note hint">Shows the race picked above the chart. Scroll to zoom, drag to pan, double-click to zoom in. Hover or tap a county for its numbers.</p>
+
     <h3>Counties to watch</h3>
     <p class="note">Counted margins, unofficial, against each county's 2018 Senate, 2022 governor, and 2024 president results. Each swing compares a race with the same office's last race, both Beto O'Rourke: Talarico with 2018, the closest Democrats have come statewide (Cruz won by 2.6), and Hinojosa with 2022. Split is Talarico's margin minus Hinojosa's in the same county. "Projected" is where the model expects the county to finish. Early results can lean one way and Election Day the other, so a county's counted margin can move a lot before it is done.</p>
     <div class="table-scroll"><table id="needle-counties" class="data needle-table"></table></div>

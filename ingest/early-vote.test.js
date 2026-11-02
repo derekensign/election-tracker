@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildEarlyVote, compareDayWith2018, countyGroup, groupBreakdown, mergeCountyReports, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange, primaryLean } from "./early-vote.js";
+import { COUNTY_CITIES, COUNTY_GROUPS, buildEarlyVote, compareDayWith2018, countyGroup, countyGroupLabel, groupBreakdown, mergeCountyReports, countyKey, earlyVotingDayNumber, geographyAgainst, geographyLean, isReadable, percentChange, primaryLean } from "./early-vote.js";
 
 test("primaryLean weights each county's primary share by its early ballots", () => {
   // Harris: 75% Democratic primary, 300 early ballots; Collin: 25%, 100. The primary electorate is 50/50.
@@ -154,6 +154,14 @@ test("compareDayWith2018 treats a county that hasn't posted today's votes as not
   const result = compareDayWith2018([{ key: "BEXAR", displayName: "Bexar", registered: 1, inPerson: 90500, inPersonOnDate: 500, mail: 0 }], day2018);
   assert.equal(result.countiesReported, 0);
   assert.deepEqual(result.notReported, ["Bexar"]);
+});
+
+test("every grouped county has a city, and only those", () => {
+  const grouped = Object.values(COUNTY_GROUPS).flat().map(countyKey).sort();
+  assert.deepEqual(Object.keys(COUNTY_CITIES).map(countyKey).sort(), grouped);
+  assert.equal(countyGroupLabel("FORT BEND"), "Suburbs (Houston)");
+  assert.equal(countyGroupLabel("Nueces"), "Midsize cities (Corpus Christi)");
+  assert.equal(countyGroupLabel("DE WITT"), "Rural and small-town");
 });
 
 test("countyGroup and groupBreakdown", () => {

@@ -1040,6 +1040,7 @@ function needleTime(iso) { return needleClock.format(new Date(iso)).replace(/\s+
 async function setupNeedle(snapshot) {
   const [model, earlyVoteModel, primaries] = await Promise.all([import("./model/needle.js"), import("./model/early-vote.js"), loadPrimaries()]);
   needleState.model = model;
+  needleState.countyGroupLabel = earlyVoteModel.countyGroupLabel;
   needleState.snapshot = snapshot;
   if (primaries && snapshot.earlyVote?.counties) needleState.primaryRead = earlyVoteModel.primaryLean(snapshot.earlyVote.counties, primaries).statewide;
   needleState.demo = new URLSearchParams(location.search).has("demo");
@@ -1136,7 +1137,65 @@ function renderNeedle() {
   renderNeedleChart(doc, needleState.raceId);
   renderNeedleEvents(doc, needleState.raceId);
   renderNeedleRead(runById[needleState.raceId], doc);
+  renderNeedleMap(runById[needleState.raceId], doc);
   renderNeedleCounties(runById, doc);
+}
+
+// The county map follows the race picker. It is drawn once and recolored on each refresh, so a reader's zoom
+// survives the minute-by-minute updates. With nothing counted yet it opens on the projection.
+let NEEDLE_MAP_MODE = null; // "counted" | "projected"; null until the reader picks one
+const needleMap = { topo: null, loading: false, svgRoot: null, paths: null };
+function renderNeedleMap(run, doc) {
+  if (!needleMap.topo) {
+    if (!needleMap.loading) {
+      needleMap.loading = true;
+      fetchJson("geo/tx-counties.json")
+        .then((topo) => { needleMap.topo = topo; if (needleState.runs) renderNeedle(); })
+        .catch((error) => console.error("needle map", error));
+    }
+    return;
+  }
+  const width = 800, height = 760;
+  if (!needleMap.svgRoot) {
+    needleMap.svgRoot = d3.select("#needle-map").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img");
+    const features = topojson.feature(needleMap.topo, needleMap.topo.objects.counties).features;
+    const path = d3.geoPath(d3.geoMercator().fitSize([width, height], { type: "FeatureCollection", features }));
+    needleMap.paths = needleMap.svgRoot.append("g").attr("class", "zoom-root").selectAll("path").data(features).join("path").attr("d", path)
+      .on("mouseleave", hideTooltip);
+    attachZoom(needleMap.svgRoot, "needle-map", { width, height });
+  }
+  const mode = NEEDLE_MAP_MODE ?? (run.countedVotes ? "counted" : "projected");
+  const byKey = new Map(run.counties.map((c) => [c.key, c]));
+  const inputsByKey = new Map(doc.inputs.counties.map((c) => [c.key, c]));
+  const keyFor = (feature) => String(feature.properties.name).toUpperCase().replace(/[^A-Z]/g, "");
+  const dem = lastName(run.democrat), rep = lastName(run.republican);
+  // Same diverging ramp as the early-vote map's results view.
+  const marginScale = d3.scaleDiverging().domain([-60, 0, 60]).interpolator((t) => d3.interpolateRgbBasis([cssVar("--r4"), cssVar("--r2"), "#f2f2f0", cssVar("--d2"), cssVar("--d4")])(t));
+  const marginFor = (county) => (mode === "counted" ? (county?.countedVotes ? county.countedMargin : null) : county?.projectedMargin);
+  // The same three past results as the county table.
+  const pastRaces = [["2018", "2018 Senate"], ["2022", "2022 governor"], ["2024", "2024 president"]];
+
+  needleMap.svgRoot.attr("aria-label", `Texas counties, ${run.office}: ${mode === "counted" ? "margin in the votes counted so far" : "projected final margin"}`);
+  needleMap.paths
+    .attr("fill", (feature) => { const margin = marginFor(byKey.get(keyFor(feature))); return margin == null ? cssVar("--notup") : marginScale(margin); })
+    .on("mousemove", (event, feature) => {
+      const county = byKey.get(keyFor(feature)), input = inputsByKey.get(keyFor(feature));
+      if (!county) { showTooltip(event, `<b>${esc(feature.properties.name)} County</b>`); return; }
+      const counted = county.expectedVotes ? county.countedVotes / county.expectedVotes : 0;
+      const pastRows = pastRaces.map(([year, label]) => `<div class="row"><span>${label}</span><span>${partyColored(marginText(input?.past?.[year]), input?.past?.[year])}</span></div>`).join("");
+      showTooltip(event, `<b>${esc(county.name)} County</b><div class="muted">${esc(needleState.countyGroupLabel(county.name))}</div>
+        <div class="row"><span>Counted</span><span>${county.countedVotes ? `${pct(counted)} of about ${compact(county.expectedVotes)}` : "not yet"}</span></div>
+        <div class="row"><span>So far</span><span>${county.countedVotes ? partyColored(needleMarginWords(county.countedMargin, dem, rep), county.countedMargin) : "—"}</span></div>
+        <div class="row"><span>Projected</span><span>${partyColored(needleMarginWords(county.projectedMargin, dem, rep), county.projectedMargin)}</span></div>${pastRows}`);
+    });
+
+  document.getElementById("needle-map-title").textContent = `County map, ${NEEDLE_RACE_LABELS[run.id] || run.office}`;
+  document.getElementById("needle-map-legend").innerHTML = [-60, -30, -10, 0, 10, 30, 60].map((m) => `<span><i class="sw" style="background:${marginScale(m)}"></i>${m === 0 ? "Even" : `${esc(m > 0 ? dem : rep)} +${Math.abs(m)}`}</span>`).join("")
+    + (mode === "counted" ? `<span><i class="sw" style="background:${cssVar("--notup")}"></i>No votes counted yet</span>` : "");
+  document.querySelectorAll("button.mode[data-needle-map-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.needleMapMode === mode);
+    button.onclick = () => { NEEDLE_MAP_MODE = button.dataset.needleMapMode; renderNeedleMap(needleState.runs.find((r) => r.id === needleState.raceId), needleState.doc); };
+  });
 }
 
 function renderNeedleStatus(doc, topRun) {
@@ -1450,7 +1509,7 @@ function renderNeedleCounties(runById, doc) {
       : "not yet";
     const past2018 = input.past?.["2018"], past2022 = input.past?.["2022"], past2024 = input.past?.["2024"];
     return `<tr>
-      <td class="county"><b>${esc(s.name)}</b><span class="thin">${esc(s.region)}</span></td>
+      <td class="county"><b>${esc(s.name)}</b><span class="thin">${esc(needleState.countyGroupLabel(s.name))}</span></td>
       <td><span class="progress" aria-hidden="true"><span style="width:${Math.round(Math.min(1, share) * 100)}%"></span></span>${pct(share)}<span class="thin">${esc(progress)}</span></td>
       <td class="num">${margin(s.countedMargin)}</td><td class="num">${margin(g?.countedMargin)}</td>
       <td class="num">${margin(past2018)}</td><td class="num">${margin(past2022)}</td><td class="num">${margin(past2024)}</td>

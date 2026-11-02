@@ -51,6 +51,39 @@ export function countyGroup(name) {
   return RURAL_GROUP;
 }
 
+// The city each grouped county is in or around, shown after its type: "Suburbs (Houston)". Small border counties
+// get the nearest city readers know. Rural and small-town counties have none. A test keeps this in step with
+// COUNTY_GROUPS.
+export const COUNTY_CITIES = {
+  // Big cities
+  Harris: "Houston", Dallas: "Dallas", Tarrant: "Fort Worth", Bexar: "San Antonio", Travis: "Austin", "El Paso": "El Paso",
+  // Rio Grande Valley and border
+  Hidalgo: "McAllen", Cameron: "Brownsville", Webb: "Laredo", Starr: "McAllen", Willacy: "Harlingen", Zapata: "Laredo",
+  Maverick: "Eagle Pass", "Val Verde": "Del Rio", "Jim Hogg": "Laredo", Brooks: "McAllen", Duval: "Corpus Christi",
+  Dimmit: "Eagle Pass", Zavala: "Eagle Pass", Presidio: "Marfa",
+  // Suburbs
+  Collin: "Dallas", Denton: "Dallas–Fort Worth", "Fort Bend": "Houston", Montgomery: "Houston", Williamson: "Austin",
+  Brazoria: "Houston", Galveston: "Houston", Ellis: "Dallas", Comal: "San Antonio", Guadalupe: "San Antonio", Hays: "Austin",
+  Johnson: "Fort Worth", Parker: "Fort Worth", Kaufman: "Dallas", Rockwall: "Dallas", Chambers: "Houston", Waller: "Houston",
+  Liberty: "Houston", Bastrop: "Austin", Kendall: "San Antonio", Medina: "San Antonio", Wilson: "San Antonio", Hunt: "Dallas",
+  Wise: "Fort Worth",
+  // Midsize cities
+  Lubbock: "Lubbock", Nueces: "Corpus Christi", Bell: "Killeen–Temple", Jefferson: "Beaumont", McLennan: "Waco", Smith: "Tyler",
+  Brazos: "College Station", Randall: "Amarillo", Potter: "Amarillo", Midland: "Midland", Ector: "Odessa", Taylor: "Abilene",
+  "Tom Green": "San Angelo", Wichita: "Wichita Falls", Gregg: "Longview", Grayson: "Sherman",
+};
+/** The city a county is in or around, or null for a rural and small-town county. */
+export function countyCity(name) {
+  const key = countyKey(name);
+  for (const [county, city] of Object.entries(COUNTY_CITIES)) if (countyKey(county) === key) return city;
+  return null;
+}
+/** A county's type with its city: "Suburbs (Houston)", or just "Rural and small-town". */
+export function countyGroupLabel(name) {
+  const city = countyCity(name);
+  return city ? `${countyGroup(name)} (${city})` : countyGroup(name);
+}
+
 /**
  * Turnout by county type for the latest day: ballots so far as a share of each group's 2022 vote (all 254
  * counties), and in-person change against the same day of 2018 for the group's big counties that have posted.
