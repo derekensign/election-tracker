@@ -6,8 +6,9 @@
 <title>Texas Polls Tracker: 2026 Texas races and the U.S. Senate</title>
 <meta name="description" content="Daily tracker for the 2026 Texas statewide races, Texas Legislature, and U.S. Senate and House: polls, forecaster ratings, and seat-distribution forecasts with day-over-day change detection.">
 <link rel="stylesheet" href="styles.css">
-<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
+<!-- Pinned with integrity hashes: the Ask tab can hold a visitor's API key, so the browser must refuse altered copies. -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha256-8glLv2FBs1lyLE/kVOtsSw8OQswQzHr5IfwVj864ZTk=" crossorigin="anonymous" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha256-Jc0CrkhsxQY+AhWk5M+xXeg3AMh6xIusTVfcaq8+u4k=" crossorigin="anonymous" defer></script>
 <script src="app.js" defer></script>
 </head>
 <body>
@@ -25,6 +26,7 @@
 <nav class="tabs wrap" aria-label="Sections">
   <a href="#overview" data-tab="overview" class="active">Overview</a>
   <a href="#election-night" data-tab="election-night">Election night</a>
+  <a href="#ask" data-tab="ask">Ask the data</a>
   <a href="#digest" data-tab="digest">Morning digest</a>
   <a href="#texas" data-tab="texas">Texas statewide</a>
   <a href="#courts" data-tab="courts">Courts and SBOE</a>
@@ -371,6 +373,30 @@
     <p class="note">The forecasters' competitive list, sorted by our model. Texas districts are marked.</p>
     <div class="table-scroll"><table id="us-house-table" class="data"></table></div>
     <details><summary>All rated districts</summary><div class="table-scroll"><table id="us-house-table-all" class="data"></table></div></details>
+  </section>
+</div>
+
+<div class="panel" data-panel="ask">
+  <section id="ask-section">
+    <h2>Ask the data</h2>
+    <p class="note">Ask questions about this page's numbers: the polls, the forecasts, the early vote, and on election night the live returns and needles. Answers come from OpenAI using your own API key, and every question is sent with a fresh digest of what this page has loaded, so they use the latest numbers here. The assistant only knows that digest; it can be wrong, and it does not call races.</p>
+    <div class="ask-setup" id="ask-setup">
+      <label class="ask-field">OpenAI API key <input type="password" id="ask-key" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
+      <label class="ask-field">Model <select id="ask-model"></select></label>
+      <label class="ask-check"><input type="checkbox" id="ask-remember"> Remember on this device</label>
+      <button type="button" class="mode" id="ask-save">Use this key</button>
+      <button type="button" class="mode" id="ask-forget">Forget key</button>
+      <span class="ask-key-status" id="ask-key-status"></span>
+    </div>
+    <p class="note hint">The key stays in this browser (for this tab only, unless you choose to remember it) and goes only to api.openai.com; this site has no server and never sees it. A ChatGPT subscription does not include API use: create a key, ideally in a project with a monthly budget, at <a href="https://platform.openai.com/api-keys" rel="noopener">platform.openai.com/api-keys</a>.</p>
+    <div class="ask-suggestions" id="ask-suggestions"></div>
+    <ol class="ask-log" id="ask-log"></ol>
+    <form class="ask-form" id="ask-form">
+      <textarea id="ask-input" rows="2" placeholder="Ask about the polls, the early vote, or tonight's returns"></textarea>
+      <button type="submit" class="vote-button" id="ask-send">Ask</button>
+    </form>
+    <p class="note hint" id="ask-freshness"></p>
+    <details class="ev-more"><summary>What the assistant sees</summary><p class="note" id="ask-context-note"></p><pre class="ask-context" id="ask-context"></pre></details>
   </section>
 </div>
 

@@ -22,6 +22,7 @@
   renderCourts(snapshot);
   renderEarlyVote(snapshot).catch((error) => console.error("early vote", error));
   setupNeedle(snapshot).catch((error) => { document.getElementById("needle-status").textContent = `The election-night model could not load: ${error.message}`; console.error("needle", error); });
+  setupAsk(snapshot).catch((error) => console.error("ask", error));
   renderDigest(snapshot);
   renderPollsters(snapshot);
   setupScenarios(snapshot).catch((error) => { document.getElementById("tx-scenario-figures").innerHTML = `<p class="note">Scenario models could not load: ${esc(error.message)}</p>`; });
@@ -1524,6 +1525,253 @@ function renderNeedleCounties(runById, doc) {
   document.getElementById("needle-counties-all").innerHTML = `${header}<tbody>${allKeys.map(row).join("")}</tbody>`;
 }
 
+// ---------- ask the data (the visitor's own OpenAI key) ----------
+// A chat with OpenAI about this page's data. The visitor's API key is typed into this tab, kept in sessionStorage
+// (localStorage only if they choose to remember it), and sent only to api.openai.com, which allows browser calls.
+// Every question carries a fresh digest of what the page has loaded (morning snapshot, early vote, March primaries,
+// election-night needles and returns), so answers use the newest numbers. The site has no server of its own.
+const ASK_STORAGE = { key: "ask-openai-key", model: "ask-openai-model" };
+const ASK_ENDPOINT = "https://api.openai.com/v1";
+const ASK_FALLBACK_MODELS = ["gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4o"]; // until the key's own model list loads
+const ASK_SUGGESTIONS = [
+  "Where do the Senate and governor races stand right now, and how sure is the model?",
+  "Which big counties are running furthest ahead of or behind Beto's 2018 Senate margin?",
+  "What has moved the needle most tonight, and why?",
+  "How does early-vote turnout compare with 2018 and 2022 by county type?",
+];
+const ASK_SYSTEM = `You answer questions about the Texas Polls Tracker's data on the 2026 Texas elections (Election Day is Tuesday, November 3, 2026; polls close at 7 p.m. Central, 8 p.m. in El Paso and Hudspeth counties).
+Rules:
+- Use only the JSON data in the next message. It is what the page has loaded right now; say how current it is when that matters ("as of 9:42 p.m. Central, with 41% of the expected vote counted").
+- Margins are Democratic minus Republican, in points of the total vote: 3.9 means the Democrat leads by 3.9, -1.6 means the Republican leads by 1.6. Write them as "Talarico +3.9" or "Abbott +1.6". Win chances are the Democrat's probability from 0 to 1 unless a field says otherwise; give them as percentages.
+- These are polls and projections, not results. Never call or declare a race; say "the model gives Talarico a 74% chance".
+- If the data does not answer the question, say what is missing instead of guessing, and do not use outside knowledge about returns.
+- Be neutral and nonpartisan. Keep answers short (a few sentences or a short list) unless asked for detail.`;
+const askState = { history: [], busy: false, primaries: null };
+
+function askStoredKey() { return sessionStorage.getItem(ASK_STORAGE.key) || localStorage.getItem(ASK_STORAGE.key) || ""; }
+
+async function setupAsk(snapshot) {
+  const keyInput = document.getElementById("ask-key"), status = document.getElementById("ask-key-status"), remember = document.getElementById("ask-remember");
+  remember.checked = !!localStorage.getItem(ASK_STORAGE.key);
+  const showStatus = () => {
+    const key = askStoredKey();
+    status.textContent = key ? `Using the key ending ${key.slice(-4)}, ${localStorage.getItem(ASK_STORAGE.key) ? "remembered on this device" : "for this tab only"}.` : "No key yet.";
+    status.classList.toggle("ok", !!key);
+  };
+  document.getElementById("ask-save").onclick = async () => {
+    const key = keyInput.value.trim();
+    if (!key) { status.textContent = "Paste a key first."; return; }
+    sessionStorage.setItem(ASK_STORAGE.key, key);
+    if (remember.checked) localStorage.setItem(ASK_STORAGE.key, key); else localStorage.removeItem(ASK_STORAGE.key);
+    keyInput.value = "";
+    showStatus();
+    await loadAskModels(key);
+  };
+  document.getElementById("ask-forget").onclick = () => { sessionStorage.removeItem(ASK_STORAGE.key); localStorage.removeItem(ASK_STORAGE.key); showStatus(); };
+  remember.onchange = () => {
+    const key = askStoredKey();
+    if (key && remember.checked) localStorage.setItem(ASK_STORAGE.key, key); else localStorage.removeItem(ASK_STORAGE.key);
+    showStatus();
+  };
+  document.getElementById("ask-model").onchange = (event) => localStorage.setItem(ASK_STORAGE.model, event.target.value);
+  fillAskModels(ASK_FALLBACK_MODELS);
+  document.getElementById("ask-suggestions").innerHTML = ASK_SUGGESTIONS.map((question) => `<button type="button" class="mode" data-ask="${esc(question)}">${esc(question)}</button>`).join("");
+  document.querySelectorAll("[data-ask]").forEach((button) => { button.onclick = () => askQuestion(button.dataset.ask); });
+  const input = document.getElementById("ask-input");
+  document.getElementById("ask-form").onsubmit = (event) => { event.preventDefault(); const question = input.value.trim(); if (question) { input.value = ""; askQuestion(question); } };
+  input.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); document.getElementById("ask-form").requestSubmit(); } });
+  document.querySelector('.tabs a[data-tab="ask"]').addEventListener("click", renderAskContextPreview);
+  window.addEventListener("hashchange", () => { if (location.hash === "#ask") renderAskContextPreview(); });
+  showStatus();
+  if (askStoredKey()) loadAskModels(askStoredKey());
+  const [primaries, earlyVoteModel] = await Promise.all([loadPrimaries(), import("./model/early-vote.js")]);
+  if (primaries && snapshot.earlyVote?.counties) askState.primaries = earlyVoteModel.primaryLean(snapshot.earlyVote.counties, primaries);
+  renderAskContextPreview();
+}
+
+/** The key's own chat models, newest first; also confirms the key works. */
+async function loadAskModels(key) {
+  const status = document.getElementById("ask-key-status");
+  try {
+    const response = await fetch(`${ASK_ENDPOINT}/models`, { headers: { Authorization: `Bearer ${key}` } });
+    if (!response.ok) throw new Error(await askErrorText(response));
+    const { data } = await response.json();
+    const chatModels = (data || [])
+      .filter((model) => /^(gpt-|o\d)/.test(model.id) && !/(audio|realtime|tts|transcribe|search|image|embedding|instruct|moderation|codex|computer-use|oss)/.test(model.id))
+      .sort((a, b) => b.created - a.created).map((model) => model.id);
+    if (chatModels.length) fillAskModels(chatModels);
+  } catch (error) {
+    status.textContent = `OpenAI did not accept the key: ${error.message}`;
+    status.classList.remove("ok");
+  }
+}
+function fillAskModels(ids) {
+  const saved = localStorage.getItem(ASK_STORAGE.model);
+  // Default to the newest plain "gpt-N" or "gpt-N.N" model (no -mini or -pro), else the first one listed.
+  const pick = ids.includes(saved) ? saved : ids.find((id) => /^gpt-\d+(\.\d+)?$/.test(id)) || ids[0];
+  document.getElementById("ask-model").innerHTML = ids.map((id) => `<option value="${esc(id)}"${id === pick ? " selected" : ""}>${esc(id)}</option>`).join("");
+}
+async function askErrorText(response) {
+  const body = await response.json().catch(() => null);
+  const message = body?.error?.message || `HTTP ${response.status}`;
+  if (response.status === 401) return `the key was rejected (${message})`;
+  if (response.status === 429) return `rate limited or out of API credit (${message})`;
+  return message;
+}
+
+/**
+ * What the assistant sees: a compact digest of the page's current data. Rebuilt for every question.
+ * Margins are D − R points; win chances are the Democrat's probability.
+ */
+function buildAskContext() {
+  const s = SNAPSHOT;
+  if (!s) return null;
+  const central = (iso) => (iso ? `${new Date(iso).toLocaleString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} Central` : null);
+  const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10), r3 = (v) => (v == null ? null : Math.round(v * 1000) / 1000);
+  const ev = s.earlyVote, doc = needleState.doc, runs = needleState.runs;
+  const context = {
+    about: "Texas Polls Tracker (texas-race-tracker.vercel.app), a nonpartisan tracker of the 2026 Texas races. Margins are Democratic minus Republican in points of the total vote; win chances are the Democrat's probability.",
+    now: central(new Date().toISOString()),
+    morningSnapshotTaken: central(s.generatedAt),
+    texasStatewide: s.texas.races.map((race) => ({
+      office: race.office, democrat: race.democrat, republican: race.republican,
+      pollingAverage: race.pollingAverage ? { margin: race.pollingAverage.margin, dem: race.pollingAverage.dem, rep: race.pollingAverage.rep, polls: race.pollingAverage.pollCount, newestPoll: race.pollingAverage.newest } : null,
+      pollsModelDemWinChance: race.pollModel?.pD ?? null,
+      forecasterConsensus: race.consensus?.label ?? null,
+      recentPolls: (race.polls || []).slice(0, 6).map((p) => ({ pollster: p.pollster, ended: p.endDate, dem: p.dem, rep: p.rep, sample: p.sampleSize, population: p.population, partisan: p.partisan || undefined })),
+    })),
+    chamberControlDemChance: { usSenate: s.senateControl?.pollModel?.control?.D ?? null, usHouse: s.usHouse?.model?.control?.D ?? null, texasHouse: s.txHouse?.model?.control?.D ?? null, texasSenate: s.txSenate?.model?.control?.D ?? null },
+    earlyVote: ev ? {
+      reportedThrough: ev.reportDate, totals: ev.totals, paceAgainst2018SameDay: ev.pace2018,
+      geographyTilt: Object.fromEntries(Object.entries(ev.geography?.byElection || {}).map(([year, g]) => [year, { ballotsComeFromCountiesThatVoted: g.lean, thoseCountiesFullVoteThatYear: g.reportingBaseline, tiltOf2026Ballots: g.shift }])),
+      byCountyType: (ev.groups || []).map((g) => ({ type: g.group, counties: g.counties, ballots: g.ballots, shareOf2022Vote: g.shareOf2022Vote, inPersonVersusSameDay2018: g.versus2018?.change ?? null, margin2024: g.margin2024 })),
+    } : null,
+    march2026Primaries: askState.primaries ? {
+      note: "County totals, not voters: Democratic share of each county's primary ballots, weighted by where early ballots were cast.",
+      statewide: askState.primaries.statewide,
+      byCountyType: askState.primaries.groups.map((g) => ({ type: g.group, primaryDemShare: g.primaryDemShare, earlyBallotsPerPrimaryVoter: g.ballotsPerPrimaryVoter })),
+    } : null,
+    electionNight: doc && runs ? {
+      returnsAsOf: doc.latest ? central(doc.latest.fetchedAt) : "no returns read yet",
+      secretaryOfStateStatus: doc.status ?? null,
+      howItWorks: "Projection from county returns. Starts at the polls model plus half the early-vote turnout mix, then learns how far the state, each region, and Election Day votes run from expectations. Probabilities include a cushion for patterns it cannot see. Not a race call.",
+      races: runs.map((run) => ({
+        office: run.office, democrat: run.democrat, republican: run.republican,
+        demWinChance: run.pD, projectedMargin: run.margin, range80: run.interval80,
+        countedShareOfExpectedVote: run.countedShare, expectedVotes: run.expectedVotes, countedVotes: run.countedVotes, countedMargin: run.countedMargin,
+        startingPoint: run.startingPoint,
+        learned: { statewideVersusPolls: run.shared.statewide, electionDayMinusEarly: run.shared.electionDay, regionsVersusState: run.shared.regions, shareOf2022To2024ShiftReversing: run.shared.realignment },
+      })),
+      // About two dozen points per race through the night: [time, Democrat's chance, projected margin].
+      needleHistory: Object.fromEntries(runs.map((run) => {
+        const points = doc.timeline[run.id] || [], step = Math.max(1, Math.ceil(points.length / 24));
+        return [run.office, points.filter((_, i) => i % step === 0 || i === points.length - 1).map((p) => [central(p.t), r3(p.p), r1(p.m)])];
+      })),
+      biggestMoves: doc.events.slice(-30).map((e) => ({ time: central(e.t), race: (runs.find((run) => run.id === e.race) || {}).office, demChanceFrom: e.p0, demChanceTo: e.p1, what: e.detail })),
+      counties: askCountyTable(runs, doc),
+    } : null,
+  };
+  return context;
+}
+function askCountyTable(runs, doc) {
+  const senate = runs.find((run) => run.id === "tx-senate"), governor = runs.find((run) => run.id === "tx-governor");
+  if (!senate || !governor) return null;
+  const governorByKey = new Map(governor.counties.map((c) => [c.key, c])), inputsByKey = new Map(doc.inputs.counties.map((c) => [c.key, c]));
+  const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
+  return {
+    columns: ["county", "type", "earlyBallots", "expectedVotes", "countedVotes", "senateMarginSoFar", "governorMarginSoFar", "senateProjected", "governorProjected", "senate2018", "governor2022", "president2024"],
+    rows: senate.counties.slice().sort((a, b) => b.expectedVotes - a.expectedVotes).map((c) => {
+      const g = governorByKey.get(c.key), input = inputsByKey.get(c.key);
+      return [c.name, needleState.countyGroupLabel ? needleState.countyGroupLabel(c.name) : c.region, input?.early ?? null, c.expectedVotes, c.countedVotes, r1(c.countedMargin), r1(g?.countedMargin), r1(c.projectedMargin), r1(g?.projectedMargin), input?.past?.["2018"] ?? null, input?.past?.["2022"] ?? null, input?.past?.["2024"] ?? null];
+    }),
+  };
+}
+
+function renderAskContextPreview() {
+  const context = buildAskContext();
+  if (!context) return;
+  const text = JSON.stringify(context);
+  document.getElementById("ask-context").textContent = JSON.stringify(context, null, 1);
+  document.getElementById("ask-context-note").textContent = `About ${Math.round(text.length / 4000)} thousand tokens, sent with every question along with the last few exchanges.`;
+  const night = context.electionNight;
+  document.getElementById("ask-freshness").textContent = `Each question includes the morning snapshot (${context.morningSnapshotTaken}), the early vote, the March primaries, and ${night?.returnsAsOf && night.returnsAsOf !== "no returns read yet" ? `election-night returns as of ${night.returnsAsOf}` : "the election-night starting projections (no returns yet)"}.`;
+}
+
+/** Ask one question, streaming the answer into the log. */
+async function askQuestion(question) {
+  const log = document.getElementById("ask-log"), send = document.getElementById("ask-send");
+  if (askState.busy) return;
+  const item = document.createElement("li");
+  item.innerHTML = `<p class="question">${esc(question)}</p><div class="answer pending">Thinking…</div><div class="meta"></div>`;
+  log.appendChild(item);
+  const answer = item.querySelector(".answer"), meta = item.querySelector(".meta");
+  const key = askStoredKey();
+  if (!key) { answer.className = "answer error"; answer.textContent = "Add your OpenAI API key above first."; return; }
+  askState.busy = true; send.disabled = true;
+  try {
+    // On election night, pull the newest returns first so the answer uses them.
+    if (needleWindowOpen() && !needleState.demo) await refreshNeedle().catch(() => {});
+    const context = buildAskContext();
+    renderAskContextPreview();
+    const model = document.getElementById("ask-model").value;
+    const messages = [{ role: "system", content: ASK_SYSTEM }, { role: "system", content: `DATA ${JSON.stringify(context)}` }, ...askState.history.slice(-6), { role: "user", content: question }];
+    const response = await fetch(`${ASK_ENDPOINT}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, stream: true }) });
+    if (!response.ok) throw new Error(await askErrorText(response));
+    let text = "";
+    await readAskStream(response, (delta) => { text += delta; answer.className = "answer"; answer.innerHTML = askMarkdown(text); });
+    if (!text.trim()) throw new Error("the model returned an empty answer");
+    askState.history.push({ role: "user", content: question }, { role: "assistant", content: text });
+    const returnsAsOf = context.electionNight?.returnsAsOf;
+    meta.textContent = `${model}; data: morning snapshot ${context.morningSnapshotTaken}${returnsAsOf && returnsAsOf !== "no returns read yet" ? `, returns as of ${returnsAsOf}` : ", no returns yet"}`;
+  } catch (error) {
+    answer.className = "answer error";
+    answer.textContent = `No answer: ${error.message}`;
+  } finally {
+    askState.busy = false; send.disabled = false;
+    item.scrollIntoView({ block: "nearest" });
+  }
+}
+
+/** Server-sent events from the chat completions stream: "data: {json}" lines, ending with "data: [DONE]". */
+async function readAskStream(response, onDelta) {
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  let buffer = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop(); // keep a partial line for the next chunk
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (data === "[DONE]") return;
+      try { const delta = JSON.parse(data).choices?.[0]?.delta?.content; if (delta) onDelta(delta); } catch { /* not JSON; skip */ }
+    }
+  }
+}
+
+/** Minimal, safe Markdown: everything is escaped first, then paragraphs, bullet and numbered lists, bold, code. */
+function askMarkdown(text) {
+  const inline = (line) => line.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>").replace(/^#{1,4}\s+(.*)$/, "<b>$1</b>");
+  const html = [];
+  let list = null, paragraph = [];
+  const flushParagraph = () => { if (paragraph.length) { html.push(`<p>${paragraph.map(inline).join("<br>")}</p>`); paragraph = []; } };
+  const flushList = () => { if (list) { html.push(`<${list.tag}>${list.items.map((item) => `<li>${inline(item)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  for (const line of esc(text).split("\n")) {
+    const bullet = line.match(/^\s*[-*•]\s+(.*)$/), numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if (bullet || numbered) {
+      flushParagraph();
+      const tag = bullet ? "ul" : "ol";
+      if (list && list.tag !== tag) flushList();
+      (list ||= { tag, items: [] }).items.push((bullet || numbered)[1]);
+    } else if (!line.trim()) { flushParagraph(); flushList(); }
+    else { flushList(); paragraph.push(line); }
+  }
+  flushParagraph(); flushList();
+  return html.join("");
+}
+
 // ---------- governors ----------
 let GOVERNOR_MAP_MODE = "rating";
 function renderGovernors(s, topo, prev) {
@@ -1843,7 +2091,7 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "election-night", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
+const PANELS = ["overview", "election-night", "ask", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
 function showPanel(name, { push = true } = {}) {
   const panel = PANELS.includes(name) ? name : name === "needle" ? "election-night" : "overview"; // #needle was the first name
   if (name === "needle") history.replaceState(null, "", "#election-night");
