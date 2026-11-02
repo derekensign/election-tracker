@@ -984,7 +984,7 @@ function renderEarlyVoteMap(earlyVote, topo) {
 // The needle document (built by ingest/needle.js) comes from the election-night recorder via the needle-data
 // branch. If the recorder falls behind, the browser reads the Secretary of State's feed itself, runs the same
 // model on top of the recorder's history, and keeps that copy in localStorage so a reload keeps the night.
-// ?needle=demo loads data/needle-demo.json, a simulated night from scripts/simulate-needle.mjs (local preview).
+// ?demo loads data/needle-demo.json, a simulated night from scripts/simulate-needle.mjs (local preview only).
 const NEEDLE_RECORDER_URL = "https://raw.githubusercontent.com/derekensign/election-tracker/needle-data/needle.json";
 const NEEDLE_SOS_URL = "https://goelect.txelections.civixapps.com/api-ivis-system/api/s3/enr/election/countyInfo/53815";
 const NEEDLE_TIMING = {
@@ -994,6 +994,7 @@ const NEEDLE_TIMING = {
   lastPollsClose: Date.parse("2026-11-04T02:00:00Z"), // 7 p.m. Mountain, in El Paso and Hudspeth
   chartStart: Date.parse("2026-11-04T00:30:00Z"), // 6:30 p.m. Central
   chartMinimumEnd: Date.parse("2026-11-04T07:00:00Z"), // 1 a.m. Central
+  recorderFreshAfter: Date.parse("2026-11-03T18:00:00Z"), // noon Central on Election Day; earlier files are test runs
   recorderPollMs: 60_000, recorderStaleMs: 12 * 60_000, sosPollMs: 3 * 60_000,
 };
 // The handoff's watch list: the Valley and border, the big metros, the suburbs, and the big red exurbs.
@@ -1018,7 +1019,7 @@ function needleTime(iso) { return needleClock.format(new Date(iso)).replace(/\s+
 async function setupNeedle(snapshot) {
   needleState.model = await import("./model/needle.js");
   needleState.snapshot = snapshot;
-  needleState.demo = new URLSearchParams(location.search).get("needle") === "demo";
+  needleState.demo = new URLSearchParams(location.search).has("demo");
   if (!needleState.demo) {
     // Draw right away from this browser's saved copy or the morning snapshot; the recorder's history replaces it
     // when it arrives.
@@ -1052,7 +1053,9 @@ async function refreshNeedle({ initial = false, forceSos = false } = {}) {
     } else {
       const recorded = await fetch(NEEDLE_RECORDER_URL, { cache: "no-cache", signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
       const valid = (doc) => doc?.version === 1 && doc.election?.enrId === model.NEEDLE_ELECTION.enrId;
-      const candidates = [valid(recorded) ? { doc: recorded, source: "recorder" } : null, needleState.doc ? { doc: needleState.doc, source: needleState.source } : null].filter(Boolean);
+      // A recorder file from a test run before Election Day carries that day's polls; the snapshot is newer.
+      const fromElectionDay = (doc) => Date.parse(doc?.createdAt) >= NEEDLE_TIMING.recorderFreshAfter;
+      const candidates = [valid(recorded) && fromElectionDay(recorded) ? { doc: recorded, source: "recorder" } : null, needleState.doc ? { doc: needleState.doc, source: needleState.source } : null].filter(Boolean);
       // The freshest returns win (a document built from the snapshot has none); on a tie prefer the recorder,
       // whose history is the fullest.
       const freshness = (doc) => Date.parse(doc.latest?.fetchedAt ?? "") || 0;
@@ -1126,7 +1129,7 @@ function renderNeedleStatus(doc, topRun) {
   const problem = needleState.sosError ? ` <span>Last direct check failed (${esc(needleState.sosError)}); showing the latest returns we have.</span>` : "";
   if (!topRun.countedVotes) {
     box.innerHTML = now < NEEDLE_TIMING.pollsClose
-      ? `<b>Polls close at 7 p.m. Central</b><span>(8 p.m. in El Paso and Hudspeth counties). Until returns arrive, each needle is the pre-election polls model.</span>${refresh}`
+      ? `<b>Polls close at 7 p.m. Central</b><span>(8 p.m. in El Paso and Hudspeth counties). Until returns arrive, each needle is the polls model adjusted for where early ballots came from.</span>${refresh}`
       : `<b>Waiting for the first returns.</b><span>Counties post early votes first, usually within an hour of polls closing.</span>${refresh}${problem}`;
   } else {
     box.classList.add("live");
@@ -1140,13 +1143,15 @@ function renderNeedleStatus(doc, topRun) {
 
 /** One race: gauge, both candidates' chances, and the projection in words. */
 function needleRaceBlock(run, doc, { large }) {
-  const prior = doc.timeline[run.id]?.[0]?.p ?? run.prior.pD;
+  // The gauge's tick marks the polls model; the needle starts a little off it, moved by the early-vote turnout mix.
+  const prior = run.prior.pD;
+  const start = doc.timeline[run.id]?.[0]?.p ?? prior;
   const dem = lastName(run.democrat), rep = lastName(run.republican);
   const range = `${needleMarginWords(run.interval80[0], dem, rep)} to ${needleMarginWords(run.interval80[1], dem, rep)}`;
   const facts = [`Projected margin <b>${needleMarginWords(run.margin, dem, rep)}</b>${large ? `; 80% range ${esc(range)}` : ""}`];
   if (run.countedVotes) facts.push(`<b>${pct(run.countedShare)}</b> of about ${compact(run.expectedVotes)} expected votes counted${large ? `; ${esc(needleMarginWords(run.countedMargin, dem, rep))} in the count so far` : ""}`);
   else if (large) facts.push(`No votes counted yet; about ${compact(run.expectedVotes)} expected`);
-  if (large) facts.push(`Pre-election polls model: ${esc(dem)} ${needleChance(prior)}`);
+  if (large) facts.push(`Before returns: polls model ${esc(dem)} ${needleChance(prior)}; with the early-vote turnout mix, ${needleChance(start)}`);
   const leaderIsDem = run.pD >= 0.5;
   return `<div class="needle-race">
     <h4>${esc(run.office)}</h4>
@@ -1231,9 +1236,9 @@ function renderNeedleChart(doc, raceId) {
     if (label) svg.append("text").attr("class", "close-label").attr("x", x(time) + 4).attr("y", chanceTop - 10).text(label);
   }
   svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`)
-    .call(d3.axisLeft(yChance).tickValues([0, 0.5, 1]).tickFormat((v) => `${Math.round(v * 100)}%`).tickSize(0)).select(".domain").remove();
+    .call(d3.axisLeft(yChance).tickValues([0, 0.5, 1]).tickFormat((v) => `${Math.round(v * 100)}%`).tickSize(0).tickPadding(9)).select(".domain").remove();
   svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`)
-    .call(d3.axisLeft(yMargin).ticks(4).tickFormat(signedMargin).tickSize(0)).select(".domain").remove();
+    .call(d3.axisLeft(yMargin).ticks(4).tickFormat(signedMargin).tickSize(0).tickPadding(9)).select(".domain").remove();
   svg.append("g").attr("class", "axis").attr("transform", `translate(0,${marginBottom})`)
     .call(d3.axisBottom(x).tickValues(hourTicks).tickFormat((t) => needleHour.format(new Date(t)).replace(/\s+/g, " ").toLowerCase()).tickSize(0)).select(".domain").remove();
   svg.append("text").attr("class", "panel-label").attr("x", margin.left + 4).attr("y", marginTop - 10).text("Projected final margin, with its 80% range");
@@ -1259,7 +1264,7 @@ function renderNeedleChart(doc, raceId) {
       svg.append("circle").attr("cx", x(NEEDLE_TIMING.chartStart)).attr("cy", yMargin(start.m)).attr("r", 4.5).attr("fill", cssVar("--ink"));
     }
     svg.append("text").attr("class", "empty-note").attr("x", x(NEEDLE_TIMING.pollsClose) + 8).attr("y", yChance(0.5) - 12)
-      .text(start ? `The line starts at the polls model, ${dem} ${needleChance(start.p)}, and moves as counties report.` : "Waiting for returns.");
+      .text(start ? `The line starts at ${dem} ${needleChance(start.p)} (the polls plus the early-vote turnout mix) and moves as counties report.` : "Waiting for returns.");
   }
 
   // Numbered annotations; the biggest few also carry their headline on the chart.
@@ -1364,7 +1369,12 @@ function renderNeedleRead(run, doc) {
   document.getElementById("needle-read-title").textContent = `What the returns say so far: ${NEEDLE_RACE_LABELS[run.id] || race.office}`;
   const list = document.getElementById("needle-read");
   if (!run.countedVotes) {
-    list.innerHTML = `<li>Nothing counted yet. The projection is the final polling average, ${esc(needleMarginWords(race.prior.margin, dem, rep))}, with about ${compact(run.expectedVotes)} votes expected: ${compact(doc.inputs.counties.reduce((t, c) => t + c.early, 0))} early ballots already cast plus Election Day.</li>`;
+    const startPoint = run.startingPoint;
+    const mixWords = startPoint && Math.abs(startPoint.added) >= 0.1
+      ? ` plus ${Math.abs(startPoint.added).toFixed(1)} points toward ${esc(startPoint.added > 0 ? dem : rep)}: early ballots came from counties about ${Math.abs(startPoint.turnoutMix).toFixed(1)} points ${startPoint.turnoutMix > 0 ? "bluer" : "redder"} than the 2022 electorate (see the Early vote tab), and the needle counts half of that, since likely-voter polls already catch some of it`
+      : "";
+    list.innerHTML = `<li>Nothing counted yet. The starting projection is <b>${esc(needleMarginWords(startPoint?.margin ?? race.prior.margin, dem, rep))}</b>: the final polling average (${esc(needleMarginWords(race.prior.margin, dem, rep))})${mixWords}.</li>
+      <li>About ${compact(run.expectedVotes)} votes expected: ${compact(doc.inputs.counties.reduce((t, c) => t + c.early, 0))} early ballots already cast plus Election Day.</li>`;
     return;
   }
   const items = [];
@@ -1397,10 +1407,13 @@ function renderNeedleCounties(runById, doc) {
   const inputsByKey = new Map(doc.inputs.counties.map((c) => [c.key, c]));
   const margin = (value) => (value == null ? '<span class="muted">—</span>' : partyColored(marginText(value), value));
   const swing = (value) => (value == null ? '<span class="muted">—</span>' : `<span class="${value > 0 ? "lean-d" : value < 0 ? "lean-r" : ""}">${value > 0 ? "D" : "R"}+${Math.abs(value).toFixed(1)}</span>`);
+  // Each race is compared with the same office's last race: 2018 Senate and 2022 governor, both Beto O'Rourke,
+  // the closest Democrats have come statewide (R+2.6) and the last midterm.
   const header = `<thead><tr><th>County</th><th>Counted</th>
     <th class="num">${esc(lastName(senateRace.democrat))}<span class="sub">Senate so far</span></th><th class="num">${esc(lastName(governorRace.democrat))}<span class="sub">governor so far</span></th>
-    <th class="num">2022<span class="sub">governor</span></th><th class="num">2024<span class="sub">president</span></th>
-    <th class="num">Swing<span class="sub">Senate vs 2022</span></th><th class="num">Split<span class="sub">Senate − governor</span></th><th class="num">Projected<span class="sub">Senate final</span></th></tr></thead>`;
+    <th class="num">2018<span class="sub">Senate</span></th><th class="num">2022<span class="sub">governor</span></th><th class="num">2024<span class="sub">president</span></th>
+    <th class="num">Senate swing<span class="sub">vs 2018</span></th><th class="num">Governor swing<span class="sub">vs 2022</span></th>
+    <th class="num">Split<span class="sub">Senate − governor</span></th><th class="num">Projected<span class="sub">Senate final</span></th></tr></thead>`;
   const row = (key) => {
     const s = senateByKey.get(key), g = governorByKey.get(key), input = inputsByKey.get(key);
     if (!s || !input) return "";
@@ -1408,13 +1421,14 @@ function renderNeedleCounties(runById, doc) {
     const progress = s.countedVotes
       ? `${s.earlyShare >= 0.95 ? "early in" : `early ${pct(s.earlyShare)}`}, Election Day ${pct(s.dayReporting)}`
       : "not yet";
-    const past2022 = input.past?.["2022"], past2024 = input.past?.["2024"];
+    const past2018 = input.past?.["2018"], past2022 = input.past?.["2022"], past2024 = input.past?.["2024"];
     return `<tr>
       <td class="county"><b>${esc(s.name)}</b><span class="thin">${esc(s.region)}</span></td>
       <td><span class="progress" aria-hidden="true"><span style="width:${Math.round(Math.min(1, share) * 100)}%"></span></span>${pct(share)}<span class="thin">${esc(progress)}</span></td>
       <td class="num">${margin(s.countedMargin)}</td><td class="num">${margin(g?.countedMargin)}</td>
-      <td class="num">${margin(past2022)}</td><td class="num">${margin(past2024)}</td>
-      <td class="num">${swing(s.countedMargin != null && past2022 != null ? s.countedMargin - past2022 : null)}</td>
+      <td class="num">${margin(past2018)}</td><td class="num">${margin(past2022)}</td><td class="num">${margin(past2024)}</td>
+      <td class="num">${swing(s.countedMargin != null && past2018 != null ? s.countedMargin - past2018 : null)}</td>
+      <td class="num">${swing(g?.countedMargin != null && past2022 != null ? g.countedMargin - past2022 : null)}</td>
       <td class="num">${swing(s.countedMargin != null && g?.countedMargin != null ? s.countedMargin - g.countedMargin : null)}</td>
       <td class="num">${margin(s.projectedMargin)}</td></tr>`;
   };
@@ -1743,9 +1757,10 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "needle", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
+const PANELS = ["overview", "election-night", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
 function showPanel(name, { push = true } = {}) {
-  const panel = PANELS.includes(name) ? name : "overview";
+  const panel = PANELS.includes(name) ? name : name === "needle" ? "election-night" : "overview"; // #needle was the first name
+  if (name === "needle") history.replaceState(null, "", "#election-night");
   document.querySelectorAll(".panel").forEach((el) => el.classList.toggle("active", el.dataset.panel === panel));
   document.querySelectorAll(".tabs a").forEach((a) => { const on = a.dataset.tab === panel; a.classList.toggle("active", on); a.setAttribute("aria-current", on ? "page" : "false"); });
   if (push && location.hash !== `#${panel}`) history.replaceState(null, "", `#${panel}${location.search ? "" : ""}`);
@@ -1764,4 +1779,4 @@ function scrollToPanelTop() {
 document.querySelectorAll(".tabs a").forEach((a) => a.addEventListener("click", (event) => { event.preventDefault(); showPanel(a.dataset.tab); scrollToPanelTop(); }));
 window.addEventListener("hashchange", () => { showPanel(location.hash.slice(1), { push: false }); scrollToPanelTop(); });
 // On election night the needle is the front page.
-showPanel(location.hash.slice(1) || (needleWindowOpen() ? "needle" : "overview"), { push: false });
+showPanel(location.hash.slice(1) || (needleWindowOpen() ? "election-night" : "overview"), { push: false });

@@ -32,6 +32,17 @@ test("with nothing counted the needle is the polls model", () => {
   assert.equal(run.countedVotes, 0);
 });
 
+test("the starting point adds half of the early-vote turnout mix to the polls", () => {
+  // 2026 early ballots lean toward the blue city compared with the 2022 electorate (city 50% of ballots, 40% in 2022).
+  const counties = COUNTIES.map((c) => ({ ...c, pastTotal: { 2022: { CITY: 400000, FARM: 300000, BURB: 300000 }[c.key] } }));
+  const run = runNeedleRace({ counties, returns: null, race: RACE });
+  const share2026 = { CITY: 0.5, FARM: 0.1875, BURB: 0.3125 }, share2022 = { CITY: 0.4, FARM: 0.3, BURB: 0.3 };
+  const mix = counties.reduce((t, c) => t + (share2026[c.key] - share2022[c.key]) * c.lean, 0);
+  assert.ok(Math.abs(run.startingPoint.turnoutMix - mix) < 0.05, `mix ${run.startingPoint.turnoutMix} vs ${mix}`);
+  assert.ok(Math.abs(run.margin - (RACE.prior.margin + mix / 2)) < 0.05, `margin ${run.margin}`);
+  assert.ok(run.pD > RACE.prior.pD, "a bluer turnout mix raises the Democrat's starting chance");
+});
+
 test("a fully counted race is certain and lands on the counted margin", () => {
   const returns = {
     CITY: countyReturn("City", 1, [394000, 236000, 150000], [532000, 318000, 205000]),

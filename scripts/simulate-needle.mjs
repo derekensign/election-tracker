@@ -1,7 +1,7 @@
 // Simulated election night for testing the needle: draws a "true" result for every county and race, releases it
 // the way Texas counties report (early votes from 7 p.m., Election Day batches until after midnight, the biggest
 // counties last), builds SOS-shaped county files every two minutes, and feeds them through the real parser and
-// model. Output is a needle document like the recorder's, for previewing the page with ?needle=demo.
+// model. Output is a needle document like the recorder's, for previewing the page with ?demo#election-night.
 //
 //   node scripts/simulate-needle.mjs [--seed 7] [--swing -3] [--day-offset -4] [--out public/data/needle-demo.json]
 //   node scripts/simulate-needle.mjs --calibration 200     # many nights: is a 70% needle right 70% of the time?
@@ -9,7 +9,7 @@
 // --swing moves the true statewide result from the polls (points toward Democrats); --day-offset makes Election
 // Day votes that much more Democratic than early votes. Both are drawn at random when omitted.
 import { readFileSync, writeFileSync } from "node:fs";
-import { NEEDLE_MODEL, NEEDLE_RACES, advanceNeedle, createNeedleDocument, parseCountyReturns } from "../ingest/needle.js";
+import { NEEDLE_MODEL, NEEDLE_RACES, advanceNeedle, createNeedleDocument, parseCountyReturns, runNeedle } from "../ingest/needle.js";
 
 const BIG_COUNTIES = new Set(["HARRIS", "DALLAS", "TARRANT", "BEXAR", "TRAVIS", "COLLIN", "DENTON", "FORTBEND", "HIDALGO", "ELPASO", "WILLIAMSON", "MONTGOMERY"]);
 const MOUNTAIN_TIME = new Set(["ELPASO", "HUDSPETH"]);
@@ -41,9 +41,10 @@ export function drawNight(doc, { seed = 1, swing = null, dayOffset = null, param
   const regionRatio = Object.fromEntries(Object.keys(params.regionSd).map((region) => [region, statewideRatio * Math.exp(random.normal() * ratioPrior.regionLogSd)]));
   const raceEffect = Object.fromEntries(races.map((race) => [race.id, random.normal() * 1.5]));
 
-  // The expected-vote prior the model uses (0.35 Election Day votes per early vote), so lean shifts line up.
+  // Center the truth on the model's own starting point (county priors, early-vote turnout mix included), so a
+  // calibration check tests the inference rather than a disagreement about where the night starts.
+  const priorMargins = Object.fromEntries(runNeedle({ counties, returns: null, races, params }).map((run) => [run.id, new Map(run.counties.map((c) => [c.key, c.priorMargin]))]));
   const totalPrior = counties.reduce((t, c) => t + c.early * 1.35, 0);
-  const weightedLean = counties.reduce((t, c) => t + c.early * 1.35 * c.lean, 0) / totalPrior;
   const meanShift = counties.reduce((t, c) => t + c.early * 1.35 * c.relativeShift, 0) / totalPrior;
   const realignment = random.normal() * params.realignmentSd;
   // A factor the model does not know about: small counties (which report first) swing differently from big ones.
@@ -61,7 +62,7 @@ export function drawNight(doc, { seed = 1, swing = null, dayOffset = null, param
     const earlyCell = random.normal() * cellSpread(county.early), dayCell = random.normal() * cellSpread(county.early * dayRatio);
     const byRace = {};
     for (const race of races) {
-      const base = county.lean + (race.prior.margin - weightedLean) + statewideError + raceEffect[race.id] + regionEffect[county.region] + countyEffect
+      const base = priorMargins[race.id].get(county.key) + statewideError + raceEffect[race.id] + regionEffect[county.region] + countyEffect
         - realignment * Math.max(-params.realignmentCap, Math.min(params.realignmentCap, county.relativeShift - meanShift))
         + (county.early < 20000 ? smallCountyEffect : (-smallCountyEffect * smallShare) / (1 - smallShare));
       const earlyMargin = clampMargin(base - electionDayOffset * dayShare + earlyCell);

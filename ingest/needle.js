@@ -10,10 +10,12 @@
 //   θ[k,t] = prior[k] + statewide + region[g(k)] + electionDay × c[k,t] + county[k] + cell[k,t]
 //
 //   prior[k]      the county's usual lean (a blend of 2022 governor, 2024 president, and 2018 Senate results,
-//                 relative to the state), shifted so the turnout-weighted statewide total equals the final polling
-//                 average. With no results counted, the needle is the polls model.
+//                 relative to the state), shifted so the statewide total equals the final polling average plus part
+//                 of the early-vote turnout mix: 2026 early ballots came from bluer or redder counties than the 2022
+//                 electorate did, and polls catch only some of that (see earlyVoteMix).
 //   statewide     how far the whole state lands from the polls. Student-t (5 degrees of freedom, as in the polls
-//                 model), scaled so that with zero returns the win chance matches the polls model exactly.
+//                 model) with the polls model's spread, so with zero returns the needle is the polls model moved
+//                 by the early-vote turnout mix.
 //   region        five shared regional swings (big cities, Valley and border, suburbs, midsize, rural). These are
 //                 what let Hidalgo's count say something about Cameron and Starr before they report.
 //   realignment   how much of each county's 2022-to-2024 shift relative to the state reverses (+) or deepens (−).
@@ -79,6 +81,10 @@ export const NEEDLE_MODEL = {
   // (precincts cluster, hence a design effect of 2). It widens small cells and small partial counts, so 40 votes
   // in Castro County cannot move a statewide estimate.
   samplingDesignEffect: 2,
+  // Early-vote turnout mix: how much bluer (+) or redder the 2026 expected electorate's geography is than 2022's,
+  // with every county at its usual lean. Likely-voter polls catch part of a turnout shift, so the starting point
+  // adds `weight` of it to the polling average rather than all of it.
+  earlyVoteMix: { baseline: "2022", weight: 0.5 },
   // Share of the 2022-to-2024 relative shift that reverses: 0.25 sd puts one sd at about 5 points in Hidalgo.
   // Exposure is capped so the most extreme small counties (Starr, Zavala) cannot dominate the factor.
   realignmentSd: 0.25,
@@ -131,6 +137,7 @@ export function needleCounties(earlyVoteCounties, statewidePast, params = NEEDLE
       lean: weightTotal ? round(weightedLean / weightTotal, 2) : 0,
       relativeShift: round(relativeShift, 2),
       past: Object.fromEntries(["2018", "2022", "2024"].map((year) => [year, county.past?.[year]?.margin ?? null])),
+      pastTotal: Object.fromEntries(["2018", "2022", "2024"].map((year) => [year, county.past?.[year]?.total ?? null])),
     };
   });
 }
@@ -287,10 +294,13 @@ export function runNeedleRace({ counties, returns, race, dayRatios = null, param
   const totalCounted = sumBy(cells, (c) => c.early.votes + c.day.votes);
   const countedNet = sumBy(cells, (c) => c.early.net + c.day.net);
 
-  // County priors: lean + a constant that makes the turnout-weighted statewide prior equal the polling average.
+  // County priors: lean + a constant that makes the turnout-weighted statewide prior equal the polling average
+  // plus part of the early-vote turnout mix (how much bluer the 2026 electorate's geography is than 2022's).
   const priorExpected = sumBy(priorCells, (c) => c.early.expected + c.day.expected);
   const weightedLean = sumBy(priorCells, (c) => (c.early.expected + c.day.expected) * c.county.lean) / Math.max(priorExpected, 1);
-  const shift = race.prior.margin - weightedLean;
+  const mix = earlyVoteMix(priorCells, priorExpected, params);
+  const startingMargin = race.prior.margin + mix.added;
+  const shift = startingMargin - weightedLean;
 
   const regionIndex = Object.fromEntries(NEEDLE_REGIONS.map((region, index) => [region, index]));
   const dimension = 3 + NEEDLE_REGIONS.length; // statewide, regions..., electionDay, realignment
@@ -504,6 +514,7 @@ export function runNeedleRace({ counties, returns, race, dayRatios = null, param
       realignment: { mean: round(sharedMean[realignIndex], 3), sd: round(sharedSd(realignIndex), 3) },
     },
     electionDayRatio: round(ratios.statewide, 3),
+    startingPoint: { polls: race.prior.margin, turnoutMix: mix.shift, added: mix.added, margin: round(startingMargin, 2) },
     counties: countyResults,
   };
 }
@@ -528,6 +539,18 @@ function posteriorVarianceOf(index, information, priorVariance, statewideSd, nod
 }
 
 // ---- Calibration: with zero returns, match the polls model's win chance --------------------------------------
+
+/**
+ * The early-vote turnout mix: with every county at its usual lean, how many points bluer (+) the 2026 expected
+ * electorate's geography is than the baseline year's, and the part of it added to the polls.
+ */
+function earlyVoteMix(priorCells, priorExpected, params) {
+  const { baseline, weight } = params.earlyVoteMix || {};
+  const baselineTotal = sumBy(priorCells, (c) => c.county.pastTotal?.[baseline] || 0);
+  if (!weight || !baselineTotal || !priorExpected) return { shift: 0, added: 0 };
+  const shift = sumBy(priorCells, (c) => ((c.early.expected + c.day.expected) / priorExpected - (c.county.pastTotal?.[baseline] || 0) / baselineTotal) * c.county.lean);
+  return { shift: round(shift, 2), added: round(weight * shift, 2) };
+}
 
 function zeroDataBeta(cells, regionIndex, dimension) {
   const byRegion = new Array(dimension).fill(0);
