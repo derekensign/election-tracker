@@ -66,6 +66,13 @@ Early-vote counts come from the file service behind the SOS "Early Voting Turnou
 - **Fallback.** If both recorder files are missing or stale, the browser reads the state's feed itself every three minutes (only while the tab is visible), folds it into the recorder's history, and keeps that copy in localStorage.
 - **Testing.** `node scripts/simulate-needle.mjs --seed 6` simulates a night through the real parser and model and writes `public/data/needle-demo.json` (gitignored); open `/?demo#election-night` to preview it. `--calibration 120` runs 120 nights and compares needle readings with outcomes (currently cautious: 75% readings won 85% of the time).
 
+## Ask the data
+
+The Ask tab sends each question to OpenAI with a fresh digest of the page's data (`buildAskContext` in `public/app.js`, about 10k tokens), under the instructions in `ingest/ask-prompt.js` (never call races, use only the digest). Two ways to pay for it:
+
+- **The site's key, behind a password.** `api/ask.js` is a Vercel function that holds the key: set `OPENAI_API_KEY` and `ASK_PASSWORD` (optionally `ASK_MODEL`) in the Vercel project's environment variables and redeploy. The browser sends only the password; wrong passwords wait and get nothing; requests are size-capped and answers capped at 4,000 tokens. `GET /api/ask` reports only whether it is set up. Locally, `scripts/serve.mjs` serves the same handler (set the variables in its environment; `OPENAI_BASE_URL` points it at a stand-in for tests).
+- **The visitor's own key.** Typed into the tab, kept in sessionStorage (localStorage only if remembered), and sent only to api.openai.com.
+
 ## Running locally
 
 ```sh

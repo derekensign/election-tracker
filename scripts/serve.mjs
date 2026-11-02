@@ -9,6 +9,8 @@ const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/cs
 
 createServer(async (request, response) => {
   const path = normalize(decodeURIComponent(new URL(request.url, "http://x").pathname));
+  // The Ask tab's proxy runs as a Vercel function in production; locally, the same handler answers here.
+  if (path === "/api/ask") { const { default: ask } = await import("../api/ask.js"); return ask(request, response); }
   const file = join(root, path === "/" ? "index.html" : path);
   try {
     const body = await readFile(file);

@@ -223,6 +223,7 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .ask-setup { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 8px 0 4px; padding: 12px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .ask-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-2); }
 .ask-field input, .ask-field select { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); color: var(--ink); min-width: 220px; }
+.ask-setup .ask-modes { flex-basis: 100%; margin: 0; }
 .ask-check { font-size: 13px; color: var(--ink-2); display: flex; gap: 6px; align-items: center; padding-bottom: 6px; }
 .ask-key-status { font-size: 13px; color: var(--ink-2); padding-bottom: 6px; }
 .ask-key-status.ok { color: var(--ink); font-weight: 600; }

@@ -381,14 +381,16 @@
     <h2>Ask the data</h2>
     <p class="note">Ask questions about this page's numbers: the polls, the forecasts, the early vote, and on election night the live returns and needles. Answers come from OpenAI using your own API key, and every question is sent with a fresh digest of what this page has loaded, so they use the latest numbers here. The assistant only knows that digest; it can be wrong, and it does not call races.</p>
     <div class="ask-setup" id="ask-setup">
-      <label class="ask-field">OpenAI API key <input type="password" id="ask-key" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
+      <div class="mode-row ask-modes" id="ask-mode-row" hidden><span>Use:</span><button type="button" class="mode" data-ask-mode="site">The site's key (password)</button><button type="button" class="mode" data-ask-mode="own">Your own OpenAI key</button></div>
+      <label class="ask-field" id="ask-password-field" hidden>Password <input type="password" id="ask-password" autocomplete="current-password"></label>
+      <label class="ask-field" id="ask-key-field">OpenAI API key <input type="password" id="ask-key" autocomplete="off" spellcheck="false" placeholder="sk-…"></label>
       <label class="ask-field">Model <select id="ask-model"></select></label>
       <label class="ask-check"><input type="checkbox" id="ask-remember"> Remember on this device</label>
       <button type="button" class="mode" id="ask-save">Use this key</button>
       <button type="button" class="mode" id="ask-forget">Forget key</button>
       <span class="ask-key-status" id="ask-key-status"></span>
     </div>
-    <p class="note hint">The key stays in this browser (for this tab only, unless you choose to remember it) and goes only to api.openai.com; this site has no server and never sees it. A ChatGPT subscription does not include API use: create a key, ideally in a project with a monthly budget, at <a href="https://platform.openai.com/api-keys" rel="noopener">platform.openai.com/api-keys</a>.</p>
+    <p class="note hint" id="ask-key-note">With the site's key, the password unlocks an OpenAI key kept in the site's server settings; the key never reaches your browser. With your own key, it stays in this browser (for this tab only, unless you choose to remember it) and goes only to api.openai.com. A ChatGPT subscription does not include API use: keys, ideally in a project with a monthly budget, come from <a href="https://platform.openai.com/api-keys" rel="noopener">platform.openai.com/api-keys</a>.</p>
     <div class="ask-suggestions" id="ask-suggestions"></div>
     <ol class="ask-log" id="ask-log"></ol>
     <form class="ask-form" id="ask-form">

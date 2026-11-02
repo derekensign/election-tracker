@@ -1540,54 +1540,70 @@ function renderNeedleCounties(runById, doc) {
   document.getElementById("needle-counties-all").innerHTML = `${header}<tbody>${allKeys.map(row).join("")}</tbody>`;
 }
 
-// ---------- ask the data (the visitor's own OpenAI key) ----------
-// A chat with OpenAI about this page's data. The visitor's API key is typed into this tab, kept in sessionStorage
-// (localStorage only if they choose to remember it), and sent only to api.openai.com, which allows browser calls.
+// ---------- ask the data (OpenAI, with the site's key or the visitor's own) ----------
+// A chat with OpenAI about this page's data, two ways:
+// - The site's key: a password unlocks the key kept in the site's Vercel settings; api/ask.js calls OpenAI with it,
+//   so the key never reaches the browser. Offered when that function reports it is set up.
+// - The visitor's own key: typed into this tab, kept in sessionStorage (localStorage only if they choose to
+//   remember it), and sent only to api.openai.com, which allows browser calls.
 // Every question carries a fresh digest of what the page has loaded (morning snapshot, early vote, March primaries,
-// election-night needles and returns), so answers use the newest numbers. The site has no server of its own.
-const ASK_STORAGE = { key: "ask-openai-key", model: "ask-openai-model" };
+// election-night needles and returns), so answers use the newest numbers.
+const ASK_STORAGE = { key: "ask-openai-key", password: "ask-site-password", model: "ask-openai-model", mode: "ask-mode" };
 const ASK_ENDPOINT = "https://api.openai.com/v1";
-const ASK_FALLBACK_MODELS = ["gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4o"]; // until the key's own model list loads
+const ASK_FALLBACK_MODELS = ["gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4o"]; // until the real model list loads
 const ASK_SUGGESTIONS = [
   "Where do the Senate and governor races stand right now, and how sure is the model?",
   "Which big counties are running furthest ahead of or behind Beto's 2018 Senate margin?",
   "What has moved the needle most tonight, and why?",
   "How does early-vote turnout compare with 2018 and 2022 by county type?",
 ];
-const ASK_SYSTEM = `You answer questions about the Texas Polls Tracker's data on the 2026 Texas elections (Election Day is Tuesday, November 3, 2026; polls close at 7 p.m. Central, 8 p.m. in El Paso and Hudspeth counties).
-Rules:
-- Use only the JSON data in the next message. It is what the page has loaded right now; say how current it is when that matters ("as of 9:42 p.m. Central, with 41% of the expected vote counted").
-- Margins are Democratic minus Republican, in points of the total vote: 3.9 means the Democrat leads by 3.9, -1.6 means the Republican leads by 1.6. Write them as "Talarico +3.9" or "Abbott +1.6". Win chances are the Democrat's probability from 0 to 1 unless a field says otherwise; give them as percentages.
-- These are polls and projections, not results. Never call or declare a race; say "the model gives Talarico a 74% chance".
-- If the data does not answer the question, say what is missing instead of guessing, and do not use outside knowledge about returns.
-- Be neutral and nonpartisan. Keep answers short (a few sentences or a short list) unless asked for detail.`;
-const askState = { history: [], busy: false, primaries: null };
+const askState = { history: [], busy: false, primaries: null, mode: "own", siteConfigured: false, system: null };
 
-function askStoredKey() { return sessionStorage.getItem(ASK_STORAGE.key) || localStorage.getItem(ASK_STORAGE.key) || ""; }
+function askStored(name) { return sessionStorage.getItem(ASK_STORAGE[name]) || localStorage.getItem(ASK_STORAGE[name]) || ""; }
+/** The credential for the current mode: the site password or the visitor's own key. */
+function askSecretName() { return askState.mode === "site" ? "password" : "key"; }
+function askSecret() { return askStored(askSecretName()); }
 
 async function setupAsk(snapshot) {
-  const keyInput = document.getElementById("ask-key"), status = document.getElementById("ask-key-status"), remember = document.getElementById("ask-remember");
-  remember.checked = !!localStorage.getItem(ASK_STORAGE.key);
+  const status = document.getElementById("ask-key-status"), remember = document.getElementById("ask-remember");
+  const keyInput = document.getElementById("ask-key"), passwordInput = document.getElementById("ask-password");
+  const save = document.getElementById("ask-save"), forget = document.getElementById("ask-forget");
   const showStatus = () => {
-    const key = askStoredKey();
-    status.textContent = key ? `Using the key ending ${key.slice(-4)}, ${localStorage.getItem(ASK_STORAGE.key) ? "remembered on this device" : "for this tab only"}.` : "No key yet.";
-    status.classList.toggle("ok", !!key);
+    const secret = askSecret(), remembered = !!localStorage.getItem(ASK_STORAGE[askSecretName()]);
+    const where = remembered ? "remembered on this device" : "for this tab only";
+    status.textContent = !secret ? (askState.mode === "site" ? "Enter the password to use the site's key." : "No key yet.")
+      : askState.mode === "site" ? `Unlocked, ${where}.` : `Using the key ending ${secret.slice(-4)}, ${where}.`;
+    status.classList.toggle("ok", !!secret);
   };
-  document.getElementById("ask-save").onclick = async () => {
-    const key = keyInput.value.trim();
-    if (!key) { status.textContent = "Paste a key first."; return; }
-    sessionStorage.setItem(ASK_STORAGE.key, key);
-    if (remember.checked) localStorage.setItem(ASK_STORAGE.key, key); else localStorage.removeItem(ASK_STORAGE.key);
-    keyInput.value = "";
+  const showMode = () => {
+    document.getElementById("ask-password-field").hidden = askState.mode !== "site";
+    document.getElementById("ask-key-field").hidden = askState.mode === "site";
+    save.textContent = askState.mode === "site" ? "Unlock" : "Use this key";
+    forget.textContent = askState.mode === "site" ? "Forget password" : "Forget key";
+    document.querySelectorAll("[data-ask-mode]").forEach((button) => button.classList.toggle("active", button.dataset.askMode === askState.mode));
+    remember.checked = !!localStorage.getItem(ASK_STORAGE[askSecretName()]);
     showStatus();
-    await loadAskModels(key);
   };
-  document.getElementById("ask-forget").onclick = () => { sessionStorage.removeItem(ASK_STORAGE.key); localStorage.removeItem(ASK_STORAGE.key); showStatus(); };
+  save.onclick = async () => {
+    const input = askState.mode === "site" ? passwordInput : keyInput;
+    const secret = input.value.trim();
+    if (!secret) { status.textContent = askState.mode === "site" ? "Type the password first." : "Paste a key first."; return; }
+    sessionStorage.setItem(ASK_STORAGE[askSecretName()], secret);
+    if (remember.checked) localStorage.setItem(ASK_STORAGE[askSecretName()], secret); else localStorage.removeItem(ASK_STORAGE[askSecretName()]);
+    input.value = "";
+    showStatus();
+    await loadAskModels();
+  };
+  forget.onclick = () => { sessionStorage.removeItem(ASK_STORAGE[askSecretName()]); localStorage.removeItem(ASK_STORAGE[askSecretName()]); showStatus(); };
   remember.onchange = () => {
-    const key = askStoredKey();
-    if (key && remember.checked) localStorage.setItem(ASK_STORAGE.key, key); else localStorage.removeItem(ASK_STORAGE.key);
+    const secret = askSecret();
+    if (secret && remember.checked) localStorage.setItem(ASK_STORAGE[askSecretName()], secret); else localStorage.removeItem(ASK_STORAGE[askSecretName()]);
     showStatus();
   };
+  document.querySelectorAll("[data-ask-mode]").forEach((button) => {
+    button.onclick = () => { askState.mode = button.dataset.askMode; localStorage.setItem(ASK_STORAGE.mode, askState.mode); showMode(); if (askSecret()) loadAskModels(); };
+  });
+  [keyInput, passwordInput].forEach((input) => input.addEventListener("keydown", (event) => { if (event.key === "Enter") { event.preventDefault(); save.click(); } }));
   document.getElementById("ask-model").onchange = (event) => localStorage.setItem(ASK_STORAGE.model, event.target.value);
   fillAskModels(ASK_FALLBACK_MODELS);
   document.getElementById("ask-suggestions").innerHTML = ASK_SUGGESTIONS.map((question) => `<button type="button" class="mode" data-ask="${esc(question)}">${esc(question)}</button>`).join("");
@@ -1597,33 +1613,53 @@ async function setupAsk(snapshot) {
   input.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); document.getElementById("ask-form").requestSubmit(); } });
   document.querySelector('.tabs a[data-tab="ask"]').addEventListener("click", renderAskContextPreview);
   window.addEventListener("hashchange", () => { if (location.hash === "#ask") renderAskContextPreview(); });
-  showStatus();
-  if (askStoredKey()) loadAskModels(askStoredKey());
+
+  // Is the site's key set up? A GET answers only that.
+  const [site, prompt] = await Promise.all([
+    fetch("/api/ask", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    import("./model/ask-prompt.js"),
+  ]);
+  askState.system = prompt.ASK_SYSTEM;
+  askState.siteConfigured = Boolean(site?.configured);
+  document.getElementById("ask-mode-row").hidden = !askState.siteConfigured;
+  askState.mode = askState.siteConfigured && localStorage.getItem(ASK_STORAGE.mode) !== "own" ? "site" : "own";
+  showMode();
+  if (askSecret()) loadAskModels();
   const [primaries, earlyVoteModel] = await Promise.all([loadPrimaries(), import("./model/early-vote.js")]);
   if (primaries && snapshot.earlyVote?.counties) askState.primaries = earlyVoteModel.primaryLean(snapshot.earlyVote.counties, primaries);
   renderAskContextPreview();
 }
 
-/** The key's own chat models, newest first; also confirms the key works. */
-async function loadAskModels(key) {
-  const status = document.getElementById("ask-key-status");
+/** The chat models available (the site key's, through the proxy, or the visitor's key's); also checks the credential. */
+async function loadAskModels() {
+  const status = document.getElementById("ask-key-status"), secret = askSecret();
   try {
-    const response = await fetch(`${ASK_ENDPOINT}/models`, { headers: { Authorization: `Bearer ${key}` } });
-    if (!response.ok) throw new Error(await askErrorText(response));
-    const { data } = await response.json();
-    const chatModels = (data || [])
-      .filter((model) => /^(gpt-|o\d)/.test(model.id) && !/(audio|realtime|tts|transcribe|search|image|embedding|instruct|moderation|codex|computer-use|oss)/.test(model.id))
-      .sort((a, b) => b.created - a.created).map((model) => model.id);
-    if (chatModels.length) fillAskModels(chatModels);
+    let models = [], preferred = null;
+    if (askState.mode === "site") {
+      const response = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: secret, action: "models" }) });
+      if (!response.ok) {
+        if (response.status === 401) { sessionStorage.removeItem(ASK_STORAGE.password); localStorage.removeItem(ASK_STORAGE.password); }
+        throw new Error((await response.json().catch(() => null))?.error || `HTTP ${response.status}`);
+      }
+      ({ models, preferred } = await response.json());
+    } else {
+      const response = await fetch(`${ASK_ENDPOINT}/models`, { headers: { Authorization: `Bearer ${secret}` } });
+      if (!response.ok) throw new Error(await askErrorText(response));
+      const { data } = await response.json();
+      models = (data || [])
+        .filter((model) => /^(gpt-|o\d)/.test(model.id) && !/(audio|realtime|tts|transcribe|search|image|embedding|instruct|moderation|codex|computer-use|oss)/.test(model.id))
+        .sort((a, b) => b.created - a.created).map((model) => model.id);
+    }
+    if (models.length) fillAskModels(models, preferred);
   } catch (error) {
-    status.textContent = `OpenAI did not accept the key: ${error.message}`;
+    status.textContent = askState.mode === "site" ? `Could not unlock the site's key: ${error.message}` : `OpenAI did not accept the key: ${error.message}`;
     status.classList.remove("ok");
   }
 }
-function fillAskModels(ids) {
+function fillAskModels(ids, preferred = null) {
   const saved = localStorage.getItem(ASK_STORAGE.model);
-  // Default to the newest plain "gpt-N" or "gpt-N.N" model (no -mini or -pro), else the first one listed.
-  const pick = ids.includes(saved) ? saved : ids.find((id) => /^gpt-\d+(\.\d+)?$/.test(id)) || ids[0];
+  // Saved choice, then the server's suggestion, then the newest plain "gpt-N" / "gpt-N.N" model, then the first.
+  const pick = ids.includes(saved) ? saved : ids.includes(preferred) ? preferred : ids.find((id) => /^gpt-\d+(\.\d+)?$/.test(id)) || ids[0];
   document.getElementById("ask-model").innerHTML = ids.map((id) => `<option value="${esc(id)}"${id === pick ? " selected" : ""}>${esc(id)}</option>`).join("");
 }
 async function askErrorText(response) {
@@ -1720,8 +1756,8 @@ async function askQuestion(question) {
   item.innerHTML = `<p class="question">${esc(question)}</p><div class="answer pending">Thinking…</div><div class="meta"></div>`;
   log.appendChild(item);
   const answer = item.querySelector(".answer"), meta = item.querySelector(".meta");
-  const key = askStoredKey();
-  if (!key) { answer.className = "answer error"; answer.textContent = "Add your OpenAI API key above first."; return; }
+  const secret = askSecret();
+  if (!secret) { answer.className = "answer error"; answer.textContent = askState.mode === "site" ? "Enter the password above first." : "Add your OpenAI API key above first."; return; }
   askState.busy = true; send.disabled = true;
   try {
     // On election night, pull the newest returns first so the answer uses them.
@@ -1729,11 +1765,19 @@ async function askQuestion(question) {
     const context = buildAskContext();
     renderAskContextPreview();
     const model = document.getElementById("ask-model").value;
-    const messages = [{ role: "system", content: ASK_SYSTEM }, { role: "system", content: `DATA ${JSON.stringify(context)}` }, ...askState.history.slice(-6), { role: "user", content: question }];
-    const response = await fetch(`${ASK_ENDPOINT}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, stream: true }) });
-    if (!response.ok) throw new Error(await askErrorText(response));
     let text = "";
-    await readAskStream(response, (delta) => { text += delta; answer.className = "answer"; answer.innerHTML = askMarkdown(text); });
+    const onDelta = (delta) => { text += delta; answer.className = "answer"; answer.innerHTML = askMarkdown(text); };
+    if (askState.mode === "site") {
+      // The proxy adds the instructions and the key; it streams back plain text.
+      const response = await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password: secret, model, question, context, history: askState.history.slice(-6) }) });
+      if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || `HTTP ${response.status}`);
+      await readPlainStream(response, onDelta);
+    } else {
+      const messages = [{ role: "system", content: askState.system }, { role: "system", content: `DATA ${JSON.stringify(context)}` }, ...askState.history.slice(-6), { role: "user", content: question }];
+      const response = await fetch(`${ASK_ENDPOINT}/chat/completions`, { method: "POST", headers: { Authorization: `Bearer ${secret}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, messages, stream: true }) });
+      if (!response.ok) throw new Error(await askErrorText(response));
+      await readAskStream(response, onDelta);
+    }
     if (!text.trim()) throw new Error("the model returned an empty answer");
     askState.history.push({ role: "user", content: question }, { role: "assistant", content: text });
     const returnsAsOf = context.electionNight?.returnsAsOf;
@@ -1744,6 +1788,17 @@ async function askQuestion(question) {
   } finally {
     askState.busy = false; send.disabled = false;
     item.scrollIntoView({ block: "nearest" });
+  }
+}
+
+/** The proxy's plain-text stream. */
+async function readPlainStream(response, onDelta) {
+  const reader = response.body.getReader(), decoder = new TextDecoder();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return;
+    const text = decoder.decode(value, { stream: true });
+    if (text) onDelta(text);
   }
 }
 
