@@ -324,25 +324,27 @@ export function parseRacePolling(wikitext, { democrat, republican, sectionBody =
     const moeIndex = headers.findIndex((h) => /margin.*error|moe/.test(h));
     const undecidedIndex = headers.findIndex((h) => /undecided/.test(h));
     for (const row of rows) {
+      // Rows can be shorter than the header (merged or "withdrew" cells, results rows added on Election Day), so
+      // every column past the two candidates is read only if the row has it.
       if (row === headerRow || row.every((c) => c.header) || row.length < Math.max(demIndex, repIndex) + 1) continue;
       const firstText = plainText(row[0].text);
       if (/^average$/i.test(firstText) || !firstText) continue;
       const dem = parsePercent(row[demIndex].text);
       const rep = parsePercent(row[repIndex].text);
       if (dem === null || rep === null) continue;
-      const dates = dateIndex >= 0 ? parseDateRange(row[dateIndex].text) : null;
+      const dates = dateIndex >= 0 && row[dateIndex] ? parseDateRange(row[dateIndex].text) : null;
       const urlMatch = row[0].text.match(/\|\s*url\s*=\s*(\S+)/);
       if (isAggregate) {
         const updatedIndex = headers.findIndex((h) => /updated/.test(h));
         aggregates.push({
           source: firstText, dem, rep, margin: round1(dem - rep),
           through: dates ? dates.end : null,
-          updated: updatedIndex >= 0 ? (parseDateRange(row[updatedIndex].text)?.end ?? null) : null,
+          updated: updatedIndex >= 0 && row[updatedIndex] ? (parseDateRange(row[updatedIndex].text)?.end ?? null) : null,
           url: urlMatch ? urlMatch[1] : null,
         });
         continue;
       }
-      const sampleText = sampleIndex >= 0 ? plainText(row[sampleIndex].text) : "";
+      const sampleText = sampleIndex >= 0 && row[sampleIndex] ? plainText(row[sampleIndex].text) : "";
       const sampleMatch = sampleText.match(/([\d,]+)\s*\(?\s*(LV|RV|A|V)?/i);
       const partisanMatch = firstText.match(/\((R|D)\)\s*$/) || firstText.match(/\((R|D)\)/);
       polls.push({
@@ -354,11 +356,11 @@ export function parseRacePolling(wikitext, { democrat, republican, sectionBody =
         endDate: dates ? dates.end : null,
         sampleSize: sampleMatch ? Number(sampleMatch[1].replace(/,/g, "")) : null,
         population: sampleMatch && sampleMatch[2] ? sampleMatch[2].toUpperCase() : null,
-        marginOfError: moeIndex >= 0 ? parsePercent(row[moeIndex].text) : null,
+        marginOfError: moeIndex >= 0 && row[moeIndex] ? parsePercent(row[moeIndex].text) : null,
         partisan: partisanMatch ? partisanMatch[1] : null,
         internal: /internal/i.test(row[0].text),
         dem, rep,
-        undecided: undecidedIndex >= 0 ? parsePercent(row[undecidedIndex].text) : null,
+        undecided: undecidedIndex >= 0 && row[undecidedIndex] ? parsePercent(row[undecidedIndex].text) : null,
         url: urlMatch ? urlMatch[1] : null,
       });
     }

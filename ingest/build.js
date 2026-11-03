@@ -88,8 +88,15 @@ export async function build() {
   const texasRaces = TEXAS_STATEWIDE_RACES.map((race) => {
     const previousRace = previous?.texas?.races?.find((r) => r.id === race.id);
     const page = wikiPages?.texas?.[race.id];
-    const ratings = page ? wikipedia.parseRacePredictions(page.wikitext) : previousRace?.ratings ?? {};
-    const polling = page ? wikipedia.parseRacePolling(page.wikitext, race) : { aggregates: previousRace?.aggregates ?? [], polls: [] };
+    // One malformed table must not stop the morning build: a race whose page cannot be read keeps its previous
+    // ratings and Wikipedia polls (VoteHub polls still merge in below).
+    const previousPolling = { aggregates: previousRace?.aggregates ?? [], polls: (previousRace?.polls ?? []).filter((p) => p.source === "wikipedia") };
+    const parsedOrPrevious = (label, parse, fallback) => {
+      if (!page) return fallback;
+      try { return parse(); } catch (error) { log(`${race.id} ${label}: ${error.message}; keeping the previous snapshot's`); return fallback; }
+    };
+    const ratings = parsedOrPrevious("ratings", () => wikipedia.parseRacePredictions(page.wikitext), previousRace?.ratings ?? {});
+    const polling = parsedOrPrevious("polling", () => wikipedia.parseRacePolling(page.wikitext, race), page ? previousPolling : { aggregates: previousRace?.aggregates ?? [], polls: [] });
     const votehubRacePolls = votehubPolls && race.votehubType
       ? votehub.pollsForRace(votehubPolls, { pollType: race.votehubType, stateName: "Texas", democrat: race.democrat, republican: race.republican })
       : [];
