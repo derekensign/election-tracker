@@ -4,17 +4,17 @@ Talarico 73% to win the Senate seat on a polling average of D+3.7. Hinojosa 39% 
 
 WHAT MOVED
 - Kansas Senate: Split Ticket moved Tossup → Lean D
+- South Carolina Senate: Decision Desk HQ moved Lean R → Tossup
 - TX U.S. Senate: abcnews moved Tossup → Lean D
 - Kansas Governor: Silver Bulletin moved Lean R → Tossup
 - South Carolina Governor: Decision Desk HQ moved Lean R → Likely R
+- TX-9 (U.S. House): Split Ticket moved Safe R → Likely R
 - TX-21 (U.S. House): Decision Desk HQ moved Safe R → Likely R
 - Georgia Senate: polling average D+10.6 → D+8.4
 - South Carolina Senate: poll-model D win chance 34% → 40% (+6.0 pts)
 - Georgia Senate: poll-model D win chance 94% → 90% (−4.4 pts)
 - Minnesota Senate: poll-model D win chance 69% → 66% (−3.6 pts)
 - Georgia Governor: poll-model D win chance 44% → 47% (+3.4 pts)
-- North Carolina Senate: polling average D+10.7 → D+12.3
-- South Carolina Governor: polling average R+11.1 → R+10.0
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 73%. Average D+3.7 over 43 polls; latest Research Co. Nov 2 D+3.0.
