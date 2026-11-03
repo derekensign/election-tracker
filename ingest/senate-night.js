@@ -42,6 +42,7 @@ export function senateNightRaces(snapshot, params = SENATE_NIGHT_MODEL) {
       prior: Math.min(0.999, Math.max(0.001, p ?? 0.5)),
       sigma: race.pollModel?.sigma ?? params.ratingOnlySigma,
       rating: race.consensus?.label ?? null,
+      pollMargin: race.pollingAverage?.margin ?? null, // challenger minus Republican
     };
   });
 }
@@ -78,7 +79,7 @@ export function calibrateRaces(races, params = SENATE_NIGHT_MODEL) {
 /**
  * Senate control from calls and the live Texas race.
  * @param {{ races: ReturnType<typeof calibrateRaces>, calls: Record<string, { winner: "D"|"R"|"I"|"other" }>,
- *   texas?: { pD: number, statewide?: { mean: number, sd: number }, counted?: number } | null,
+ *   texas?: { pD: number, margin?: number, statewide?: { mean: number, sd: number }, counted?: number } | null,
  *   notUp: { democraticCaucus: number, republican: number } }} input
  */
 export function runSenateNight({ races, calls = {}, texas = null, notUp, params = SENATE_NIGHT_MODEL }) {
@@ -109,9 +110,18 @@ export function runSenateNight({ races, calls = {}, texas = null, notUp, params 
     const challenger = race.state === "TX" && texas && texas.counted > 0 ? texas.pD : normalCdf((race.margin + e) / race.sd);
     return race.challengerParty === "I" ? { pD: 0, pR: 1 - challenger, pI: challenger } : { pD: challenger, pR: 1 - challenger, pI: 0 };
   };
+  // The challenger's expected margin: the needle's projection for a live Texas count; for a called race, the mean
+  // of the side of zero the call puts it on.
+  const marginAt = (race, e) => {
+    const call = calls[race.state], mean = race.margin + e;
+    if (!call) return race.state === "TX" && texas?.margin != null && texas.counted > 0 ? texas.margin : mean;
+    const z = mean / race.sd, density = Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI);
+    const won = call.winner === race.challengerParty, tail = Math.max(won ? normalCdf(z) : 1 - normalCdf(z), 1e-12);
+    return won ? mean + (race.sd * density) / tail : mean - (race.sd * density) / tail;
+  };
   const control = { D: 0, R: 0, none: 0 };
   let expectedD = 0, epsilonMean = 0, epsilonSq = 0;
-  const perRace = races.map(() => 0);
+  const perRace = races.map(() => 0), perRaceMargin = races.map(() => 0);
   for (const point of posterior) {
     if (point.weight < 1e-7) continue;
     const chances = races.map((race) => chanceAt(race, point.e));
@@ -120,6 +130,7 @@ export function runSenateNight({ races, calls = {}, texas = null, notUp, params 
     expectedD += point.weight * seats.expected.D;
     epsilonMean += point.weight * point.e; epsilonSq += point.weight * point.e * point.e;
     chances.forEach((c, i) => { perRace[i] += point.weight * (races[i].challengerParty === "I" ? c.pI : c.pD); });
+    races.forEach((race, i) => { perRaceMargin[i] += point.weight * marginAt(race, point.e); });
   }
   // Grid points too unlikely to matter were skipped; renormalize over the ones used.
   const used = control.D + control.R + control.none;
@@ -131,7 +142,7 @@ export function runSenateNight({ races, calls = {}, texas = null, notUp, params 
     expectedD: Math.round((expectedD / used) * 10) / 10,
     nationalSwing: { mean: Math.round((epsilonMean / used) * 100) / 100, sd: Math.round(Math.sqrt(Math.max(0, epsilonSq / used - (epsilonMean / used) ** 2)) * 100) / 100 },
     called, uncalled: races.length - called.D - called.R - called.I,
-    races: races.map((race, i) => ({ state: race.state, challengerParty: race.challengerParty, prior: race.prior, chance: Math.round((perRace[i] / used) * 1000) / 1000, call: calls[race.state] ?? null })),
+    races: races.map((race, i) => ({ state: race.state, challengerParty: race.challengerParty, prior: race.prior, chance: Math.round((perRace[i] / used) * 1000) / 1000, expectedMargin: Math.round((perRaceMargin[i] / used) * 10) / 10, call: calls[race.state] ?? null })),
   };
 }
 
@@ -194,17 +205,19 @@ export function createSenateNightDocument(snapshot, { now = new Date().toISOStri
   const run = runSenateNight({ races, calls: {}, texas: null, notUp, params });
   return {
     version: 1, kind: "senate-night", createdAt: now, updatedAt: now, checkedAt: now, snapshotAsOf: snapshot.asOf,
-    inputs: { races, notUp }, timeline: [{ t: now, p: run.pD, e: run.expectedD, called: run.called }], events: [], latest: { calls: {}, texas: null },
+    inputs: { races, notUp }, timeline: [{ t: now, p: run.pD, e: run.expectedD, called: run.called, n: run.nationalSwing.mean, r: run.races.map((race) => race.chance) }], events: [], latest: { calls: {}, texas: null }, returns: {},
   };
 }
 
 /**
- * Fold one check into the document: a point when anything changed, an event for each new call and for any
- * big move. Mutates and returns `doc`.
+ * Fold one check into the document: a point when a call or the Texas needle changed, an event for each new call and
+ * for any big move. The states' counts (`returns`, from summarizeReturns) are stored as shown and never add a point
+ * on their own. Mutates and returns `doc`.
  */
-export function advanceSenateNight(doc, { calls, texas = null, fetchedAt, params = SENATE_NIGHT_MODEL, rules = SENATE_NIGHT_EVENT_RULES }) {
+export function advanceSenateNight(doc, { calls, texas = null, returns = null, fetchedAt, params = SENATE_NIGHT_MODEL, rules = SENATE_NIGHT_EVENT_RULES }) {
   doc.checkedAt = fetchedAt;
-  const signature = JSON.stringify({ calls: Object.fromEntries(Object.entries(calls).map(([s, c]) => [s, c.winner]).sort()), texas: texas ? [Math.round(texas.pD * 1000), texas.counted] : null });
+  if (returns) doc.returns = returns;
+  const signature = JSON.stringify({ calls: Object.fromEntries(Object.entries(calls).map(([s, c]) => [s, c.winner]).sort()), texas: texas ? [Math.round(texas.pD * 1000), texas.counted, Math.round((texas.margin ?? 0) * 10)] : null });
   if (doc.latest?.signature === signature) return { doc, changed: false, events: [] };
   const { races, notUp } = doc.inputs;
   const run = runSenateNight({ races, calls, texas, notUp, params });
@@ -234,7 +247,7 @@ export function advanceSenateNight(doc, { calls, texas = null, fetchedAt, params
   if (!events.length && Math.abs(run.pD - last.p) >= rules.bigMove) {
     events.push({ t: fetchedAt, kind: "texas", p0: last.p, p1: run.pD, headline: "Texas count moves control", detail: `The Texas count moved Talarico's chance to ${pct(texas?.pD ?? 0)}; Democrats' chance of control ${run.pD >= last.p ? "rose" : "fell"} from ${pct(last.p)} to ${pct(run.pD)}.` });
   }
-  doc.timeline.push({ t: fetchedAt, p: run.pD, e: run.expectedD, called: run.called });
+  doc.timeline.push({ t: fetchedAt, p: run.pD, e: run.expectedD, called: run.called, n: run.nationalSwing.mean, r: run.races.map((race) => race.chance) });
   doc.events.push(...events);
   doc.latest = { signature, calls, texas, run };
   doc.updatedAt = fetchedAt;

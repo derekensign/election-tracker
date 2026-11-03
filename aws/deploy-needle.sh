@@ -22,12 +22,13 @@ cp ../ingest/needle.js ../ingest/early-vote.js ../ingest/http.js ../ingest/confi
 cp ../ingest/sources/sos-results.js "$PACKAGE/ingest/sources/"
 echo '{ "type": "module" }' > "$PACKAGE/package.json"
 
-# The Senate recorder: handler + the model modules it imports (senate-night needs needle and metrics).
+# The Senate recorder: handler + the modules it imports (senate-night needs needle and metrics; senate-returns reads
+# the states' results files).
 SENATE=senate/package
 mkdir -p "$SENATE/ingest"
 find "$SENATE" -type f -delete
-cp senate/index.mjs "$SENATE/"
-cp ../ingest/senate-night.js ../ingest/needle.js ../ingest/early-vote.js ../ingest/metrics.js ../ingest/config.js "$SENATE/ingest/"
+cp senate/index.mjs senate/extra-ca.pem "$SENATE/"
+cp ../ingest/senate-night.js ../ingest/senate-returns.js ../ingest/needle.js ../ingest/early-vote.js ../ingest/metrics.js ../ingest/config.js "$SENATE/ingest/"
 echo '{ "type": "module" }' > "$SENATE/package.json"
 
 sam deploy --template-file needle-template.yaml --stack-name "$STACK_NAME" --resolve-s3 --capabilities CAPABILITY_IAM \

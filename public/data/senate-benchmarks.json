@@ -1,0 +1,833 @@
+{
+  "_about": "Benchmarks for the Senate night table: margins are Democratic (or main non-Republican) minus Republican, in points of the total vote.",
+  "_retrieved": "2026-11-03T19:11Z to 19:16Z (13:11 to 13:16 CST)",
+  "_sources": [
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election&oldid=1383580384",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Alabama&oldid=1383555648",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_elections&oldid=1381845782",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Alabama&oldid=1382382977",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Alabama&oldid=1382382881",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_elections&oldid=1380165372",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Alaska&oldid=1382385905",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Alaska&oldid=1382386058",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Alaska&oldid=1382386004",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Arkansas&oldid=1382404022",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Arkansas&oldid=1383167921",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Arkansas&oldid=1382404172",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Colorado&oldid=1382462776",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Colorado&oldid=1382462992",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Colorado&oldid=1382462892",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Delaware&oldid=1382475227",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Delaware&oldid=1382475349",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_House_of_Representatives_election_in_Delaware&oldid=1382475282",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Florida&oldid=1382480805",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Florida&oldid=1382617241",
+    "https://en.wikipedia.org/w/index.php?title=2020%E2%80%9321_United_States_Senate_election_in_Georgia&oldid=1382487330",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Georgia&oldid=1382487529",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Georgia&oldid=1382487439",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Idaho&oldid=1382490307",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Idaho&oldid=1382490477",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Idaho&oldid=1382490399",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Illinois&oldid=1382499113",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Illinois&oldid=1382499485",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Illinois&oldid=1383129896",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Iowa&oldid=1382532162",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Iowa&oldid=1382510644",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Iowa&oldid=1382510594",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Kansas&oldid=1383416465",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Kansas&oldid=1382862667",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Kansas&oldid=1383439256",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Kentucky&oldid=1382521270",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Kentucky&oldid=1382521538",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Kentucky&oldid=1382521366",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Louisiana&oldid=1382526319",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Louisiana&oldid=1382526513",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Louisiana&oldid=1382526395",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Maine&oldid=1382530857",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Maine&oldid=1382530995",
+    "https://en.wikipedia.org/w/index.php?title=2022_Maine_gubernatorial_election&oldid=1382530895",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_gubernatorial_elections&oldid=1376686561",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Massachusetts&oldid=1382543647",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Massachusetts&oldid=1382543824",
+    "https://en.wikipedia.org/w/index.php?title=2022_Massachusetts_gubernatorial_election&oldid=1382543722",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Michigan&oldid=1382547572",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Michigan&oldid=1382547746",
+    "https://en.wikipedia.org/w/index.php?title=2022_Michigan_gubernatorial_election&oldid=1382547632",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Minnesota&oldid=1382551954",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Minnesota&oldid=1382552106",
+    "https://en.wikipedia.org/w/index.php?title=2022_Minnesota_gubernatorial_election&oldid=1383319729",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Mississippi&oldid=1382555281",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Mississippi&oldid=1382911519",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_House_of_Representatives_elections_in_Mississippi&oldid=1382555294",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Montana&oldid=1382562252",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Montana&oldid=1382562349",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_House_of_Representatives_elections_in_Montana&oldid=1382562297",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_Senate_special_election_in_Nebraska&oldid=1383606746",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_Senate_elections&oldid=1383407507",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Nebraska&oldid=1382564889",
+    "https://en.wikipedia.org/w/index.php?title=2022_Nebraska_gubernatorial_election&oldid=1382564812",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_New_Hampshire&oldid=1382571998",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_New_Hampshire&oldid=1382572149",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_New_Hampshire&oldid=1382572079",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_New_Jersey&oldid=1382576529",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_New_Jersey&oldid=1382576664",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_House_of_Representatives_elections_in_New_Jersey&oldid=1382576627",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_New_Mexico&oldid=1382578748",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_New_Mexico&oldid=1383541842",
+    "https://en.wikipedia.org/w/index.php?title=2022_New_Mexico_gubernatorial_election&oldid=1383499347",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_North_Carolina&oldid=1382826488",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_North_Carolina&oldid=1382590449",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_North_Carolina&oldid=1382840368",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Ohio&oldid=1383553191",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Ohio&oldid=1382599253",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_special_election_in_Oklahoma&oldid=1382602138",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Oklahoma&oldid=1382602229",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Oklahoma&oldid=1382602126",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Oregon&oldid=1382605553",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Oregon&oldid=1382605746",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_Oregon&oldid=1382605642",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Rhode_Island&oldid=1382619348",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Rhode_Island&oldid=1382619527",
+    "https://en.wikipedia.org/w/index.php?title=2022_Rhode_Island_gubernatorial_election&oldid=1382619397",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_South_Carolina&oldid=1382624650",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_South_Carolina&oldid=1382624782",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_South_Carolina&oldid=1382624743",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_South_Dakota&oldid=1382627410",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_South_Dakota&oldid=1382627598",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_Senate_election_in_South_Dakota&oldid=1382627537",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Tennessee&oldid=1382632716",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Tennessee&oldid=1382632885",
+    "https://en.wikipedia.org/w/index.php?title=2022_Tennessee_gubernatorial_election&oldid=1383518910",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Texas&oldid=1382639321",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Texas&oldid=1382639933",
+    "https://en.wikipedia.org/w/index.php?title=2022_Texas_gubernatorial_election&oldid=1383519421",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Virginia&oldid=1382658112",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Virginia&oldid=1382658390",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_House_of_Representatives_elections_in_Virginia&oldid=1382658248",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_West_Virginia&oldid=1382667724",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_West_Virginia&oldid=1382667862",
+    "https://en.wikipedia.org/w/index.php?title=2022_United_States_House_of_Representatives_elections_in_West_Virginia&oldid=1382667780",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Wyoming&oldid=1382679224",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_presidential_election_in_Wyoming&oldid=1382679395",
+    "https://en.wikipedia.org/w/index.php?title=2022_Wyoming_gubernatorial_election&oldid=1382679271",
+    "https://en.wikipedia.org/w/index.php?title=2024_United_States_Senate_election_in_Nebraska&oldid=1382564902",
+    "https://en.wikipedia.org/w/index.php?title=2020_United_States_Senate_election_in_Texas&oldid=1360478902",
+    "https://en.wikipedia.org/w/index.php?title=2022_Texas_gubernatorial_election&oldid=1365615288",
+    "https://en.wikipedia.org/w/index.php?diff=1360508095",
+    "https://en.wikipedia.org/w/index.php?diff=1365620092",
+    "https://en.wikipedia.org/w/index.php?diff=1365622951",
+    "https://en.wikipedia.org/w/index.php?diff=1071784244",
+    "https://en.wikipedia.org/w/index.php?diff=1134491939",
+    "https://en.wikipedia.org/w/index.php?diff=1330323575",
+    "https://en.wikipedia.org/w/index.php?diff=1126196405",
+    "https://en.wikipedia.org/w/index.php?diff=1126936760"
+  ],
+  "states": {
+    "AL": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Doug Jones",
+        "republican": "Tommy Tuberville",
+        "dem": 39.74,
+        "rep": 60.1,
+        "margin": -20.4,
+        "totalVotes": 2316445
+      },
+      "president2024": {
+        "margin": -30.5,
+        "totalVotes": 2265090
+      },
+      "midterm2022": {
+        "totalVotes": 1414238,
+        "race": "Senate"
+      }
+    },
+    "AK": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Al Gross",
+        "republican": "Dan Sullivan",
+        "dem": 41.19,
+        "rep": 53.9,
+        "margin": -12.7,
+        "totalVotes": 354587,
+        "note": "Al Gross ran as an independent with the Democratic nomination and was listed on the ballot as the Democratic nominee."
+      },
+      "president2024": {
+        "margin": -13.1,
+        "totalVotes": 338177
+      },
+      "midterm2022": {
+        "totalVotes": 261705,
+        "race": "Senate",
+        "note": "Ranked-choice race; total of first-choice votes (the round 1 column on the state page shows 263,027)."
+      }
+    },
+    "AR": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Ricky Dale Harrington Jr.",
+        "republican": "Tom Cotton",
+        "dem": 33.47,
+        "rep": 66.53,
+        "margin": -33.1,
+        "totalVotes": 1193261,
+        "note": "No Democrat was on the ballot (Josh Mahony withdrew after the filing deadline); the main opponent was Libertarian Ricky Dale Harrington Jr."
+      },
+      "president2024": {
+        "margin": -30.6,
+        "totalVotes": 1182676
+      },
+      "midterm2022": {
+        "totalVotes": 901306,
+        "race": "Senate"
+      }
+    },
+    "CO": {
+      "seat": {
+        "year": 2020,
+        "democrat": "John Hickenlooper",
+        "republican": "Cory Gardner",
+        "dem": 53.5,
+        "rep": 44.18,
+        "margin": 9.3,
+        "totalVotes": 3235659
+      },
+      "president2024": {
+        "margin": 11.0,
+        "totalVotes": 3192745
+      },
+      "midterm2022": {
+        "totalVotes": 2500201,
+        "race": "Senate"
+      }
+    },
+    "DE": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Chris Coons",
+        "republican": "Lauren Witzke",
+        "dem": 59.44,
+        "rep": 37.9,
+        "margin": 21.5,
+        "totalVotes": 490935
+      },
+      "president2024": {
+        "margin": 14.7,
+        "totalVotes": 512912
+      },
+      "midterm2022": {
+        "totalVotes": 321649,
+        "race": "House",
+        "note": "No 2022 Senate or governor race; at-large U.S. House race."
+      }
+    },
+    "FL": {
+      "seat": {
+        "year": 2022,
+        "democrat": "Val Demings",
+        "republican": "Marco Rubio",
+        "dem": 41.27,
+        "rep": 57.68,
+        "margin": -16.4,
+        "totalVotes": 7758014,
+        "note": "2026 is a special election for this Class 3 seat; its last election was the 2022 regular race.",
+        "unverified": true,
+        "_verification": "totalVotes is the sum of the itemized results (7,758,014, matching the state page's county table). Both Wikipedia pages state a box total of 7,758,126, left over from a December 2022 edit whose candidate figures were later reverted (diffs 1126196405, 1126936760). Shares and margin are the same under either total."
+      },
+      "president2024": {
+        "margin": -13.1,
+        "totalVotes": 10893752
+      },
+      "midterm2022": {
+        "totalVotes": 7758014,
+        "race": "Senate",
+        "unverified": true,
+        "_verification": "Same race as the seat: totalVotes is the sum of the itemized results (7,758,014, matching the state page's county table). Both Wikipedia pages state a box total of 7,758,126, left over from a December 2022 edit whose candidate figures were later reverted (diffs 1126196405, 1126936760)."
+      }
+    },
+    "GA": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Jon Ossoff",
+        "republican": "David Perdue",
+        "dem": 47.95,
+        "rep": 49.73,
+        "margin": -1.8,
+        "totalVotes": 4952175,
+        "note": "November 2020 general election; no candidate reached 50%. Jon Ossoff won the January 5, 2021 runoff 50.61% to 49.39% (margin +1.2, 4,484,902 votes)."
+      },
+      "president2024": {
+        "margin": -2.2,
+        "totalVotes": 5250905
+      },
+      "midterm2022": {
+        "totalVotes": 3935924,
+        "race": "Senate",
+        "note": "November 8, 2022 general election (Warnock vs. Walker); the December 6 runoff drew 3,541,877 votes."
+      }
+    },
+    "ID": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Paulette Jordan",
+        "republican": "Jim Risch",
+        "dem": 33.25,
+        "rep": 62.62,
+        "margin": -29.4,
+        "totalVotes": 859827
+      },
+      "president2024": {
+        "margin": -36.5,
+        "totalVotes": 905057
+      },
+      "midterm2022": {
+        "totalVotes": 590890,
+        "race": "Senate"
+      }
+    },
+    "IL": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Dick Durbin",
+        "republican": "Mark Curran",
+        "dem": 54.93,
+        "rep": 38.87,
+        "margin": 16.1,
+        "totalVotes": 5968901,
+        "_verification": "The national 2020 Senate page lists David Black (Green) at 55,711 and a total of 5,967,901, but its own percentages match the state page's 56,711 and 5,968,901, so the national figures are a typo."
+      },
+      "president2024": {
+        "margin": 10.9,
+        "totalVotes": 5633310
+      },
+      "midterm2022": {
+        "totalVotes": 4098896,
+        "race": "Senate"
+      }
+    },
+    "IA": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Theresa Greenfield",
+        "republican": "Joni Ernst",
+        "dem": 45.15,
+        "rep": 51.74,
+        "margin": -6.6,
+        "totalVotes": 1671828
+      },
+      "president2024": {
+        "margin": -13.2,
+        "totalVotes": 1663506
+      },
+      "midterm2022": {
+        "totalVotes": 1216646,
+        "race": "Senate"
+      }
+    },
+    "KS": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Barbara Bollier",
+        "republican": "Roger Marshall",
+        "dem": 41.79,
+        "rep": 53.22,
+        "margin": -11.4,
+        "totalVotes": 1367755
+      },
+      "president2024": {
+        "margin": -16.1,
+        "totalVotes": 1327591
+      },
+      "midterm2022": {
+        "totalVotes": 1004956,
+        "race": "Senate"
+      }
+    },
+    "KY": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Amy McGrath",
+        "republican": "Mitch McConnell",
+        "dem": 38.23,
+        "rep": 57.76,
+        "margin": -19.5,
+        "totalVotes": 2135057
+      },
+      "president2024": {
+        "margin": -30.5,
+        "totalVotes": 2074530
+      },
+      "midterm2022": {
+        "totalVotes": 1477830,
+        "race": "Senate"
+      }
+    },
+    "LA": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Adrian Perkins",
+        "republican": "Bill Cassidy",
+        "dem": 19.02,
+        "rep": 59.32,
+        "margin": -40.3,
+        "totalVotes": 2071543,
+        "note": "November 2020 jungle primary (all candidates on one ballot), which Cassidy won outright. Shares are the top Democrat (Adrian Perkins) and top Republican (Cassidy); all Democratic candidates combined took 35.29% and all Republicans 61.18%."
+      },
+      "president2024": {
+        "margin": -22.0,
+        "totalVotes": 2006975
+      },
+      "midterm2022": {
+        "totalVotes": 1383290,
+        "race": "Senate",
+        "note": "November 8, 2022 jungle primary; Kennedy won outright."
+      }
+    },
+    "ME": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Sara Gideon",
+        "republican": "Susan Collins",
+        "dem": 42.39,
+        "rep": 50.98,
+        "margin": -8.6,
+        "totalVotes": 819183,
+        "note": "Ranked-choice race; Collins won a first-round majority, so no further rounds were tabulated."
+      },
+      "president2024": {
+        "margin": 6.9,
+        "totalVotes": 831375
+      },
+      "midterm2022": {
+        "totalVotes": 676819,
+        "race": "Governor"
+      }
+    },
+    "MA": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Ed Markey",
+        "republican": "Kevin O'Connor",
+        "dem": 66.15,
+        "rep": 33.04,
+        "margin": 33.1,
+        "totalVotes": 3564136
+      },
+      "president2024": {
+        "margin": 25.2,
+        "totalVotes": 3473668
+      },
+      "midterm2022": {
+        "totalVotes": 2485796,
+        "race": "Governor"
+      }
+    },
+    "MI": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Gary Peters",
+        "republican": "John James",
+        "dem": 49.9,
+        "rep": 48.22,
+        "margin": 1.7,
+        "totalVotes": 5479720
+      },
+      "president2024": {
+        "margin": -1.4,
+        "totalVotes": 5664186
+      },
+      "midterm2022": {
+        "totalVotes": 4461972,
+        "race": "Governor"
+      }
+    },
+    "MN": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Tina Smith",
+        "republican": "Jason Lewis",
+        "dem": 48.74,
+        "rep": 43.5,
+        "margin": 5.2,
+        "totalVotes": 3214256
+      },
+      "president2024": {
+        "margin": 4.2,
+        "totalVotes": 3253920
+      },
+      "midterm2022": {
+        "totalVotes": 2510661,
+        "race": "Governor"
+      }
+    },
+    "MS": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Mike Espy",
+        "republican": "Cindy Hyde-Smith",
+        "dem": 44.13,
+        "rep": 54.11,
+        "margin": -10.0,
+        "totalVotes": 1311354,
+        "_verification": "Figures are from the amended state certification cited on the state page (added February 2022, diff 1071784244); the national 2020 Senate page still shows the original certification (Hyde-Smith 709,539, Espy 578,806, total 1,311,497). The margin is -10.0 under both."
+      },
+      "president2024": {
+        "margin": -22.9,
+        "totalVotes": 1228008
+      },
+      "midterm2022": {
+        "totalVotes": 709100,
+        "race": "House",
+        "note": "No 2022 Senate or governor race; sum of all 4 U.S. House districts."
+      }
+    },
+    "MT": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Steve Bullock",
+        "republican": "Steve Daines",
+        "dem": 44.99,
+        "rep": 55.01,
+        "margin": -10.0,
+        "totalVotes": 605637
+      },
+      "president2024": {
+        "margin": -19.9,
+        "totalVotes": 602990
+      },
+      "midterm2022": {
+        "totalVotes": 463632,
+        "race": "House",
+        "note": "No 2022 Senate or governor race; sum of both U.S. House districts."
+      }
+    },
+    "NE": {
+      "seat": {
+        "year": 2024,
+        "democrat": "Preston Love Jr.",
+        "republican": "Pete Ricketts",
+        "dem": 37.42,
+        "rep": 62.58,
+        "margin": -25.2,
+        "totalVotes": 935005,
+        "note": "The last election for this seat was the 2024 special held after Ben Sasse resigned."
+      },
+      "president2024": {
+        "margin": -20.5,
+        "totalVotes": 952182
+      },
+      "midterm2022": {
+        "totalVotes": 672593,
+        "race": "Governor",
+        "_verification": "Includes 5,798 write-in votes; the national 2022 gubernatorial page leaves write-ins out (666,795)."
+      },
+      "independent2024": {
+        "osborn": 46.52,
+        "fischer": 53.19,
+        "margin": -6.7,
+        "totalVotes": 938336
+      }
+    },
+    "NH": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Jeanne Shaheen",
+        "republican": "Bryant \"Corky\" Messner",
+        "dem": 56.64,
+        "rep": 40.99,
+        "margin": 15.6,
+        "totalVotes": 795914,
+        "unverified": true,
+        "_verification": "Shares and margin agree on both pages, but totalVotes does not: the state page has Shaheen 450,778 and a total of 795,914 (changed by unsourced edits in 2020 and 2023), while the national 2020 Senate page and the state page's original entry have 450,771 and 795,907."
+      },
+      "president2024": {
+        "margin": 2.8,
+        "totalVotes": 826189
+      },
+      "midterm2022": {
+        "totalVotes": 620975,
+        "race": "Senate"
+      }
+    },
+    "NJ": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Cory Booker",
+        "republican": "Rikin Mehta",
+        "dem": 57.23,
+        "rep": 40.92,
+        "margin": 16.3,
+        "totalVotes": 4440540,
+        "_verification": "Figures are from the state page, corrected to the New Jersey official results in 2023 and 2025 (diffs 1134491939, 1330323575); the national 2020 Senate page still shows earlier counts (Booker 2,541,178, Mehta 1,817,052, total 4,440,440). Shares and margin are the same under both."
+      },
+      "president2024": {
+        "margin": 5.9,
+        "totalVotes": 4272725
+      },
+      "midterm2022": {
+        "totalVotes": 2609716,
+        "race": "House",
+        "note": "No 2022 Senate or governor race; sum of all 12 U.S. House districts."
+      }
+    },
+    "NM": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Ben Ray Luján",
+        "republican": "Mark Ronchetti",
+        "dem": 51.73,
+        "rep": 45.62,
+        "margin": 6.1,
+        "totalVotes": 917237
+      },
+      "president2024": {
+        "margin": 6.0,
+        "totalVotes": 923403
+      },
+      "midterm2022": {
+        "totalVotes": 712256,
+        "race": "Governor"
+      }
+    },
+    "NC": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Cal Cunningham",
+        "republican": "Thom Tillis",
+        "dem": 46.94,
+        "rep": 48.69,
+        "margin": -1.7,
+        "totalVotes": 5474952
+      },
+      "president2024": {
+        "margin": -3.2,
+        "totalVotes": 5699141
+      },
+      "midterm2022": {
+        "totalVotes": 3773924,
+        "race": "Senate"
+      }
+    },
+    "OH": {
+      "seat": {
+        "year": 2022,
+        "democrat": "Tim Ryan",
+        "republican": "JD Vance",
+        "dem": 46.92,
+        "rep": 53.03,
+        "margin": -6.1,
+        "totalVotes": 4133342,
+        "note": "2026 is a special election for this Class 3 seat; its last election was the 2022 regular race."
+      },
+      "president2024": {
+        "margin": -11.2,
+        "totalVotes": 5767788,
+        "note": "Total excludes votes for Jill Stein, who was on the ballot but whose votes were not counted."
+      },
+      "midterm2022": {
+        "totalVotes": 4133342,
+        "race": "Senate"
+      }
+    },
+    "OK": {
+      "seat": {
+        "year": 2022,
+        "democrat": "Kendra Horn",
+        "republican": "Markwayne Mullin",
+        "dem": 35.24,
+        "rep": 61.77,
+        "margin": -26.5,
+        "totalVotes": 1150481,
+        "note": "The last election for this seat was the November 2022 special for the rest of Jim Inhofe's term, not the 2020 regular race."
+      },
+      "president2024": {
+        "margin": -34.3,
+        "totalVotes": 1566173
+      },
+      "midterm2022": {
+        "totalVotes": 1150732,
+        "race": "Senate",
+        "note": "Regular Senate race (Lankford); the special election for this seat drew 1,150,481 votes."
+      }
+    },
+    "OR": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Jeff Merkley",
+        "republican": "Jo Rae Perkins",
+        "dem": 56.91,
+        "rep": 39.32,
+        "margin": 17.6,
+        "totalVotes": 2321249
+      },
+      "president2024": {
+        "margin": 14.3,
+        "totalVotes": 2244493
+      },
+      "midterm2022": {
+        "totalVotes": 1927949,
+        "race": "Senate"
+      }
+    },
+    "RI": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Jack Reed",
+        "republican": "Allen Waters",
+        "dem": 66.48,
+        "rep": 33.35,
+        "margin": 33.1,
+        "totalVotes": 494262
+      },
+      "president2024": {
+        "margin": 13.8,
+        "totalVotes": 513386
+      },
+      "midterm2022": {
+        "totalVotes": 357670,
+        "race": "Governor"
+      }
+    },
+    "SC": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Jaime Harrison",
+        "republican": "Lindsey Graham",
+        "dem": 44.17,
+        "rep": 54.44,
+        "margin": -10.3,
+        "totalVotes": 2515104
+      },
+      "president2024": {
+        "margin": -17.9,
+        "totalVotes": 2548140
+      },
+      "midterm2022": {
+        "totalVotes": 1695702,
+        "race": "Senate"
+      }
+    },
+    "SD": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Daniel Ahlers",
+        "republican": "Mike Rounds",
+        "dem": 34.26,
+        "rep": 65.74,
+        "margin": -31.5,
+        "totalVotes": 420219
+      },
+      "president2024": {
+        "margin": -29.2,
+        "totalVotes": 428922
+      },
+      "midterm2022": {
+        "totalVotes": 348020,
+        "race": "Senate"
+      }
+    },
+    "TN": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Marquita Bradshaw",
+        "republican": "Bill Hagerty",
+        "dem": 35.16,
+        "rep": 62.2,
+        "margin": -27.0,
+        "totalVotes": 2959761
+      },
+      "president2024": {
+        "margin": -29.7,
+        "totalVotes": 3063942
+      },
+      "midterm2022": {
+        "totalVotes": 1739882,
+        "race": "Governor"
+      }
+    },
+    "TX": {
+      "seat": {
+        "year": 2020,
+        "democrat": "MJ Hegar",
+        "republican": "John Cornyn",
+        "dem": 43.87,
+        "rep": 53.51,
+        "margin": -9.6,
+        "totalVotes": 11144040,
+        "_verification": "Certified figures (Hegar 4,888,764, total 11,144,040) as they stood on the state page from November 2020 until an unsourced June 21, 2026 edit changed them to 4,889,384 and 11,144,660 (diff 1360508095); the national 2020 Senate page still has the certified figures."
+      },
+      "president2024": {
+        "margin": -13.7,
+        "totalVotes": 11388674
+      },
+      "midterm2022": {
+        "totalVotes": 8102908,
+        "race": "Governor",
+        "_verification": "Total (8,102,908, including write-ins) from the national 2022 gubernatorial page and from the state page before unsourced July 23, 2026 edits changed Abbott to 4,435,558 and the total to 8,101,994 (diffs 1365620092, 1365622951)."
+      }
+    },
+    "VA": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Mark Warner",
+        "republican": "Daniel Gade",
+        "dem": 55.99,
+        "rep": 43.91,
+        "margin": 12.1,
+        "totalVotes": 4405087
+      },
+      "president2024": {
+        "margin": 5.8,
+        "totalVotes": 4505941
+      },
+      "midterm2022": {
+        "totalVotes": 3047663,
+        "race": "House",
+        "note": "No 2022 Senate or governor race; sum of all 11 U.S. House districts."
+      }
+    },
+    "WV": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Paula Jean Swearengin",
+        "republican": "Shelley Moore Capito",
+        "dem": 27.0,
+        "rep": 70.28,
+        "margin": -43.3,
+        "totalVotes": 778918
+      },
+      "president2024": {
+        "margin": -41.9,
+        "totalVotes": 762584,
+        "unverified": true,
+        "_verification": "The state page totals 762,584 (itemizing 194 write-in votes); the national results-by-state table shows 762,582 (192 other votes). The margin is -41.9 under both."
+      },
+      "midterm2022": {
+        "totalVotes": 472082,
+        "race": "House",
+        "note": "No 2022 Senate or governor race; sum of both U.S. House districts.",
+        "_verification": "The district results boxes sum to 472,082; the page's overview table shows 471,967 because it leaves out 115 write-in votes in District 2."
+      }
+    },
+    "WY": {
+      "seat": {
+        "year": 2020,
+        "democrat": "Merav Ben-David",
+        "republican": "Cynthia Lummis",
+        "dem": 26.76,
+        "rep": 72.85,
+        "margin": -46.1,
+        "totalVotes": 271937
+      },
+      "president2024": {
+        "margin": -45.8,
+        "totalVotes": 269048
+      },
+      "midterm2022": {
+        "totalVotes": 194000,
+        "race": "Governor"
+      }
+    }
+  }
+}

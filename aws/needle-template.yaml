@@ -97,6 +97,8 @@ Resources:
           # Before the first scheduled pass (22:00 UTC); a senate.json from an earlier test run is replaced.
           FRESH_AFTER: "2026-11-03T21:00:00Z"
           TEXAS_FRESH_AFTER: !Ref FreshAfter
+          # Intermediates some state results servers leave out of their TLS handshake (aws/senate/extra-ca.pem).
+          NODE_EXTRA_CA_CERTS: /var/task/extra-ca.pem
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref NeedleBucket

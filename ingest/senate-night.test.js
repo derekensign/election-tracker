@@ -90,3 +90,26 @@ test("calls landing together each show their own effect", () => {
   assert.ok(Math.abs(safe.p1 - safe.p0) < Math.abs(tossup.p1 - tossup.p0), "the safe seat moves control less than the tossup");
   assert.match(safe.detail, /with 1 other race called in the same check/);
 });
+
+test("projected margins: the starting margin with nothing called, the winning side of zero once called", () => {
+  const open = runSenateNight({ races: RACES, calls: {}, notUp: NOT_UP });
+  for (const race of open.races) assert.ok(Math.abs(race.expectedMargin - RACES.find((r) => r.state === race.state).margin) < 0.15, race.state);
+  const called = runSenateNight({ races: RACES, calls: { BB: { winner: "R" }, AA: { winner: "D" } }, notUp: NOT_UP });
+  const margin = (state) => called.races.find((r) => r.state === state).expectedMargin;
+  assert.ok(margin("BB") < 0 && margin("AA") > 0);
+  assert.ok(margin("CC") < open.races.find((r) => r.state === "CC").expectedMargin, "the Republican call drags the other tossup");
+});
+
+test("each point carries every race's chance and the national read; counts are stored without adding points", () => {
+  const doc = { inputs: { races: RACES, notUp: NOT_UP }, timeline: [{ t: "2026-11-03T21:30:00Z", p: 0.5, r: RACES.map((r) => r.prior), n: 0 }], events: [], latest: { calls: {}, texas: null } };
+  advanceSenateNight(doc, { calls: { BB: { winner: "D" } }, fetchedAt: "2026-11-03T23:00:00Z" });
+  const point = doc.timeline.at(-1);
+  assert.equal(point.r.length, RACES.length);
+  assert.equal(point.r[1], 1);
+  assert.ok(point.n > 0);
+  const returns = { BB: { total: 100, margin: 4 } };
+  const { changed } = advanceSenateNight(doc, { calls: { BB: { winner: "D" } }, returns, fetchedAt: "2026-11-03T23:02:00Z" });
+  assert.equal(changed, false);
+  assert.equal(doc.timeline.length, 2);
+  assert.deepEqual(doc.returns, returns);
+});

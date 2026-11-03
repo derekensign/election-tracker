@@ -25,8 +25,8 @@
 <div class="vote-strip wrap" id="vote-strip" hidden></div>
 <nav class="tabs wrap" aria-label="Sections">
   <a href="#overview" data-tab="overview" class="active">Overview</a>
-  <a href="#election-night" data-tab="election-night">Election night</a>
-  <a href="#senate-night" data-tab="senate-night">Senate night</a>
+  <a href="#election-night" data-tab="election-night">Texas Election Night</a>
+  <a href="#senate-night" data-tab="senate-night">Senate Election Night</a>
   <a href="#ask" data-tab="ask">Ask the data</a>
   <a href="#digest" data-tab="digest">Morning digest</a>
   <a href="#texas" data-tab="texas">Texas statewide</a>
@@ -59,7 +59,7 @@
 
 <div class="panel" data-panel="election-night">
   <section id="needle-section">
-    <h2>Election night</h2>
+    <h2>Texas Election Night</h2>
     <div class="needle-status" id="needle-status" role="status">Loading the election-night model.</div>
     <div class="needle-board" id="needle-board"></div>
 
@@ -379,21 +379,33 @@
 
 <div class="panel" data-panel="senate-night">
   <section id="senate-night-section">
-    <h2>Senate night</h2>
+    <h2>Senate Election Night</h2>
     <div class="needle-status" id="senate-night-status" role="status">Loading.</div>
     <div class="senate-night-board" id="senate-night-board"></div>
-    <div class="senate-seats" id="senate-night-seats"></div>
+    <div class="senate-floor-map">
+      <figure class="senate-floor">
+        <figcaption>The Senate floor</figcaption>
+        <div id="senate-night-seats"></div>
+        <div class="legend" id="senate-night-seats-legend"></div>
+      </figure>
+      <figure class="senate-night-map">
+        <figcaption>The races</figcaption>
+        <div id="senate-night-map" class="map"></div>
+        <div class="legend" id="senate-night-map-legend"></div>
+      </figure>
+    </div>
+    <p class="note hint">Hover a seat or a state for its race; click either to open that race in the table below.</p>
     <div class="needle-chart-head"><h3 id="senate-night-chart-title">Democrats' chance of Senate control through the night</h3></div>
     <div id="senate-night-chart" class="needle-chart"></div>
     <p class="note hint">Hover the chart to read any moment. Numbered markers are race calls and big moves, explained below.</p>
     <h3>Calls and big moves</h3>
     <ol class="needle-events" id="senate-night-events"></ol>
     <h3>All 35 races</h3>
-    <p class="note">The challenger is the Democrat, or the independent where the Democrat stepped aside (Nebraska, Idaho, South Dakota). "Before" is the polls model's chance this morning; "Now" folds in the calls so far and, for Texas, the live count.</p>
-    <div class="table-scroll"><table id="senate-night-table" class="data"></table></div>
+    <p class="note">Closest races first. The challenger is the Democrat, or the independent where the Democrat stepped aside (Nebraska, Idaho, South Dakota); margins are the challenger minus the Republican. Counts come from the states' own results files where the site can read them, and Texas from the Texas needle. They're shown as they come in: states count early, mail, and Election Day votes in different orders, so a partial count can mislead, and the projection and chance move on calls (and, in Texas, on the needle). Click a race for its votes and for why its chance moved.</p>
+    <div class="table-scroll"><table id="senate-night-table" class="data needle-table senate-night-table"></table></div>
     <details class="ev-more">
       <summary>How this works</summary>
-      <p class="note">There is no free live feed of every state's returns, so this page runs on race calls: the networks' calls as posted to Wikipedia's 2026 Senate elections page, read every two minutes, plus corrections the site can make by hand. Texas, where the site reads the Secretary of State's count directly, uses the live Texas needle.</p>
+      <p class="note">There is no free live feed of every state's returns, so control runs on race calls: the networks' calls as posted to Wikipedia's 2026 Senate elections page, read every two minutes, plus corrections the site can make by hand. Texas, where the site reads the Secretary of State's count directly, uses the live Texas needle. Where a state publishes an official results file the site can read, the table shows its count as it comes in, with the share counted estimated against 2022's turnout plus a tenth; those counts are shown, not modeled.</p>
       <p class="note">With nothing called, each race starts at its chance from the polls model on the U.S. Senate tab. Unlike that tab's control figure, this one treats a polling miss as shared by every state (one national swing, plus each state's own error), so it is less certain going in: a miss that sinks one party's candidate in Iowa would likely hurt it in Maine too. Each call then tells the model which side of zero that race's margin landed on, which shifts its estimate of the national swing and every race still out. Democrats need 51 seats for control, counting Sanders and King; at 50–50, Vice President Vance breaks ties for Republicans. Independents who win (in Nebraska, Idaho, or South Dakota) are counted as neither party's.</p>
       <p class="note">Calls on Wikipedia are posted by volunteer editors as networks make them and are occasionally early or wrong; a withdrawn call counts as uncalled again. Nothing here is a call of its own.</p>
     </details>
