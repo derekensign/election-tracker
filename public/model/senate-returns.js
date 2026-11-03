@@ -213,6 +213,29 @@ export function parseDelaware(text) {
   };
 }
 
+/**
+ * Why each state with a Senate race but no file above has no live count: a short reason for the table and a longer
+ * one for the race's detail. Their races still move on calls.
+ */
+export const SENATE_RETURN_GAPS = {
+  OH: ["blocks cloud servers", "Ohio's results site refuses requests from cloud servers like the site's recorder"],
+  KS: ["blocks cloud servers", "Kansas's results site refuses requests from cloud servers like the site's recorder"],
+  MI: ["behind a bot check", "Michigan's results site puts automated readers behind a bot check, which the site doesn't try to get past"],
+  KY: ["no automated reads", "Kentucky's terms restrict automated reads of its results site"],
+  OK: ["site blocked us", "Oklahoma's results site blocked the site's test reads"],
+  TN: ["site blocked us", "Tennessee's results site blocked the site's test reads"],
+  MT: ["site blocked us", "Montana's results site blocked the site's test reads"],
+  ME: ["no statewide file", "Maine has no statewide results file on election night; its towns report their own counts"],
+  NH: ["no statewide file", "New Hampshire has no statewide results file on election night; its towns report their own counts"],
+  MA: ["no statewide file", "Massachusetts has no statewide results file on election night; its towns report their own counts"],
+  MS: ["no statewide file", "Mississippi posts county PDFs after the election rather than a live file"],
+  WY: ["PDFs only", "Wyoming posts PDFs as its counties finish"],
+  IL: ["local offices report", "Illinois's 108 local election offices each post their own results; the state publishes after certification"],
+  NJ: ["county clerks report", "New Jersey's 21 county clerks each post their own results; the state publishes after certification"],
+  AL: ["web page only", "Alabama posts its results as a web page, not a file the site can read"],
+  WV: ["file not posted", "West Virginia hadn't posted tonight's results file when the site was set up"],
+};
+
 /** A Clarity election: read the current version (tiny, never cached), then that version's summary. */
 const clarity = (base, contestPattern) => async (get) => parseClarity(await get(`${base}/${(await get(`${base}/current_ver.txt`)).trim()}/json/en/summary.json`), contestPattern);
 const bust = (url) => `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;

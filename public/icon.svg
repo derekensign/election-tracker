@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The site's needle: a half gauge, Democratic blue to Republican red. favicon.ico and apple-touch-icon.png are
+       rasterized from the same shapes. -->
+  <rect width="64" height="64" rx="14" fill="#fff"/>
+  <path d="M6 42A26 26 0 0 1 31.09 16.02L31.48 27.01A15 15 0 0 0 17 42Z" fill="#2563eb"/>
+  <path d="M32.91 16.02A26 26 0 0 1 58 42H47A15 15 0 0 0 32.52 27.01Z" fill="#c01818"/>
+  <path d="M32 42L20 21.22" stroke="#22252a" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="32" cy="42" r="4.5" fill="#22252a"/>
+</svg>

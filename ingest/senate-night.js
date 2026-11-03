@@ -238,7 +238,7 @@ export function advanceSenateNight(doc, { calls, texas = null, returns = null, f
     events.push({
       t: fetchedAt, kind: upset ? "upset" : "call", state: race.state, winner: call.winner, p0, p1: run.pD,
       headline: `${race.stateName} for ${winnerName ? `${winnerName} (${call.winner})` : partyWord[call.winner]}`,
-      detail: `${race.stateName}${race.special ? " (special)" : ""} called for ${winnerName ? `${winnerName} (${call.winner})` : partyWord[call.winner]}${upset ? `, an upset: the polls gave that side ${pct(call.winner === race.challengerParty ? race.prior : 1 - race.prior)}` : ""}. ${Math.abs(run.pD - p0) < 0.005 ? `Democrats' chance of control held at ${pct(run.pD)}` : `On its own, it moved Democrats' chance of control from ${pct(p0)} to ${pct(run.pD)}`}${newCalls.length > 1 ? `, with ${newCalls.length - 1} other ${newCalls.length === 2 ? "race" : "races"} called in the same check` : ""}.`,
+      detail: `${race.stateName}${race.special ? " (special)" : ""} called for ${winnerName ? `${winnerName} (${call.winner})` : partyWord[call.winner]}${upset ? `, an upset: the polls gave that side ${pct(call.winner === race.challengerParty ? race.prior : 1 - race.prior)}` : ""}. ${pct(run.pD) === pct(p0) ? `Democrats' chance of control held at ${pct(run.pD)}` : `On its own, it moved Democrats' chance of control from ${pct(p0)} to ${pct(run.pD)}`}${newCalls.length > 1 ? `, with ${newCalls.length - 1} other ${newCalls.length === 2 ? "race" : "races"} called in the same check` : ""}.`,
     });
   }
   for (const state of Object.keys(previousCalls)) {

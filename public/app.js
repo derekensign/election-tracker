@@ -1742,7 +1742,7 @@ function askSenateDigest(doc, central) {
         state: race.stateName, special: race.special || undefined, incumbentParty: race.incumbentParty, democratOrIndependent: `${race.challenger} (${race.challengerParty})`, republican: race.republican,
         chanceThisMorning: race.prior, chanceNow: byState.get(race.state)?.chance ?? null, calledFor: byState.get(race.state)?.call?.winner ?? null,
         pollingAverageMargin: race.pollMargin, projectedFinalMargin: byState.get(race.state)?.expectedMargin ?? null,
-        count: count ? { estimatedShareCounted: Math.round(count.share * 1000) / 1000, votesCounted: count.votes, marginSoFar: count.margin, progress: count.detail } : "no official results file read for this state",
+        count: count ? { estimatedShareCounted: Math.round(count.share * 1000) / 1000, votesCounted: count.votes, marginSoFar: count.margin, progress: count.detail } : `no live count: ${senateState.gaps?.[race.state]?.[1] ?? "no official results file read for this state"}`,
         lastRaceForSeat: bench?.seat ? { year: bench.seat.year, margin: bench.seat.margin } : undefined, president2024Margin: bench?.president2024?.margin,
       };
     }),
@@ -1887,7 +1887,7 @@ function senateWindowOpen(now = Date.now()) { return now >= SENATE_NIGHT_TIMING.
 
 async function setupSenateNight(snapshot) {
   senateState.model = await import("./model/senate-night.js");
-  senateState.feeds = (await import("./model/senate-returns.js")).SENATE_RETURN_SOURCES;
+  ({ SENATE_RETURN_SOURCES: senateState.feeds, SENATE_RETURN_GAPS: senateState.gaps } = await import("./model/senate-returns.js"));
   senateState.snapshot = snapshot;
   senateState.benchmarks = (await fetchJson("data/senate-benchmarks.json").catch(() => null))?.states ?? null;
   // A race row opens its detail (votes so far, and why its chance moved); the map's states open theirs too.
@@ -2093,7 +2093,7 @@ function senateNightTooltip(doc, race, now) {
     ? `<div class="row"><span>Called</span><span><b>${esc(senateWinnerName(race, now.call) || now.call.winner)} (${now.call.winner})</b></span></div>`
     : `<div class="row"><span>${esc(lastName(race.challenger) || "Challenger")}'s chance</span><span><b>${needleChance(now.chance)}</b> (${needleChance(race.prior)} this morning)</span></div>`);
   if (count?.votes) rows.push(`<div class="row"><span>Counted</span><span>${pct(count.share)}, ${challengerMargin(count.margin, race.challengerParty)} so far</span></div>`);
-  else if (!count) rows.push('<div class="row"><span>Count</span><span>no state file; moves on calls</span></div>');
+  else if (!count) rows.push(`<div class="row"><span>Count</span><span>no live count (${esc(senateState.gaps?.[race.state]?.[0] ?? "no file")}); moves on calls</span></div>`);
   rows.push(`<div class="row"><span>Projected</span><span>${challengerMargin(now.expectedMargin, race.challengerParty)}</span></div>`);
   return rows.join("");
 }
@@ -2117,6 +2117,18 @@ function senateOutFill(now) {
 const senateCalledFill = (winner) => cssVar(winner === "D" ? "--d3" : winner === "R" ? "--r3" : "--toss");
 
 /**
+ * A called race carries a check mark, so "called" never depends on telling two blues apart: a white disc with the
+ * winner's check on the map, and a solid seat with a white check on the floor (`inverse`).
+ */
+const checkPath = (r) => `M${-0.45 * r} ${0.03 * r} L${-0.12 * r} ${0.36 * r} L${0.47 * r} ${-0.33 * r}`;
+function checkBadgeIcon(color, { inverse = false } = {}) {
+  return `<svg class="badge-icon" width="14" height="14" viewBox="-10 -10 20 20" aria-hidden="true"><circle r="${inverse ? 9.6 : 8.6}" fill="${inverse ? color : "#fff"}"${inverse ? "" : ` stroke="${color}" stroke-width="2.4"`}/><path d="${checkPath(10)}" fill="none" stroke="${inverse ? "#fff" : color}" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+function seatIcon(color, { out = false } = {}) {
+  return `<svg class="badge-icon" width="14" height="14" viewBox="-10 -10 20 20" aria-hidden="true"><circle r="${out ? 8.6 : 9.6}" fill="${color}"${out ? ` fill-opacity="0.75" stroke="${d3.color(color).darker(0.6)}" stroke-width="2"` : ""}/></svg>`;
+}
+
+/**
  * The Senate floor: 100 seats in five rows, the Democratic caucus filling from the left and Republicans from the
  * right. Seats not up are the darkest, seats won tonight solid, and races still out shaded by the chance now,
  * most Democratic first, so the 51st seat from the left shows which way control leans.
@@ -2128,7 +2140,7 @@ function renderSenateFloor(doc, run) {
   const seats = [];
   for (let i = 0; i < democraticCaucus; i += 1) seats.push({ fill: cssVar("--d4"), tip: `<b>Democratic caucus</b><div>${democraticCaucus} seats not up this year</div>` });
   const won = (party) => run.races.filter((race) => race.call && (party === "I" ? !["D", "R"].includes(race.call.winner) : race.call.winner === party));
-  const seatFor = (now, fill) => ({ fill, state: now.state, tip: senateNightTooltip(doc, inputs.get(now.state), now) });
+  const seatFor = (now, fill) => ({ fill, state: now.state, won: Boolean(now.call), tip: senateNightTooltip(doc, inputs.get(now.state), now) });
   for (const now of won("D")) seats.push(seatFor(now, senateCalledFill("D")));
   const out = run.races.filter((race) => !race.call).sort((a, b) => (b.challengerParty === "I" ? b.chance - 1 : 2 * b.chance - 1) - (a.challengerParty === "I" ? a.chance - 1 : 2 * a.chance - 1));
   for (const now of out) seats.push({ ...seatFor(now, senateOutFill(now)), out: true });
@@ -2151,6 +2163,8 @@ function renderSenateFloor(doc, run) {
     .attr("fill", (d) => d.fill).attr("stroke", (d) => (d.out ? d3.color(d.fill).darker(0.6) : null)).attr("class", (d) => `seat${d.out ? " out" : ""}${d.state ? " race" : ""}`)
     .on("mousemove", (event, d) => showTooltip(event, d.tip)).on("mouseleave", hideTooltip)
     .on("click", (event, d) => { if (d.state) openSenateRace(d.state, { scroll: true }); });
+  svg.append("g").attr("class", "seat-checks").selectAll("path").data(seats.map((seat, i) => ({ ...seat, spot: spots[i] })).filter((d) => d.won)).join("path")
+    .attr("transform", (d) => `translate(${at(d.spot.r, d.spot.angle)})`).attr("d", checkPath(seatRadius));
   // The majority line runs between the 50th and 51st seats from the left.
   const line = (spots[49].angle + spots[50].angle) / 2;
   const [x1, y1] = at(inner - 20, line), [x2, y2] = at(outer + 16, line);
@@ -2161,7 +2175,7 @@ function renderSenateFloor(doc, run) {
   svg.append("text").attr("class", "floor-count").attr("x", cx).attr("y", cy - 26).attr("text-anchor", "middle")
     .html(`<tspan class="d">${decidedD}</tspan><tspan dx="6">–</tspan><tspan dx="6" class="r">${decidedR}</tspan>`);
   svg.append("text").attr("class", "floor-sub").attr("x", cx).attr("y", cy - 4).attr("text-anchor", "middle").text(`decided · ${out.length} out${won("I").length ? ` · ${won("I").length} independent` : ""}`);
-  document.getElementById("senate-night-seats-legend").innerHTML = `<span><i class="sw" style="background:${cssVar("--d4")}"></i><i class="sw" style="background:${cssVar("--d3")}"></i>Democratic caucus: not up, won tonight</span><span><i class="sw out" style="background:${cssVar("--d2")}"></i><i class="sw out" style="background:#e9e9e6"></i><i class="sw out" style="background:${cssVar("--r2")}"></i>Still out, shaded by the chance now</span><span><i class="sw" style="background:${cssVar("--r3")}"></i><i class="sw" style="background:${cssVar("--r4")}"></i>Republicans: won tonight, not up</span>`;
+  document.getElementById("senate-night-seats-legend").innerHTML = `<span>${seatIcon(cssVar("--d4"))}${checkBadgeIcon(cssVar("--d3"), { inverse: true })}Democratic caucus: not up, won tonight</span><span>${seatIcon(cssVar("--d2"), { out: true })}${seatIcon("#e9e9e6", { out: true })}${seatIcon(cssVar("--r2"), { out: true })}Still out, shaded by the chance now</span><span>${checkBadgeIcon(cssVar("--r3"), { inverse: true })}${seatIcon(cssVar("--r4"))}Republicans: won tonight, not up</span>`;
 }
 
 /** The map: called states solid, races still out shaded by the chance now, counting states outlined. */
@@ -2179,17 +2193,21 @@ function renderSenateNightMap(doc, run) {
   const fill = (f) => { const race = now.get(stateOf(f)); return !race ? cssVar("--notup") : race.call ? senateCalledFill(race.call.winner) : senateOutFill(race); };
   const counting = (f) => { const race = inputs.get(stateOf(f)); return Boolean(race && !now.get(race.state).call && senateCount(doc, race)?.votes); };
   svg.append("g").selectAll("path").data(features).join("path").attr("d", path).attr("fill", fill)
-    .attr("class", (f) => `${now.has(stateOf(f)) ? "rated race" : ""}${counting(f) ? " counting" : ""}`)
+    .attr("class", (f) => `state${now.has(stateOf(f)) ? " rated race" : ""}${counting(f) ? " counting" : ""}`)
     .on("mousemove", (event, f) => { const race = inputs.get(stateOf(f)); showTooltip(event, race ? senateNightTooltip(doc, race, now.get(race.state)) : `<b>${esc(f.properties.name)}</b><br>No Senate race this year`); })
     .on("mouseleave", hideTooltip)
     .on("click", (event, f) => { if (now.has(stateOf(f))) openSenateRace(stateOf(f), { scroll: true }); });
+  const called = features.filter((f) => now.get(stateOf(f))?.call);
+  const badges = svg.append("g").attr("class", "call-badges").selectAll("g").data(called).join("g").attr("transform", (f) => `translate(${path.centroid(f)})`);
+  badges.append("circle").attr("r", 13).style("stroke", (f) => senateCalledFill(now.get(stateOf(f)).call.winner));
+  badges.append("path").attr("d", checkPath(13)).style("stroke", (f) => senateCalledFill(now.get(stateOf(f)).call.winner));
   svg.append("g").selectAll("text").data(features.filter((f) => now.has(stateOf(f)))).join("text")
-    .attr("class", "state-label").attr("text-anchor", "middle").attr("transform", (f) => `translate(${path.centroid(f)})`).attr("dy", "0.35em")
+    .attr("class", "state-label").attr("text-anchor", "middle").attr("transform", (f) => `translate(${path.centroid(f)})`).attr("dy", (f) => (now.get(stateOf(f)).call ? "1.9em" : "0.35em"))
     .attr("fill", (f) => { const race = now.get(stateOf(f)); return race.call || Math.abs(race.chance - 0.5) > 0.2 ? "#fff" : "#111"; })
-    .text((f) => `${stateOf(f)}${now.get(stateOf(f)).call ? "✓" : ""}`);
+    .text(stateOf);
   const scale = probabilityScale();
   document.getElementById("senate-night-map-legend").innerHTML = [0.1, 0.3, 0.5, 0.7, 0.9].map((p) => `<span><i class="sw" style="background:${scale(p)}"></i>${p === 0.5 ? "50/50" : `${Math.round(p * 100)}% D`}</span>`).join("")
-    + `<span><i class="sw" style="background:${cssVar("--d3")}"></i><i class="sw" style="background:${cssVar("--r3")}"></i>Called ✓</span><span><i class="sw outline"></i>Counting</span><span><i class="sw" style="background:${cssVar("--notup")}"></i>No race</span>`;
+    + `<span>${checkBadgeIcon(cssVar("--d3"))}${checkBadgeIcon(cssVar("--r3"))}Called</span><span><i class="sw outline"></i>Counting</span><span><i class="sw" style="background:${cssVar("--notup")}"></i>No race</span>`;
 }
 
 /** The national read, in words: how far the night so far (calls, and the Texas count) says each party is running from its polls. */
@@ -2247,7 +2265,7 @@ function senateRaceDetail(doc, race, index, now) {
         : "<p>No votes counted yet.</p>"}<p class="thin">${returns.units?.total ? `Reporting: ${senateVotes(returns.units.reporting)} of ${senateVotes(returns.units.total)} ${returns.units.kind}. ` : ""}From the <a href="${esc(returns.url)}" target="_blank" rel="noopener">${esc(returns.source)}</a>, read ${needleTime(returns.fetchedAt)} Central.${returns.stale ? ` The latest read failed (${esc(returns.error || "error")}).` : ""}</p></div>`
       : senateState.feeds?.[race.state]
         ? `<div><h4>Count</h4><p>No votes yet. The site reads the <a href="${esc(senateState.feeds[race.state].url)}" target="_blank" rel="noopener">${esc(senateState.feeds[race.state].label)}</a> results file every two minutes from 5 p.m. Central.</p></div>`
-        : `<div><h4>Count</h4><p>There's no official results file the site can read for ${esc(race.stateName)}, so this race moves on its call and on calls elsewhere.</p></div>`);
+        : `<div><h4>Count</h4><p>No live count: ${esc(senateState.gaps?.[race.state]?.[1] ?? `there's no official results file the site can read for ${race.stateName}`)}. This race moves on its call and on calls elsewhere.</p></div>`);
   }
   const moves = senateRaceMoves(doc, index, race);
   parts.push(`<div><h4>Why the chance moved</h4>${moves.length
@@ -2283,7 +2301,7 @@ function renderSenateNightTable(doc, run) {
     const callCell = call
       ? `<b class="${call.winner === "D" ? "lean-d" : call.winner === "R" ? "lean-r" : "lean-i"}">${esc(lastName(senateWinnerName(race, call)) || call.winner)} (${call.winner})</b>${call.via === "manual" ? '<span class="thin below">set by hand</span>' : ""}`
       : '<span class="muted">not called</span>';
-    const countCell = !count ? '<span class="muted">no state file</span>'
+    const countCell = !count ? `<span class="muted">no live count</span><span class="thin below">${esc(senateState.gaps?.[race.state]?.[0] ?? "moves on calls")}</span>`
       : `<span class="progress" aria-hidden="true"><span style="width:${Math.round(Math.min(1, count.share) * 100)}%"></span></span>${pct(count.share)}<span class="thin">${esc(count.detail)}</span>`;
     return `<tr data-state="${race.state}" class="race-row${open ? " open" : ""}" tabindex="0" aria-expanded="${open}">
       <td class="county"><b><span class="caret" aria-hidden="true">${open ? "▾" : "▸"}</span>${esc(race.stateName)}</b>${race.special ? ' <span class="thin special">special</span>' : ""}<span class="thin below">${esc(lastName(race.challenger) || "—")} (${party}) v. ${esc(lastName(race.republican) || "—")} (R)</span></td>

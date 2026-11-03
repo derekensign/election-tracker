@@ -229,7 +229,7 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .senate-floor-map { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.25fr); gap: 12px 28px; align-items: start; margin: 18px 0 4px; }
 .senate-floor-map figure { margin: 0; }
 .senate-floor-map figcaption { font-size: 12.5px; color: var(--ink-2); font-weight: 500; margin-bottom: 6px; }
-.senate-floor svg, .senate-night-map svg { display: block; width: 100%; height: auto; }
+#senate-night-seats svg, #senate-night-map svg { display: block; width: 100%; height: auto; }
 .senate-floor .seat { stroke: var(--paper); stroke-width: 1.5; }
 .senate-floor .seat.out { stroke-width: 2; fill-opacity: 0.75; }
 .legend .sw.out { opacity: 0.75; box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.25); }
@@ -241,10 +241,15 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .senate-floor .floor-count { font: 600 30px var(--sans); fill: var(--ink); }
 .senate-floor .floor-count .d { fill: var(--d3); } .senate-floor .floor-count .r { fill: var(--r3); }
 .senate-floor .floor-sub { font: 12.5px var(--sans); fill: var(--ink-2); }
-.senate-night-map path { stroke: var(--paper); stroke-width: 0.8; }
-.senate-night-map path.counting { stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 4 2; }
-.senate-night-map path.race:hover { stroke: var(--ink); stroke-width: 1.6; }
+.senate-night-map path.state { stroke: var(--paper); stroke-width: 0.8; }
+.senate-night-map path.state.counting { stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 4 2; }
+.senate-night-map path.state.race:hover { stroke: var(--ink); stroke-width: 1.6; }
 .legend .sw.outline { background: transparent; border: 1.5px dashed var(--ink); box-sizing: border-box; }
+/* The check badge that marks a called race, on the map, the floor, and their legends. */
+.senate-night-map .call-badges circle { fill: #fff; stroke-width: 3; pointer-events: none; }
+.senate-night-map .call-badges path, .senate-floor .seat-checks path { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.senate-floor .seat-checks path { stroke: #fff; stroke-width: 2.6; }
+.legend .badge-icon { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }
 @media (max-width: 760px) { .senate-floor-map { grid-template-columns: 1fr; } }
 /* The race table: rows open to their votes and to why the chance moved. */
 .lean-i { color: #555b63; font-weight: 600; }
