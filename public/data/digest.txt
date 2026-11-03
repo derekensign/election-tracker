@@ -1,24 +1,24 @@
-Texas Polls Tracker, Monday, November 2, 2026
+Texas Polls Tracker, Tuesday, November 3, 2026
 
-Talarico 74% to win the Senate seat on a polling average of D+3.9. Hinojosa 39% for governor. Democrats 88% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
+Talarico 73% to win the Senate seat on a polling average of D+3.7. Hinojosa 39% for governor. Democrats 88% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
 
 WHAT MOVED
-- U.S. Senate control (polls model): D 83% → 88% (+4.6 pts)
-- Vermont Governor: poll-model D win chance 37% → 77% (+39.5 pts)
-- Alaska Senate: Decision Desk HQ moved Tossup → Lean D
-- Iowa Senate: Sabato's Crystal Ball moved Tossup → Lean R
-- Kansas Senate: FiftyPlusOne moved Tossup → Lean D
-- Kansas Senate: Sabato's Crystal Ball moved Tossup → Lean D
-- Kentucky Senate: Decision Desk HQ moved Safe R → Likely R
-- Louisiana Senate: Sabato's Crystal Ball moved Likely R → Lean R
-- Louisiana Senate: Split Ticket moved Safe R → Likely R
-- Maine Senate: FiftyPlusOne moved Lean D → Likely D
-- Maine Senate: Sabato's Crystal Ball moved Tossup → Lean D
-- Maine Senate: Silver Bulletin moved Lean D → Likely D
+- Kansas Senate: Split Ticket moved Tossup → Lean D
+- TX U.S. Senate: abcnews moved Tossup → Lean D
+- Kansas Governor: Silver Bulletin moved Lean R → Tossup
+- South Carolina Governor: Decision Desk HQ moved Lean R → Likely R
+- TX-21 (U.S. House): Decision Desk HQ moved Safe R → Likely R
+- Georgia Senate: polling average D+10.6 → D+8.4
+- South Carolina Senate: poll-model D win chance 34% → 40% (+6.0 pts)
+- Georgia Senate: poll-model D win chance 94% → 90% (−4.4 pts)
+- Minnesota Senate: poll-model D win chance 69% → 66% (−3.6 pts)
+- Georgia Governor: poll-model D win chance 44% → 47% (+3.4 pts)
+- North Carolina Senate: polling average D+10.7 → D+12.3
+- South Carolina Governor: polling average R+11.1 → R+10.0
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 74%. Average D+3.9 over 41 polls; latest AtlasIntel Nov 1 D+6.0.
-- Governor: Hinojosa 39%. Average R+1.6 over 35 polls; latest AtlasIntel Nov 1 D+1.0.
+- U.S. Senate: Talarico 73%. Average D+3.7 over 43 polls; latest Research Co. Nov 2 D+3.0.
+- Governor: Hinojosa 39%. Average R+1.6 over 37 polls; latest Research Co. Nov 2 R+2.0.
 - Lieutenant Governor: Goodwin 31%. Average R+3.0 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
 - Attorney General: Johnson 31%. Average R+3.1 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
 - Comptroller: Eckhardt 23%. Average R+4.7 over 4 polls; latest Texas Southern University Oct 25 R+6.0.
@@ -33,13 +33,13 @@ TEXAS LEGISLATURE
 
 U.S. SENATE
 - Control: 88% for Democrats. Expected 52.4 Democratic-caucus seats; 51 needed.
-- Closest races: IA 49% D (average R+0.1, 12 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); SC 34% D (average R+2.5, 3 polls); MN 69% D (average D+3.2, 3 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 11 polls); KS 77% D (average D+4.5, 5 polls); ME 79% D (average D+5.0, 9 polls).
+- Closest races: IA 49% D (average R+0.1, 12 polls); SC 40% D (average R+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); MN 66% D (average D+2.5, 4 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 12 polls); KS 79% D (average D+4.9, 6 polls); ME 79% D (average D+4.9, 10 polls).
 
 U.S. HOUSE
-- Control: 91% for Democrats (expected 236.8 seats, 218 needed). Generic ballot D+7.4 over 3 polls.
+- Control: 91% for Democrats (expected 236.7 seats, 218 needed). Generic ballot D+8.1 over 3 polls.
 - Texas seats in play: TX-9 19% D (Likely R, polls R+3.2); TX-15 63% D (Tilt D, polls D+7.0); TX-23 37% D (Tilt R, polls Even); TX-34 77% D (Lean D, polls D+7.0); TX-35 51% D (Tossup, polls D+0.2).
 
 COMING UP
-- Election Day: Tuesday, November 3, 2026 (tomorrow).
+- Election Day: Tuesday, November 3, 2026 (today).
 
 https://texas-race-tracker.vercel.app
