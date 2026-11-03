@@ -1887,7 +1887,8 @@ function senateWindowOpen(now = Date.now()) { return now >= SENATE_NIGHT_TIMING.
 
 async function setupSenateNight(snapshot) {
   senateState.model = await import("./model/senate-night.js");
-  ({ SENATE_RETURN_SOURCES: senateState.feeds, SENATE_RETURN_GAPS: senateState.gaps } = await import("./model/senate-returns.js"));
+  senateState.returnsModel = await import("./model/senate-returns.js");
+  ({ SENATE_RETURN_SOURCES: senateState.feeds, SENATE_RETURN_GAPS: senateState.gaps } = senateState.returnsModel);
   senateState.snapshot = snapshot;
   senateState.benchmarks = (await fetchJson("data/senate-benchmarks.json").catch(() => null))?.states ?? null;
   // A race row opens its detail (votes so far, and why its chance moved); the map's states open theirs too.
@@ -1933,9 +1934,11 @@ async function senateOwnCheck() {
   const content = (await (await fetch(SENATE_WIKIPEDIA_API, { cache: "no-store" })).json()).query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content;
   if (!content) throw new Error("Wikipedia returned no page");
   const overrides = await fetchJson("data/senate-calls.json").catch(() => ({}));
+  const { wikipediaReturns, wikipediaReturnsUrl, mergeReturns } = senateState.returnsModel;
+  const unofficial = await fetch(wikipediaReturnsUrl(doc.inputs.races, { browser: true }), { cache: "no-store" }).then((r) => r.json()).then((json) => wikipediaReturns(doc.inputs.races, json, new Date().toISOString())).catch(() => ({}));
   const texasRun = needleState.runs?.find((run) => run.id === "tx-senate");
   const texas = texasRun?.countedVotes ? { pD: texasRun.pD, margin: texasRun.margin, statewide: texasRun.shared.statewide, counted: texasRun.countedShare, countedVotes: texasRun.countedVotes, countedMargin: texasRun.countedMargin, expectedVotes: texasRun.expectedVotes, returnsAt: needleState.doc?.checkedAt ?? null } : null;
-  model.advanceSenateNight(doc, { calls: model.mergeCalls(model.parseSenateCalls(content, codeByStateName), overrides), texas, fetchedAt: new Date().toISOString() });
+  model.advanceSenateNight(doc, { calls: model.mergeCalls(model.parseSenateCalls(content, codeByStateName), overrides), texas, returns: mergeReturns(doc.returns ?? {}, unofficial), fetchedAt: new Date().toISOString() });
   senateState.source = "browser";
 }
 
@@ -2080,9 +2083,12 @@ function senateCount(doc, race) {
   const baseline = senateState.benchmarks?.[race.state]?.midterm2022?.totalVotes;
   // A county can report before it has votes, so only a full precinct count marks a state finished.
   const units = returns.units?.total ? returns.units : null;
-  const share = !returns.total ? 0 : units?.kind === "precincts" && units.reporting >= units.total ? 1
+  const share = !returns.total ? 0 : units?.kind === "percent" ? Math.min(1, units.reporting / 100)
+    : units?.kind === "precincts" && units.reporting >= units.total ? 1
     : baseline ? Math.min(0.99, returns.total / (baseline * 1.1)) : units ? units.reporting / units.total : 0;
-  const detail = !returns.total ? "not yet" : units ? `${senateVotes(units.reporting)} of ${senateVotes(units.total)} ${units.kind}` : `${senateVotes(returns.total)} votes`;
+  const detail = !returns.total ? "not yet"
+    : returns.unofficial ? `unofficial, Wikipedia${returns.lastUpdate ? ` ${returns.lastUpdate}` : ""}`
+    : units ? `${senateVotes(units.reporting)} of ${senateVotes(units.total)} ${units.kind}` : `${senateVotes(returns.total)} votes`;
   return { share, votes: returns.total, margin: returns.margin, detail: `${detail}${returns.stale ? " (last good read)" : ""}` };
 }
 
@@ -2262,7 +2268,9 @@ function senateRaceDetail(doc, race, index, now) {
     parts.push(returns
       ? `<div><h4>Count${returns.stale ? " (last good read)" : ""}</h4>${returns.total
         ? `<table class="mini"><tbody>${returns.candidates.filter((c) => c.votes > 0).map((c) => `<tr><td>${esc(c.name)}${c.party === "other" ? "" : ` (${c.party})`}</td><td class="num">${senateVotes(c.votes)}</td><td class="num">${pct(c.votes / returns.total, 1)}</td></tr>`).join("")}</tbody></table>`
-        : "<p>No votes counted yet.</p>"}<p class="thin">${returns.units?.total ? `Reporting: ${senateVotes(returns.units.reporting)} of ${senateVotes(returns.units.total)} ${returns.units.kind}. ` : ""}From the <a href="${esc(returns.url)}" target="_blank" rel="noopener">${esc(returns.source)}</a>, read ${needleTime(returns.fetchedAt)} Central.${returns.stale ? ` The latest read failed (${esc(returns.error || "error")}).` : ""}</p></div>`
+        : "<p>No votes counted yet.</p>"}<p class="thin">${returns.unofficial
+          ? `Unofficial: ${esc(senateState.gaps?.[race.state]?.[1] ?? "there's no official file")}, so these are the numbers Wikipedia's editors post on <a href="${esc(returns.url)}" target="_blank" rel="noopener">the race's page</a> from news reports${returns.units ? ` (${returns.units.reporting}% reporting)` : ""}${returns.lastUpdate ? `, updated ${esc(returns.lastUpdate)}` : ""}. Read ${needleTime(returns.fetchedAt)} Central.`
+          : `${returns.units?.total ? `Reporting: ${senateVotes(returns.units.reporting)} of ${senateVotes(returns.units.total)} ${returns.units.kind}. ` : ""}From the <a href="${esc(returns.url)}" target="_blank" rel="noopener">${esc(returns.source)}</a>, read ${needleTime(returns.fetchedAt)} Central.`}${returns.stale ? ` The latest read failed (${esc(returns.error || "error")}).` : ""}</p></div>`
       : senateState.feeds?.[race.state]
         ? `<div><h4>Count</h4><p>No votes yet. The site reads the <a href="${esc(senateState.feeds[race.state].url)}" target="_blank" rel="noopener">${esc(senateState.feeds[race.state].label)}</a> results file every two minutes from 5 p.m. Central.</p></div>`
         : `<div><h4>Count</h4><p>No live count: ${esc(senateState.gaps?.[race.state]?.[1] ?? `there's no official results file the site can read for ${race.stateName}`)}. This race moves on its call and on calls elsewhere.</p></div>`);
@@ -2295,7 +2303,8 @@ function renderSenateNightTable(doc, run) {
     const count = senateCount(doc, race);
     const bench = benchmarks[race.state] ?? {};
     const party = race.challengerParty;
-    const soFar = count?.votes ? count.margin : null;
+    // A handful of votes (New Hampshire's midnight towns) says nothing about a margin; wait for a thousand.
+    const soFar = count?.votes >= 1000 ? count.margin : null;
     const open = senateState.open.has(race.state);
     const call = now.call;
     const callCell = call

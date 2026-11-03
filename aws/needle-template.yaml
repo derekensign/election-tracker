@@ -14,6 +14,10 @@ Parameters:
     Type: String
     Default: "2026-11-03T18:00:00Z"
     Description: A needle.json created before this (a test run) is replaced rather than resumed. Noon Central.
+  RelaySourceIp:
+    Type: String
+    Default: 136.62.76.201/32
+    Description: The home network the Raspberry Pi relay (relay/pi-relay.py) writes relay.json from.
 
 Resources:
   NeedleBucket:
@@ -46,6 +50,16 @@ Resources:
             Resource:
               - !Sub "${NeedleBucket.Arn}/needle.json"
               - !Sub "${NeedleBucket.Arn}/senate.json"
+          # The Pi relay writes this one object with no AWS keys, and only from home. The recorder treats it as
+          # untrusted input: it parses it like any state's file and uses it only for the states it relays.
+          - Sid: RelayWriteFromHomeOnly
+            Effect: Allow
+            Principal: "*"
+            Action: s3:PutObject
+            Resource: !Sub "${NeedleBucket.Arn}/relay.json"
+            Condition:
+              IpAddress:
+                aws:SourceIp: !Ref RelaySourceIp
 
   NeedleRecorderFunction:
     Type: AWS::Serverless::Function

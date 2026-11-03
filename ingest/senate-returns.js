@@ -18,11 +18,11 @@ function lastName(name) {
   return tokens.at(-1) ?? "";
 }
 
-/** "DEM", "DFL", "Dem", "Democratic", "REP", "R", … → "D" | "R" | "other". */
+/** "DEM", "DFL", "Dem", "Democratic Party", "REP", "R", … → "D" | "R" | "other". */
 function partyCode(raw) {
   const code = String(raw || "").trim().toUpperCase();
-  if (["DEM", "D", "DFL", "DEMOCRAT", "DEMOCRATIC"].includes(code)) return "D";
-  if (["REP", "R", "GOP", "REPUBLICAN"].includes(code)) return "R";
+  if (["DEM", "D", "DFL", "DEMOCRAT", "DEMOCRATIC"].includes(code) || /^DEMOCRATIC( PARTY|[–-]FARMER)/.test(code)) return "D";
+  if (["REP", "R", "GOP", "REPUBLICAN"].includes(code) || /^REPUBLICAN PARTY/.test(code)) return "R";
   return "other";
 }
 
@@ -213,6 +213,97 @@ export function parseDelaware(text) {
   };
 }
 
+/** Wikitext to plain text: links to their labels, without bold, refs, templates, tags, or parentheticals. */
+function plainWikitext(text) {
+  return String(text ?? "")
+    .replace(/<ref[^>]*\/>/g, "").replace(/<ref[^>]*>[\s\S]*?<\/ref>/g, "")
+    .replace(/\[\[(?:[^|\]]*\|)?([^\]]+)\]\]/g, "$1")
+    .replace(/\{\{[^{}]*\}\}/g, "")
+    .replace(/'{2,}/g, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\([^)]*\)/g, "")
+    .replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Unofficial counts from a 2026 Senate election page's infobox, as Wikipedia's editors fill it in from news reports
+ * through the night: nominees, parties, popular votes, and "reporting" (a percent). Null until there are votes.
+ * Commented-out parameters don't count.
+ */
+export function parseWikipediaInfobox(wikitext) {
+  const text = String(wikitext).replace(/<!--[\s\S]*?-->/g, "");
+  const start = text.indexOf("{{Infobox election");
+  if (start === -1) return null;
+  let depth = 0, end = text.length;
+  for (let i = start; i < text.length - 1; i += 1) {
+    const pair = text.slice(i, i + 2);
+    if (pair === "{{") { depth += 1; i += 1; }
+    else if (pair === "}}") { depth -= 1; i += 1; if (depth === 0) { end = i + 1; break; } }
+  }
+  const params = {};
+  for (const line of text.slice(start, end).split("\n")) {
+    const match = line.match(/^\s*\|\s*([a-z_]+\d*)\s*=\s*(.*)$/i);
+    if (match) params[match[1].toLowerCase()] = match[2];
+  }
+  const candidates = [];
+  for (let n = 1; n <= 8; n += 1) {
+    const name = params[`nominee${n}`] ?? params[`candidate${n}`];
+    if (name == null) continue;
+    candidates.push({ name: plainWikitext(name), party: plainWikitext(params[`party${n}`]), votes: number(plainWikitext(params[`popular_vote${n}`])) });
+  }
+  if (!candidates.some((c) => c.votes > 0)) return null;
+  const reporting = plainWikitext(params.reporting).replace(/[^\d.]/g, "");
+  return {
+    candidates,
+    units: reporting ? { reporting: Math.min(100, Number(reporting)), total: 100, kind: "percent" } : null,
+    lastUpdate: [plainWikitext(params.last_update), plainWikitext(params.time_zone)].filter(Boolean).join(" ") || null,
+  };
+}
+
+/** A race's Wikipedia page. */
+export function wikipediaPageTitle(race) {
+  return `2026 United States Senate ${race.special ? "special " : ""}election in ${race.stateName}`;
+}
+
+/**
+ * Unofficial counts from one Wikipedia API response covering the races' pages (prop=revisions, rvprop=content|
+ * timestamp, rvsection=0, formatversion=2): the only counts for states with no official file (SENATE_RETURN_GAPS),
+ * and a fallback when a state's file fails. Pages with no votes yet are left out.
+ */
+export function wikipediaReturns(races, apiResponse, fetchedAt) {
+  const byTitle = new Map(races.filter((race) => race.state !== "TX").map((race) => [wikipediaPageTitle(race), race]));
+  const returns = {};
+  for (const page of apiResponse?.query?.pages ?? []) {
+    const race = byTitle.get(page.title), revision = page.revisions?.[0];
+    const parsed = race && revision ? parseWikipediaInfobox(revision.slots?.main?.content ?? "") : null;
+    if (!parsed) continue;
+    returns[race.state] = {
+      ...summarizeReturns(race, parsed), unofficial: true, source: "Wikipedia (unofficial)", lastUpdate: parsed.lastUpdate, edited: revision.timestamp,
+      url: `https://en.wikipedia.org/wiki/${encodeURIComponent(page.title.replace(/ /g, "_"))}`, fetchedAt,
+    };
+  }
+  return returns;
+}
+
+/**
+ * The Wikipedia API URL for every race's page but Texas's (the Texas needle covers it): only each page's lead section,
+ * where the infobox is, so about 100 KB in all. Add origin=* when a browser reads it.
+ */
+export function wikipediaReturnsUrl(races, { browser = false } = {}) {
+  const titles = races.filter((race) => race.state !== "TX").map(wikipediaPageTitle).join("|");
+  return `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content%7Ctimestamp&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2${browser ? "&origin=*" : ""}&titles=${encodeURIComponent(titles)}`;
+}
+
+/** Each state's count: its official file when that read is current, else Wikipedia's, else the last official one. */
+export function mergeReturns(official = {}, unofficial = {}) {
+  const merged = {};
+  for (const state of new Set([...Object.keys(official), ...Object.keys(unofficial)])) {
+    const file = official[state];
+    merged[state] = file && !file.stale && !file.unofficial ? file : unofficial[state] ?? file;
+  }
+  return merged;
+}
+
 /**
  * Why each state with a Senate race but no file above has no live count: a short reason for the table and a longer
  * one for the race's detail. Their races still move on calls.
@@ -264,6 +355,34 @@ export const SENATE_RETURN_SOURCES = {
   OR: { label: "Oregon Secretary of State", url: "https://results.oregonvotes.gov/", read: async (get) => parseResultsAjax(await get("https://orresultswebservices.azureedge.us/ResultsAjax.svc/GetMapData?type=FED&category=CTY&raceID=300038695&osn=0&county=0&party=0")) },
   DE: { label: "Delaware Department of Elections", url: "https://elections.delaware.gov/results/enr/GE2026.html", read: async (get) => parseDelaware(await get(bust("https://elections.delaware.gov/results/enr/Election_StatewideResults_ID_GE2026.json"))) },
 };
+
+/**
+ * States read through the Raspberry Pi relay (relay/pi-relay.py) because they refuse cloud servers: the relay drops
+ * each response, unparsed, into relay.json, and the recorder parses it here.
+ */
+export const SENATE_RELAY_SOURCES = {
+  OH: { label: "Ohio Secretary of State", url: "https://liveresults.ohiosos.gov/", parse: parseOhio },
+};
+
+/**
+ * Counts from the relay's file when it's fresh (relayed within `maxAgeMs`): each relayed state's response parsed and
+ * summarized like any other official file. A stale or missing relay gives nothing, and Wikipedia covers those states.
+ */
+export function relayReturns(races, relay, { now = Date.now(), maxAgeMs = 6 * 60_000 } = {}) {
+  if (relay?.kind !== "senate-relay" || !(now - Date.parse(relay.relayedAt) < maxAgeMs)) return {};
+  const raceByState = new Map(races.map((race) => [race.state, race]));
+  const returns = {};
+  for (const [state, source] of Object.entries(SENATE_RELAY_SOURCES)) {
+    const file = relay.files?.[state], race = raceByState.get(state);
+    if (!race || file?.status !== 200 || typeof file.body !== "string") continue;
+    try {
+      returns[state] = { ...summarizeReturns(race, source.parse(file.body)), source: source.label, url: source.url, fetchedAt: file.fetchedAt, relayed: true };
+    } catch {
+      // A malformed relayed file is skipped; Wikipedia's count stands in.
+    }
+  }
+  return returns;
+}
 
 /**
  * One state's parsed file, summarized against its race: the challenger (the Democrat, or the independent where an

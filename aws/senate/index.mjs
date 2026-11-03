@@ -7,10 +7,10 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { advanceSenateNight, createSenateNightDocument, mergeCalls, parseSenateCalls } from "./ingest/senate-night.js";
 import { runNeedle } from "./ingest/needle.js";
-import { SENATE_RETURN_SOURCES, summarizeReturns } from "./ingest/senate-returns.js";
+import { SENATE_RETURN_SOURCES, mergeReturns, relayReturns, summarizeReturns, wikipediaReturns, wikipediaReturnsUrl } from "./ingest/senate-returns.js";
 
 const s3 = new S3Client({});
-const { BUCKET, OBJECT_KEY = "senate.json", TEXAS_KEY = "needle.json", SNAPSHOT_URL, OVERRIDES_URL, WIKIPEDIA_PAGE, FRESH_AFTER, TEXAS_FRESH_AFTER } = process.env;
+const { BUCKET, OBJECT_KEY = "senate.json", TEXAS_KEY = "needle.json", RELAY_KEY = "relay.json", SNAPSHOT_URL, OVERRIDES_URL, WIKIPEDIA_PAGE, FRESH_AFTER, TEXAS_FRESH_AFTER } = process.env;
 const USER_AGENT = "election-tracker/0.1 (https://github.com/derekensign/election-tracker; derekensign@gmail.com)";
 
 /** An object from the bucket, gunzipped and parsed, with its version; null when it doesn't exist yet. */
@@ -51,6 +51,19 @@ async function getText(url) {
   return response.text();
 }
 
+/**
+ * Unofficial counts from the races' Wikipedia infoboxes (one API request): the only counts for states with no
+ * official file, and the fallback when a state's file fails. If the request fails, the last ones are kept, stale.
+ */
+async function unofficialReturns(races, previous = {}) {
+  try {
+    return wikipediaReturns(races, JSON.parse(await getText(wikipediaReturnsUrl(races))), new Date().toISOString());
+  } catch (error) {
+    console.log(`returns from Wikipedia: ${error.message}`);
+    return Object.fromEntries(Object.entries(previous).filter(([, r]) => r.unofficial).map(([state, r]) => [state, { ...r, stale: true, error: error.message }]));
+  }
+}
+
 /** Every state's results file, read at once; a state whose file fails keeps its last good count, marked stale. */
 async function stateReturns(races, previous = {}) {
   const raceByState = new Map(races.map((race) => [race.state, race]));
@@ -66,7 +79,24 @@ async function stateReturns(races, previous = {}) {
   return Object.fromEntries(entries.filter(Boolean));
 }
 
-export async function handler() {
+/**
+ * A by-hand reachability check from the recorder's own network: `aws lambda invoke --payload '{"probe": [urls]}'`.
+ * Only the account can invoke it; it reports each URL's status and the start of its body, and records nothing.
+ */
+async function probe(urls) {
+  return Promise.all(urls.slice(0, 12).map(async (url) => {
+    try {
+      const response = await fetch(url, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(20_000) });
+      const text = await response.text();
+      return { url, status: response.status, bytes: text.length, server: response.headers.get("server"), start: text.slice(0, 160) };
+    } catch (error) {
+      return { url, error: `${error.message}${error.cause?.code ? ` (${error.cause.code})` : ""}` };
+    }
+  }));
+}
+
+export async function handler(event = {}) {
+  if (Array.isArray(event.probe)) return probe(event.probe);
   const started = Date.now();
   const loaded = await readObject(OBJECT_KEY);
   let doc = loaded?.doc;
@@ -80,12 +110,16 @@ export async function handler() {
   }
   const codeByStateName = Object.fromEntries(doc.inputs.races.map((race) => [race.stateName, race.state]));
   // All sources at once. Each one failing leaves its last good value in place, so one outage never wipes calls.
-  const [wikipedia, overridesRead, texasRead, returns] = await Promise.all([
+  const [wikipedia, overridesRead, texasRead, officialReturns, wikipediaCounts, relayed] = await Promise.all([
     wikipediaCalls(codeByStateName).catch((error) => { console.log(`calls: ${error.message}; keeping the last ones`); return null; }),
     fetch(`${OVERRIDES_URL}?t=${Date.now()}`, { signal: AbortSignal.timeout(15_000) }).then((response) => (response.ok ? response.json() : null)).catch((error) => { console.log(`overrides: ${error.message}`); return null; }),
     texasRace().catch((error) => { console.log(`texas: ${error.message}`); return null; }),
     stateReturns(doc.inputs.races, doc.returns ?? {}),
+    unofficialReturns(doc.inputs.races, doc.returns ?? {}),
+    // Ohio, through the Raspberry Pi at home (relay/pi-relay.py), since Ohio refuses cloud servers.
+    readObject(RELAY_KEY).then((object) => relayReturns(doc.inputs.races, object?.doc)).catch((error) => { console.log(`relay: ${error.message}`); return {}; }),
   ]);
+  const returns = mergeReturns({ ...officialReturns, ...relayed }, wikipediaCounts);
   const fromWikipedia = wikipedia ?? doc.latest?.wikipediaCalls ?? {};
   const overrides = overridesRead ?? doc.latest?.overrides ?? {};
   const texas = texasRead;

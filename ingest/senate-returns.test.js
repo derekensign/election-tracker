@@ -128,3 +128,57 @@ test("No votes yet: no margin", () => {
   const empty = NORTH_CAROLINA.replace(/"vct":"\d+"/g, '"vct":"0"');
   assert.equal(summarizeReturns(race("Roy Cooper", "Michael Whatley"), parseNorthCarolina(empty)).margin, null);
 });
+
+test("Wikipedia's infobox: live counts once editors fill them in, nothing before, commented-out fields ignored", async () => {
+  const { parseWikipediaInfobox, wikipediaReturns } = await import("./senate-returns.js");
+  const page = (reporting, votes) => `Intro {{Infobox election
+| election_name = 2026 United States Senate election in Maine
+| ongoing = yes
+${reporting == null ? "<!--\n| reporting = 0\n-->" : `| reporting = ${reporting}`}
+| last_update = 9:42 PM
+| time_zone = [[Eastern Standard Time|EST]]
+| nominee1 = [[Susan Collins]]
+| party1 = Republican Party (United States)
+| popular_vote1 = ${votes[0]}
+| percentage1 =
+| nominee2 = [[Troy Jackson]] <!-- note -->(replacing [[Graham Platner]])
+| party2 = Democratic Party (United States)
+| popular_vote2 = ${votes[1]}<ref>{{cite web|title=AP}}</ref>
+}}
+Body.`;
+  assert.equal(parseWikipediaInfobox(page(null, ["", ""])), null);
+  const parsed = parseWikipediaInfobox(page("45%", ["'''150,000'''", "160,000"]));
+  assert.deepEqual(parsed.units, { reporting: 45, total: 100, kind: "percent" });
+  assert.equal(parsed.lastUpdate, "9:42 PM EST");
+  const races = [{ state: "ME", stateName: "Maine", special: false, challenger: "Troy Jackson", challengerParty: "D", republican: "Susan Collins" }];
+  const response = { query: { pages: [{ title: "2026 United States Senate election in Maine", revisions: [{ timestamp: "2026-11-04T02:43:00Z", slots: { main: { content: page("45", ["150,000", "160,000"]) } } }] }] } };
+  const { ME } = wikipediaReturns(races, response, "2026-11-04T02:44:00Z");
+  assert.equal(ME.unofficial, true);
+  assert.equal(ME.margin, 3.23);
+  assert.equal(ME.candidates[0].name, "Troy Jackson");
+});
+
+test("Merging counts: a current official file wins, Wikipedia fills gaps and failed files", async () => {
+  const { mergeReturns } = await import("./senate-returns.js");
+  const merged = mergeReturns(
+    { NC: { total: 10 }, VA: { total: 5, stale: true } },
+    { NC: { total: 99, unofficial: true }, VA: { total: 7, unofficial: true }, ME: { total: 3, unofficial: true } },
+  );
+  assert.equal(merged.NC.total, 10);
+  assert.equal(merged.VA.total, 7);
+  assert.equal(merged.ME.total, 3);
+});
+
+test("The Pi relay: a fresh relayed file is parsed like any state's; a stale or broken one gives nothing", async () => {
+  const { relayReturns } = await import("./senate-returns.js");
+  const races = [{ state: "OH", stateName: "Ohio", special: true, challenger: "Sherrod Brown", challengerParty: "D", republican: "Jon Husted" }];
+  const body = JSON.stringify({ contestList: [{ reportedPrecincts: 10, totalPrecincts: 20, candidatesRunning: [{ primaryCandidate: "Sherrod Brown", candidateParty: "D", vCount: 550 }, { primaryCandidate: "Jon Husted", candidateParty: "R", vCount: 450 }] }] });
+  const relay = (relayedAt, file) => ({ kind: "senate-relay", relayedAt, files: { OH: file } });
+  const now = Date.parse("2026-11-04T01:00:00Z");
+  const fresh = relayReturns(races, relay("2026-11-04T00:58:00Z", { status: 200, body, fetchedAt: "2026-11-04T00:58:00Z" }), { now });
+  assert.equal(fresh.OH.margin, 10);
+  assert.equal(fresh.OH.relayed, true);
+  assert.deepEqual(relayReturns(races, relay("2026-11-04T00:40:00Z", { status: 200, body }), { now }), {});
+  assert.deepEqual(relayReturns(races, relay("2026-11-04T00:59:00Z", { status: 403, error: "HTTP 403" }), { now }), {});
+  assert.deepEqual(relayReturns(races, relay("2026-11-04T00:59:00Z", { status: 200, body: "<html>" }), { now }), {});
+});
