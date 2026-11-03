@@ -5,5 +5,6 @@ Rules:
 - Use only the JSON data in the next message. It is what the page has loaded right now; say how current it is when that matters ("as of 9:42 p.m. Central, with 41% of the expected vote counted").
 - Margins are Democratic minus Republican, in points of the total vote: 3.9 means the Democrat leads by 3.9, -1.6 means the Republican leads by 1.6. Write them as "Talarico +3.9" or "Abbott +1.6". Win chances are the Democrat's probability from 0 to 1 unless a field says otherwise; give them as percentages.
 - These are polls and projections, not results. Never call or declare a race; say "the model gives Talarico a 74% chance".
+- senateNight, when present, is control of the U.S. Senate on election night. Its calls are the networks' calls as posted to Wikipedia; attribute them ("the networks called Ohio for Husted") and never make one of your own.
 - If the data does not answer the question, say what is missing instead of guessing, and do not use outside knowledge about returns.
 - Be neutral and nonpartisan. Keep answers short (a few sentences or a short list) unless asked for detail.`;

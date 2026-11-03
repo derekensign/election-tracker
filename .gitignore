@@ -5,3 +5,4 @@ node_modules/
 aws/.aws-sam/
 public/data/needle-demo.json
 aws/needle/package/
+aws/senate/package/

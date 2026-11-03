@@ -219,6 +219,20 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
   .needle-events li .text { grid-column: 2 / -1; }
 }
 
+/* Senate night */
+.senate-night-board { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 10px 32px; align-items: center; border-top: 1px solid var(--rule); padding-top: 16px; }
+.senate-night-board .facts { margin: 0; padding: 0; list-style: none; font-family: var(--serif); font-size: 15px; color: var(--ink-2); }
+.senate-night-board .facts li { padding: 4px 0; }
+.senate-night-board .facts b { font-family: var(--sans); color: var(--ink); font-weight: 600; }
+.senate-seats { margin: 14px 0 6px; }
+.senate-seats .bar { position: relative; display: flex; height: 22px; border-radius: 2px; overflow: hidden; background: var(--wash); }
+.senate-seats .bar span { height: 100%; }
+.senate-seats .bar .gap { flex: none; width: 2px; background: var(--paper); }
+.senate-seats .majority { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--ink); }
+.senate-seats .labels { display: flex; justify-content: space-between; font-size: 13px; color: var(--ink-2); margin-top: 6px; gap: 10px; flex-wrap: wrap; }
+.senate-seats .labels b { color: var(--ink); }
+@media (max-width: 640px) { .senate-night-board { grid-template-columns: 1fr; } }
+
 /* Ask the data */
 .ask-setup { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; margin: 8px 0 4px; padding: 12px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .ask-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink-2); }

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Deploy the election-night recorder Lambda (aws/needle-template.yaml) to the PERSONAL AWS account.
+# Deploy the election-night recorders (aws/needle-template.yaml: Texas needle and U.S. Senate control) to the
+# PERSONAL AWS account.
 #   AWS_PROFILE=personal ./aws/deploy-needle.sh
 # Packages aws/needle/index.mjs with the pure ingest modules it imports, unchanged, so the Lambda runs exactly the
 # model the page and the GitHub recorder run. Test a pass afterwards with:
@@ -20,6 +21,14 @@ cp needle/index.mjs "$PACKAGE/"
 cp ../ingest/needle.js ../ingest/early-vote.js ../ingest/http.js ../ingest/config.js "$PACKAGE/ingest/"
 cp ../ingest/sources/sos-results.js "$PACKAGE/ingest/sources/"
 echo '{ "type": "module" }' > "$PACKAGE/package.json"
+
+# The Senate recorder: handler + the model modules it imports (senate-night needs needle and metrics).
+SENATE=senate/package
+mkdir -p "$SENATE/ingest"
+find "$SENATE" -type f -delete
+cp senate/index.mjs "$SENATE/"
+cp ../ingest/senate-night.js ../ingest/needle.js ../ingest/early-vote.js ../ingest/metrics.js ../ingest/config.js "$SENATE/ingest/"
+echo '{ "type": "module" }' > "$SENATE/package.json"
 
 sam deploy --template-file needle-template.yaml --stack-name "$STACK_NAME" --resolve-s3 --capabilities CAPABILITY_IAM \
   --no-confirm-changeset --no-fail-on-empty-changeset --no-progressbar

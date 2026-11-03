@@ -23,6 +23,7 @@
   renderEarlyVote(snapshot).catch((error) => console.error("early vote", error));
   setupNeedle(snapshot).catch((error) => { document.getElementById("needle-status").textContent = `The election-night model could not load: ${error.message}`; console.error("needle", error); });
   setupAsk(snapshot).catch((error) => console.error("ask", error));
+  setupSenateNight(snapshot).catch((error) => { document.getElementById("senate-night-status").textContent = `The Senate night model could not load: ${error.message}`; console.error("senate night", error); });
   renderDigest(snapshot);
   renderPollsters(snapshot);
   setupScenarios(snapshot).catch((error) => { document.getElementById("tx-scenario-figures").innerHTML = `<p class="note">Scenario models could not load: ${esc(error.message)}</p>`; });
@@ -1721,9 +1722,25 @@ function buildAskContext() {
       biggestMoves: doc.events.slice(-30).map((e) => ({ time: central(e.t), race: (runs.find((run) => run.id === e.race) || {}).office, demChanceFrom: e.p0, demChanceTo: e.p1, what: e.detail })),
       counties: askCountyTable(runs, doc),
     } : null,
+    senateNight: senateState.doc ? askSenateDigest(senateState.doc, central) : null,
   };
   return context;
 }
+/** The Senate-night picture for the Ask tab: control, calls, and how each race stands now. */
+function askSenateDigest(doc, central) {
+  const run = senateRun(doc);
+  const byState = new Map(run.races.map((race) => [race.state, race]));
+  return {
+    howItWorks: "Control of the U.S. Senate from race calls (network calls posted to Wikipedia, plus manual corrections), the live Texas needle, and each race's pre-election polls-model chance, with one polling miss shared by every state. Democrats need 51 seats; a 50-50 Senate goes to Republicans (the vice president breaks ties). Each race's chance is the Democrat's (or the independent's, where an independent is the Republican's main opponent) probability of winning the seat.",
+    asOf: central(doc.checkedAt),
+    democraticControlChance: run.pD, republicanControlChance: run.pR, noMajorityChance: run.pNone,
+    expectedDemocraticCaucusSeats: run.expectedD, seatsNotUp: doc.inputs.notUp, called: run.called, uncalled: run.uncalled,
+    nationalPollingMissRead: run.nationalSwing,
+    races: doc.inputs.races.map((race) => ({ state: race.stateName, special: race.special || undefined, incumbentParty: race.incumbentParty, democratOrIndependent: `${race.challenger} (${race.challengerParty})`, republican: race.republican, chanceThisMorning: race.prior, chanceNow: byState.get(race.state)?.chance ?? null, calledFor: byState.get(race.state)?.call?.winner ?? null })),
+    calls: doc.events.slice(-35).map((e) => ({ time: central(e.t), what: e.detail })),
+  };
+}
+
 function askCountyTable(runs, doc) {
   const senate = runs.find((run) => run.id === "tx-senate"), governor = runs.find((run) => run.id === "tx-governor");
   if (!senate || !governor) return null;
@@ -1840,6 +1857,208 @@ function askMarkdown(text) {
   }
   flushParagraph(); flushList();
   return html.join("");
+}
+
+// ---------- senate night: control as races are called ----------
+// The document comes from the AWS Senate recorder (aws/senate/index.mjs, senate.json beside needle.json). Until it
+// exists, and whenever it goes quiet on election night, the browser builds the same document itself: Wikipedia's
+// calls through its API, the manual overrides in data/senate-calls.json, and the live Texas needle already on the page.
+const SENATE_NIGHT_URL = "https://election-tracker-needle-needlebucket-92bzmtfdaxc0.s3.us-east-1.amazonaws.com/senate.json";
+const SENATE_NIGHT_TIMING = {
+  windowOpens: Date.parse("2026-11-03T22:00:00Z"), // first Senate polls close, 6 p.m. Eastern
+  windowCloses: Date.parse("2026-11-05T18:00:00Z"),
+  freshAfter: Date.parse("2026-11-03T21:00:00Z"), // recorder files from earlier are test runs
+  chartStart: Date.parse("2026-11-03T21:30:00Z"), // 3:30 p.m. Central
+  chartMinimumEnd: Date.parse("2026-11-04T07:00:00Z"), // 1 a.m. Central
+  staleMs: 6 * 60_000, pollMs: 60_000, ownCheckMs: 3 * 60_000,
+};
+const SENATE_WIKIPEDIA_API = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&format=json&formatversion=2&origin=*&titles=${encodeURIComponent("2026 United States Senate elections")}`;
+const senateState = { model: null, snapshot: null, doc: null, source: null, lastOwnCheck: 0, error: null, refreshing: false };
+function senateWindowOpen(now = Date.now()) { return now >= SENATE_NIGHT_TIMING.windowOpens && now <= SENATE_NIGHT_TIMING.windowCloses; }
+
+async function setupSenateNight(snapshot) {
+  senateState.model = await import("./model/senate-night.js");
+  senateState.snapshot = snapshot;
+  senateState.doc = senateState.model.createSenateNightDocument(snapshot);
+  senateState.source = "browser";
+  renderSenateNight();
+  await refreshSenateNight();
+  setInterval(() => { if (senateWindowOpen()) refreshSenateNight().catch((error) => console.error("senate night", error)); }, SENATE_NIGHT_TIMING.pollMs);
+  window.addEventListener("resize", debounce(() => { if (senateState.doc) renderSenateNightChart(senateState.doc); }, 150));
+}
+
+/** Take the recorder's file when it is from tonight and fresher; read the calls directly if it has gone quiet. */
+async function refreshSenateNight() {
+  if (senateState.refreshing) return;
+  senateState.refreshing = true;
+  try {
+    const recorded = await fetch(SENATE_NIGHT_URL, { cache: "no-cache", signal: AbortSignal.timeout(8000) }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const now = Date.now();
+    const fromTonight = recorded?.kind === "senate-night" && Date.parse(recorded.createdAt) >= SENATE_NIGHT_TIMING.freshAfter;
+    const alive = fromTonight && now - Date.parse(recorded.checkedAt) < SENATE_NIGHT_TIMING.staleMs;
+    if (fromTonight && (alive || Date.parse(recorded.updatedAt) >= Date.parse(senateState.doc.updatedAt))) { senateState.doc = recorded; senateState.source = "recorder"; }
+    if (senateWindowOpen(now) && !alive && now - senateState.lastOwnCheck >= SENATE_NIGHT_TIMING.ownCheckMs && document.visibilityState === "visible") {
+      senateState.lastOwnCheck = now;
+      try { await senateOwnCheck(); senateState.error = null; } catch (error) { senateState.error = error.message; }
+    }
+    renderSenateNight();
+  } finally {
+    senateState.refreshing = false;
+  }
+}
+
+async function senateOwnCheck() {
+  const { model, doc } = senateState;
+  const codeByStateName = Object.fromEntries(doc.inputs.races.map((race) => [race.stateName, race.state]));
+  const content = (await (await fetch(SENATE_WIKIPEDIA_API, { cache: "no-store" })).json()).query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content;
+  if (!content) throw new Error("Wikipedia returned no page");
+  const overrides = await fetchJson("data/senate-calls.json").catch(() => ({}));
+  const texasRun = needleState.runs?.find((run) => run.id === "tx-senate");
+  const texas = texasRun?.countedVotes ? { pD: texasRun.pD, statewide: texasRun.shared.statewide, counted: texasRun.countedShare } : null;
+  model.advanceSenateNight(doc, { calls: model.mergeCalls(model.parseSenateCalls(content, codeByStateName), overrides), texas, fetchedAt: new Date().toISOString() });
+  senateState.source = "browser";
+}
+
+function senateRun(doc) {
+  return doc.latest?.run ?? senateState.model.runSenateNight({ races: doc.inputs.races, calls: doc.latest?.calls ?? {}, texas: doc.latest?.texas ?? null, notUp: doc.inputs.notUp });
+}
+
+function renderSenateNight() {
+  const { doc } = senateState;
+  const run = senateRun(doc);
+  const start = doc.timeline[0]?.p ?? run.pD;
+  const calledCount = run.called.D + run.called.R + run.called.I;
+  const status = document.getElementById("senate-night-status");
+  status.className = `needle-status${calledCount ? " live" : ""}`;
+  status.innerHTML = !calledCount && Date.now() < SENATE_NIGHT_TIMING.windowOpens
+    ? "<b>The first Senate polls close at 6 p.m. Eastern (5 p.m. Central).</b><span>Until races are called, this is the polls model, with one polling miss shared by every state.</span>"
+    : `<b>${calledCount ? '<span class="live-dot" aria-hidden="true"></span>' : ""}${calledCount} of 35 races called as of ${needleTime(doc.checkedAt)} Central.</b><span>Calls are the networks' calls as posted to Wikipedia, ${senateState.source === "browser" ? "read directly by your browser" : "checked every two minutes"}. Texas uses the live Texas needle. Nothing here is a call of its own.</span>${senateState.error ? ` <span>Last direct check failed (${esc(senateState.error)}).</span>` : ""}`;
+
+  const swing = run.nationalSwing;
+  const swingWords = calledCount && Math.abs(swing.mean) >= 1 && Math.abs(swing.mean) > swing.sd / 2
+    ? `Calls so far suggest ${swing.mean > 0 ? "Democrats" : "Republicans"} are beating their polls by about ${Math.abs(swing.mean).toFixed(0)} points nationally.`
+    : calledCount ? "Calls so far are about what the polls expected." : "No calls yet, so no read on a national polling miss.";
+  const site = senateState.snapshot.senateControl?.pollModel?.control?.D;
+  document.getElementById("senate-night-board").innerHTML = `<div class="needle-race">
+      <div class="needle-gauge">${needleGaugeSvg(run.pD, start, { large: true, dem: "Democrats", rep: "Republicans" })}</div>
+      <div class="needle-odds"><div class="side${run.pD >= 0.5 ? "" : " trails"}"><b>${needleChance(run.pD)}</b>Democrats</div><div class="side right${run.pD >= 0.5 ? " trails" : ""}"><b>${needleChance(run.pR)}</b>Republicans</div></div>
+    </div>
+    <ul class="facts">
+      <li>Expected Democratic-caucus seats <b>${run.expectedD.toFixed(1)}</b>; Democrats need 51, and a 50–50 Senate goes to Republicans (Vice President Vance breaks ties).</li>
+      <li>${esc(swingWords)}</li>
+      ${run.pNone >= 0.005 ? `<li>Chance no party reaches a majority, with independents holding the balance: <b>${needleChance(run.pNone)}</b>.</li>` : ""}
+      <li>This morning: Democrats <b>${needleChance(start)}</b>, with the polling miss shared across states. The U.S. Senate tab, which treats races as independent, says ${needleChance(site ?? 0)}.</li>
+    </ul>`;
+
+  // Balance of power: seats each side has locked in (not up, plus called), the races still out, the 51 line.
+  const decidedD = doc.inputs.notUp.democraticCaucus + run.called.D, decidedR = doc.inputs.notUp.republican + run.called.R;
+  const segment = (count, color, label) => (count ? `<span style="width:${count}%;background:${color}" title="${esc(label)}"></span>` : "");
+  document.getElementById("senate-night-seats").innerHTML = `<div class="bar" role="img" aria-label="${decidedD} Democratic-caucus seats decided, ${run.uncalled} races out, ${run.called.I} independent, ${decidedR} Republican">
+      ${segment(decidedD, cssVar("--d3"), `${decidedD} Democratic-caucus seats (${doc.inputs.notUp.democraticCaucus} not up, ${run.called.D} called)`)}
+      ${segment(run.uncalled, cssVar("--wash"), `${run.uncalled} races not called`)}
+      ${segment(run.called.I, cssVar("--toss"), `${run.called.I} independent`)}
+      ${segment(decidedR, cssVar("--r3"), `${decidedR} Republican seats (${doc.inputs.notUp.republican} not up, ${run.called.R} called)`)}
+      <i class="majority" style="left:calc(51% - 1px)" aria-hidden="true"></i>
+    </div>
+    <div class="labels"><span><b>${decidedD}</b> Democratic caucus</span><span>${run.uncalled} not called${run.called.I ? `, <b>${run.called.I}</b> independent` : ""}; the line is 51</span><span><b>${decidedR}</b> Republican</span></div>`;
+
+  renderSenateNightChart(doc);
+  renderSenateNightEvents(doc);
+  renderSenateNightTable(doc, run);
+}
+
+/** Democrats' control chance through the night, a step line with the calls marked. */
+function renderSenateNightChart(doc) {
+  const box = document.getElementById("senate-night-chart");
+  box.innerHTML = "";
+  const narrow = window.innerWidth < 600, width = narrow ? 520 : 1000;
+  const margin = { top: 30, right: narrow ? 44 : 96, bottom: 26, left: 44 }, plotHeight = narrow ? 210 : 250;
+  const top = margin.top, bottom = top + plotHeight, height = bottom + margin.bottom;
+  const series = doc.timeline.map((point) => ({ ...point, time: Math.max(Date.parse(point.t), SENATE_NIGHT_TIMING.chartStart) }));
+  const lastTime = series.length ? series[series.length - 1].time : SENATE_NIGHT_TIMING.chartStart;
+  const holdUntil = senateWindowOpen() ? Math.max(lastTime, Date.now()) : lastTime;
+  const end = Math.max(SENATE_NIGHT_TIMING.chartMinimumEnd, holdUntil + 20 * 60_000);
+  const drawn = series.length ? [...series, { ...series[series.length - 1], time: holdUntil }] : [];
+  const x = d3.scaleLinear().domain([SENATE_NIGHT_TIMING.chartStart, end]).range([margin.left, width - margin.right]);
+  const y = d3.scaleLinear().domain([0, 1]).range([bottom, top]);
+  const svg = d3.select(box).append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", "Democrats' chance of Senate control through election night");
+  const hourTicks = d3.range(Math.ceil(SENATE_NIGHT_TIMING.chartStart / 3_600_000) * 3_600_000, end + 1, 3_600_000).filter((t, i) => !narrow || i % 2 === 0);
+  svg.append("g").attr("class", "grid").selectAll("line").data([0.25, 0.75, 1]).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => y(v)).attr("y2", (v) => y(v));
+  svg.append("line").attr("class", "even-line").attr("stroke-dasharray", "3 3").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", y(0.5)).attr("y2", y(0.5));
+  for (const [time, label] of [[SENATE_NIGHT_TIMING.windowOpens, "First polls close"], [NEEDLE_TIMING.pollsClose, narrow ? "" : "Texas closes"]]) {
+    svg.append("line").attr("class", "close-rule").attr("x1", x(time)).attr("x2", x(time)).attr("y1", top - 6).attr("y2", bottom);
+    if (label) svg.append("text").attr("class", "close-label").attr("x", x(time) + 4).attr("y", top - 10).text(label);
+  }
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).tickValues([0, 0.5, 1]).tickFormat((v) => `${Math.round(v * 100)}%`).tickSize(0).tickPadding(9)).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${bottom})`).call(d3.axisBottom(x).tickValues(hourTicks).tickFormat((t) => needleHour.format(new Date(t)).replace(/\s+/g, " ").toLowerCase()).tickSize(0)).select(".domain").remove();
+  svg.append("path").datum(drawn).attr("fill", "none").attr("stroke", cssVar("--d3")).attr("stroke-width", 2).attr("d", d3.line().curve(d3.curveStepAfter).x((p) => x(p.time)).y((p) => y(p.p)));
+  if (drawn.length) {
+    const last = drawn[drawn.length - 1];
+    const endLabel = svg.append("text").attr("class", "event-label").text(`Democrats ${needleChance(last.p)}`);
+    if (narrow) endLabel.attr("x", x(last.time)).attr("y", y(last.p) + (last.p > 0.85 ? 18 : -8)).attr("text-anchor", "end");
+    else endLabel.attr("x", x(last.time) + 6).attr("y", y(last.p) + 4);
+  }
+  const events = senateNightEventsFor(doc).filter((event) => event.n);
+  // Calls made in the same check share a point on the line; stack their markers upward from it.
+  const sameCheck = new Map();
+  const markers = events.map((event) => {
+    const stack = sameCheck.get(event.t) ?? 0;
+    sameCheck.set(event.t, stack + 1);
+    return { event, x: x(Math.max(Date.parse(event.t), SENATE_NIGHT_TIMING.chartStart)), y: y(event.p1) - stack * 21 };
+  });
+  for (const { event, x: ex, y: ey } of markers) {
+    const marker = svg.append("g").attr("class", "event-marker").attr("transform", `translate(${ex},${ey})`).attr("tabindex", 0).attr("role", "img").attr("aria-label", `${event.n}: ${event.headline}`);
+    marker.append("circle").attr("r", 9);
+    marker.append("text").attr("text-anchor", "middle").attr("dy", "0.35em").text(event.n);
+    const tip = (e) => showTooltip(e, `<b>${event.n}. ${needleTime(event.t)}</b><div>${esc(event.headline)}</div><hr><div>${esc(event.detail)}</div>`);
+    marker.on("mousemove", tip).on("mouseleave", hideTooltip);
+  }
+  const linePoints = [];
+  for (let i = 0; i + 1 < drawn.length; i += 1) {
+    const x0 = x(drawn[i].time), x1 = x(drawn[i + 1].time), y0 = y(drawn[i].p), y1 = y(drawn[i + 1].p);
+    for (let px = x0; px < x1; px += 5) linePoints.push({ x: px, y: y0 });
+    for (let py = Math.min(y0, y1); py <= Math.max(y0, y1); py += 5) linePoints.push({ x: x1, y: py });
+  }
+  placeNeedleLabels(svg, markers, linePoints, { count: narrow ? 2 : 3, left: margin.left, right: width - margin.right, top, bottom });
+}
+
+/**
+ * Calls and big moves in time order. Every upset and the calls that moved control most (2 points or more, up to
+ * twelve) are charted and numbered; safe seats called as expected are listed only.
+ */
+function senateNightEventsFor(doc, { charted = 12 } = {}) {
+  const events = doc.events.slice().sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
+  const worthCharting = events.filter((e) => e.kind === "upset" || Math.abs(e.p1 - e.p0) >= 0.02);
+  const shown = new Set(worthCharting.sort((a, b) => (b.kind === "upset") - (a.kind === "upset") || Math.abs(b.p1 - b.p0) - Math.abs(a.p1 - a.p0)).slice(0, charted));
+  let n = 0;
+  return events.map((event) => ({ ...event, n: shown.has(event) ? (n += 1) : null }));
+}
+
+function renderSenateNightEvents(doc) {
+  const list = document.getElementById("senate-night-events");
+  const events = senateNightEventsFor(doc);
+  if (!events.length) { list.innerHTML = '<li class="empty">No calls yet. Each call shows here with how it moved the control chance.</li>'; return; }
+  list.innerHTML = events.slice().reverse().map((event) => `<li>${event.n ? `<span class="n">${event.n}</span>` : "<span></span>"}<span class="when">${needleTime(event.t)}</span><span class="move ${event.p1 >= event.p0 ? "lean-d" : "lean-r"}">${needleChance(event.p0)} → ${needleChance(event.p1)}</span><span class="text">${esc(event.detail)}</span></li>`).join("");
+}
+
+function renderSenateNightTable(doc, run) {
+  const byState = new Map(run.races.map((race) => [race.state, race]));
+  const party = (code) => ({ D: "D", R: "R", I: "I", other: "other" }[code] || code);
+  const rows = doc.inputs.races.map((race) => ({ race, now: byState.get(race.state) }))
+    .sort((a, b) => (Boolean(a.now.call) - Boolean(b.now.call)) || Math.abs(a.race.prior - 0.5) - Math.abs(b.race.prior - 0.5));
+  const chanceText = (p, challengerParty) => `<span class="${challengerParty === "D" ? "lean-d" : ""}">${needleChance(p)} ${challengerParty}</span>`;
+  document.getElementById("senate-night-table").innerHTML = `<thead><tr><th>State</th><th>Matchup</th><th class="num">Before<span class="sub">challenger's chance</span></th><th class="num">Now</th><th>Status</th></tr></thead><tbody>`
+    + rows.map(({ race, now }) => {
+      const call = now.call;
+      const winnerName = call ? (call.name || (call.winner === "R" ? race.republican : call.winner === "D" ? race.democrat : call.winner === "I" ? race.independent : null)) : null;
+      const status = call ? `Called for ${esc(winnerName || party(call.winner))} (${party(call.winner)})${call.via === "manual" ? " <span class=\"thin\">set by hand</span>" : ""}`
+        : race.state === "TX" && doc.latest?.texas ? `Live count: ${pct(doc.latest.texas.counted)} counted` : '<span class="muted">Not called</span>';
+      return `<tr><td><b>${esc(race.stateName)}</b>${race.special ? ' <span class="thin">special</span>' : ""}</td>
+        <td>${esc(race.challenger || "—")} (${race.challengerParty}) against ${esc(race.republican || "—")} (R)</td>
+        <td class="num">${chanceText(race.prior, race.challengerParty)}</td>
+        <td class="num">${call ? "—" : chanceText(now.chance, race.challengerParty)}</td>
+        <td>${status}</td></tr>`;
+    }).join("") + "</tbody>";
 }
 
 // ---------- governors ----------
@@ -2161,7 +2380,7 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "election-night", "ask", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
+const PANELS = ["overview", "election-night", "senate-night", "ask", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
 function showPanel(name, { push = true } = {}) {
   const panel = PANELS.includes(name) ? name : name === "needle" ? "election-night" : "overview"; // #needle was the first name
   if (name === "needle") history.replaceState(null, "", "#election-night");

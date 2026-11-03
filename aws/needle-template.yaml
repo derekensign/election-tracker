@@ -39,11 +39,13 @@ Resources:
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
-          - Sid: PublicReadNeedleOnly
+          - Sid: PublicReadNightFilesOnly
             Effect: Allow
             Principal: "*"
             Action: s3:GetObject
-            Resource: !Sub "${NeedleBucket.Arn}/needle.json"
+            Resource:
+              - !Sub "${NeedleBucket.Arn}/needle.json"
+              - !Sub "${NeedleBucket.Arn}/senate.json"
 
   NeedleRecorderFunction:
     Type: AWS::Serverless::Function
@@ -74,9 +76,52 @@ Resources:
             Schedule: cron(0/2 0-13 4 11 ? 2026)
             Description: Record the Texas election-night needle every two minutes
 
+  SenateNightFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: election-tracker-senate-night
+      CodeUri: senate/package/
+      Handler: index.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 1024
+      Timeout: 100
+      Environment:
+        Variables:
+          BUCKET: !Ref NeedleBucket
+          OBJECT_KEY: senate.json
+          TEXAS_KEY: needle.json
+          SNAPSHOT_URL: !Ref SnapshotUrl
+          OVERRIDES_URL: https://texas-race-tracker.vercel.app/data/senate-calls.json
+          WIKIPEDIA_PAGE: 2026 United States Senate elections
+          # Before the first scheduled pass (22:00 UTC); a senate.json from an earlier test run is replaced.
+          FRESH_AFTER: "2026-11-03T21:00:00Z"
+          TEXAS_FRESH_AFTER: !Ref FreshAfter
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref NeedleBucket
+      Events:
+        # Every two minutes from the first Senate poll closings, 6 p.m. Eastern (22:00 UTC November 3) ...
+        Evening:
+          Type: Schedule
+          Properties:
+            Name: election-tracker-senate-evening
+            Schedule: cron(0/2 22-23 3 11 ? 2026)
+            Description: Record U.S. Senate control on election night (evening)
+        # ... through 7:58 a.m. Central on November 4.
+        Night:
+          Type: Schedule
+          Properties:
+            Name: election-tracker-senate-night
+            Schedule: cron(0/2 0-13 4 11 ? 2026)
+            Description: Record U.S. Senate control on election night
+
 Outputs:
   NeedleUrl:
     Description: The public needle.json the page reads
     Value: !Sub "https://${NeedleBucket}.s3.${AWS::Region}.amazonaws.com/needle.json"
   FunctionName:
     Value: !Ref NeedleRecorderFunction
+  SenateUrl:
+    Description: The public senate.json the page reads
+    Value: !Sub "https://${NeedleBucket}.s3.${AWS::Region}.amazonaws.com/senate.json"

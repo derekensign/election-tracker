@@ -66,6 +66,14 @@ Early-vote counts come from the file service behind the SOS "Early Voting Turnou
 - **Fallback.** If both recorder files are missing or stale, the browser reads the state's feed itself every three minutes (only while the tab is visible), folds it into the recorder's history, and keeps that copy in localStorage.
 - **Testing.** `node scripts/simulate-needle.mjs --seed 6` simulates a night through the real parser and model and writes `public/data/needle-demo.json` (gitignored); open `/?demo#election-night` to preview it. `--calibration 120` runs 120 nights and compares needle readings with outcomes (currently cautious: 75% readings won 85% of the time).
 
+## Senate night
+
+`#senate-night` tracks control of the U.S. Senate on election night. There is no free live feed of every state's returns, so it runs on race calls: the networks' calls as editors post them to Wikipedia's 2026 Senate elections page (`parseSenateCalls` reads the winner marked {{Aye}} or a "gain"/"hold"/"re-elected" result), plus manual overrides in `public/data/senate-calls.json` (set a state to D, R, I, or other, or `none` to withdraw a call, and push). Texas uses the live Texas needle.
+
+`ingest/senate-night.js` has one national factor: each race's challenger margin is its polls-model chance turned into a margin, plus a shared polling miss (Student-t) and the state's own error. Calls are hard evidence on the shared miss and the Texas needle's statewide read is soft evidence, so a surprise call moves every race still out; the seat count is mixed over the posterior. With nothing called each race matches the polls model, but control is less certain than the U.S. Senate tab's independent-race figure. When several races are called in one check, each event shows its own effect given the others.
+
+The Lambda `election-tracker-senate-night` (same stack as the Texas recorder, `aws/senate/index.mjs`) runs every two minutes from 22:00 UTC November 3 (the first Senate poll closings) to 13:58 UTC November 4 and writes `senate.json` beside `needle.json`. If it goes quiet, the page reads Wikipedia's API itself.
+
 ## Ask the data
 
 The Ask tab sends each question to OpenAI with a fresh digest of the page's data (`buildAskContext` in `public/app.js`, about 10k tokens), under the instructions in `ingest/ask-prompt.js` (never call races, use only the digest). Two ways to pay for it:

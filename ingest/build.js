@@ -168,7 +168,7 @@ export async function build() {
   mkdirSync(HISTORY_DIR, { recursive: true });
   // The Scenarios tab runs the same model code in the browser; publish the pure modules verbatim.
   mkdirSync(join(ROOT, "public", "model"), { recursive: true });
-  for (const file of ["config.js", "metrics.js", "legislature.js", "early-vote.js", "needle.js", "ask-prompt.js"]) copyFileSync(join(ROOT, "ingest", file), join(ROOT, "public", "model", file));
+  for (const file of ["config.js", "metrics.js", "legislature.js", "early-vote.js", "needle.js", "ask-prompt.js", "senate-night.js"]) copyFileSync(join(ROOT, "ingest", file), join(ROOT, "public", "model", file));
   writeFileSync(join(HISTORY_DIR, `${asOf}.json`), JSON.stringify(snapshot));
   writeFileSync(join(DATA_DIR, "latest.json"), JSON.stringify(snapshot));
   writeFileSync(join(DATA_DIR, "series.json"), JSON.stringify(buildSeries()));
