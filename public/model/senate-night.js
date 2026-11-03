@@ -211,12 +211,14 @@ export function createSenateNightDocument(snapshot, { now = new Date().toISOStri
 
 /**
  * Fold one check into the document: a point when a call or the Texas needle changed, an event for each new call and
- * for any big move. The states' counts (`returns`, from summarizeReturns) are stored as shown and never add a point
- * on their own. Mutates and returns `doc`.
+ * for any big move. The states' counts (`returns`, from summarizeReturns) and big-county partial counts
+ * (`countyReturns`, from combineCounties) are stored as shown and never add a point on their own. Mutates and
+ * returns `doc`.
  */
-export function advanceSenateNight(doc, { calls, texas = null, returns = null, fetchedAt, params = SENATE_NIGHT_MODEL, rules = SENATE_NIGHT_EVENT_RULES }) {
+export function advanceSenateNight(doc, { calls, texas = null, returns = null, countyReturns = null, fetchedAt, params = SENATE_NIGHT_MODEL, rules = SENATE_NIGHT_EVENT_RULES }) {
   doc.checkedAt = fetchedAt;
   if (returns) doc.returns = returns;
+  if (countyReturns) doc.countyReturns = countyReturns;
   const signature = JSON.stringify({ calls: Object.fromEntries(Object.entries(calls).map(([s, c]) => [s, c.winner]).sort()), texas: texas ? [Math.round(texas.pD * 1000), texas.counted, Math.round((texas.margin ?? 0) * 10)] : null });
   if (doc.latest?.signature === signature) return { doc, changed: false, events: [] };
   const { races, notUp } = doc.inputs;

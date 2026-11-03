@@ -182,3 +182,18 @@ test("The Pi relay: a fresh relayed file is parsed like any state's; a stale or 
   assert.deepEqual(relayReturns(races, relay("2026-11-04T00:59:00Z", { status: 403, error: "HTTP 403" }), { now }), {});
   assert.deepEqual(relayReturns(races, relay("2026-11-04T00:59:00Z", { status: 200, body: "<html>" }), { now }), {});
 });
+
+test("Big counties: candidates matched by last name across formats, precincts summed, 2024 margin of the same counties", async () => {
+  const { combineCounties } = await import("./senate-returns.js");
+  const race = { challenger: "Abdul El-Sayed", challengerParty: "D", republican: "Mike Rogers" };
+  const combined = combineCounties(race, [
+    { name: "Oakland", parsed: { candidates: [{ name: "Abdul El-Sayed", party: "DEM", votes: 600 }, { name: "Mike Rogers", party: "REP", votes: 400 }], units: { reporting: 10, total: 100, kind: "precincts" } }, president2024: { dem: 550, rep: 430, total: 1000 } },
+    { name: "Macomb", parsed: { candidates: [{ name: "EL-SAYED, ABDUL", party: "DEM", votes: 400 }, { name: "ROGERS, MIKE", party: "REP", votes: 600 }], units: { reporting: 5, total: 50, kind: "precincts" } }, president2024: { dem: 400, rep: 580, total: 1000 } },
+  ], 10000);
+  assert.equal(combined.total, 2000);
+  assert.equal(combined.margin, 0);
+  assert.deepEqual(combined.units, { reporting: 15, total: 150, kind: "precincts" });
+  assert.equal(combined.president2024Margin, -3);
+  assert.equal(combined.share2024, 0.2);
+  assert.deepEqual(combined.counties, ["Oakland", "Macomb"]);
+});

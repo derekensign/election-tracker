@@ -93,15 +93,18 @@ export function parseMinnesota(text) {
   };
 }
 
-/** Clarity ENR (Iowa, South Carolina, Colorado): summary.json, contests with parallel name, party, and vote arrays. */
-export function parseClarity(text, contestPattern) {
+/**
+ * Clarity ENR (Iowa, South Carolina, Colorado, and Michigan counties): summary.json, contests with parallel name, party,
+ * and vote arrays. PR/TP count counties in a state's file and precincts in a county's (`kind`).
+ */
+export function parseClarity(text, contestPattern, kind = "counties") {
   const contest = JSON.parse(withoutBom(text)).find((c) => contestPattern.test(c.C || ""));
   if (!contest) throw new Error("no Senate contest in summary.json");
   return {
     // Some states prefix names with the party code ("DEM Annie Andrews").
     candidates: contest.CH.map((name, i) => ({ name: contest.P?.[i] && name.startsWith(`${contest.P[i]} `) ? name.slice(contest.P[i].length + 1) : name, party: contest.P?.[i] ?? "", votes: number(contest.V?.[i]) })),
-    // At the state level these count counties, and a county can report before it has votes.
-    units: { reporting: number(contest.PR), total: number(contest.TP), kind: "counties" },
+    // A county can report before it has votes.
+    units: { reporting: number(contest.PR), total: number(contest.TP), kind },
   };
 }
 
@@ -201,6 +204,23 @@ export function parseArkansas(text) {
     candidates: contest.choices.map((choice) => ({ name: names[choice.choiceID]?.[0] ?? choice.choiceID, party: names[choice.choiceID]?.[1] ?? "", votes: number(choice.totalVotes) })),
     units: { reporting: number(contest.precinctsReporting), total: number(contest.totalPrecincts), kind: "precincts" },
   };
+}
+
+/** Washtenaw County, Michigan: a static HTML page; the "US Senate" block's rows are name, early, absentee, Election Day, total. */
+export function parseWashtenaw(html) {
+  const start = html.search(/<td class="headertr" colspan="4">US Senate<\/td>/);
+  if (start === -1) throw new Error("no US Senate block");
+  const next = html.indexOf('class="headertr" colspan="4"', start + 40);
+  const block = html.slice(start, next === -1 ? undefined : next);
+  const candidates = [];
+  for (const row of block.split(/<tr>/).slice(1)) {
+    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((m) => m[1].replace(/&nbsp;/g, " ").replace(/<[^>]+>/g, "").trim());
+    if (cells.length < 5 || /write-ins/i.test(cells[0])) continue;
+    candidates.push({ name: cells[0], party: "", votes: number(cells[4]) });
+  }
+  if (!candidates.length) throw new Error("no candidates in the US Senate block");
+  const total = html.match(/Precincts Total:<\/td>\s*<td[^>]*>([\d,]+)/)?.[1], counted = html.match(/Precincts Fully Counted:<\/t[hd]>\s*<td[^>]*>([\d,]+)/)?.[1];
+  return { candidates, units: total ? { reporting: number(counted), total: number(total), kind: "precincts" } : null };
 }
 
 /** Delaware: statewide rows by contest. */
@@ -328,7 +348,7 @@ export const SENATE_RETURN_GAPS = {
 };
 
 /** A Clarity election: read the current version (tiny, never cached), then that version's summary. */
-const clarity = (base, contestPattern) => async (get) => parseClarity(await get(`${base}/${(await get(`${base}/current_ver.txt`)).trim()}/json/en/summary.json`), contestPattern);
+const clarity = (base, contestPattern, kind) => async (get) => parseClarity(await get(`${base}/${(await get(`${base}/current_ver.txt`)).trim()}/json/en/summary.json`), contestPattern, kind);
 const bust = (url) => `${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`;
 
 /**
@@ -382,6 +402,57 @@ export function relayReturns(races, relay, { now = Date.now(), maxAgeMs = 6 * 60
     }
   }
   return returns;
+}
+
+/**
+ * Big counties' own official files, for states whose statewide site the recorder can't read (Michigan and Kansas put
+ * theirs behind bot checks). Summed, they're a partial count, shown as "big counties only" beside the same counties'
+ * 2024 presidential result, never as the state's count. Each county: a name, how to read it, and its 2024 vote
+ * ({ dem, rep, total }). `stateTotal2024` is the state's whole 2024 presidential vote, for the share these cover.
+ */
+export const SENATE_COUNTY_SOURCES = {
+  // Six of Michigan's ten biggest counties, about 36% of its 2024 vote (Harris +6.2 among them; Trump won the state
+  // by 1.4). Wayne, Kent, and Kalamazoo turn automated readers away; Livingston posts PDFs. 2024 votes from Wikipedia.
+  MI: {
+    label: "Michigan's biggest counties",
+    stateTotal2024: 5664186,
+    counties: [
+      { name: "Oakland", url: "https://results.enr.clarityelections.com/MI/Oakland/127284/", read: clarity("https://results.enr.clarityelections.com/MI/Oakland/127284", /^United States Senator$/i, "precincts"), president2024: { dem: 419519, rep: 337791, total: 772145 } },
+      { name: "Macomb", url: "https://results.enr.clarityelections.com/MI/Macomb/127293/", read: clarity("https://results.enr.clarityelections.com/MI/Macomb/127293", /^United States Senator$/i, "precincts"), president2024: { dem: 214977, rep: 284660, total: 509152 } },
+      { name: "Genesee", url: "https://results.enr.clarityelections.com/MI/Genesee/127354/", read: clarity("https://results.enr.clarityelections.com/MI/Genesee/127354", /^United States Senator$/i, "precincts"), president2024: { dem: 114670, rep: 105303, total: 223268 } },
+      { name: "Ottawa", url: "https://results.enr.clarityelections.com/MI/Ottawa/127391/", read: clarity("https://results.enr.clarityelections.com/MI/Ottawa/127391", /^United States Senator$/i, "precincts"), president2024: { dem: 69653, rep: 106133, total: 178507 } },
+      { name: "Ingham", url: "https://app.enhancedvoting.com/results/public/ingham-county-mi/elections/NovemberElection11032026", read: async (get) => parseEnhancedVoting(await get("https://app.enhancedvoting.com/results/public/api/elections/ingham-county-mi/NovemberElection11032026/data"), /^United States Senator$/i, "precincts"), president2024: { dem: 94542, rep: 50564, total: 148101 } },
+      { name: "Washtenaw", url: "https://electionresults.ewashtenaw.org/electionreporting/nov2026/index.jsp", read: async (get) => parseWashtenaw(await get(bust("https://electionresults.ewashtenaw.org/electionreporting/nov2026/index.jsp"))), president2024: { dem: 157152, rep: 58844, total: 221542 } },
+    ],
+  },
+};
+
+/**
+ * The counties read this pass, combined: candidates matched by last name across counties (formats differ), precincts
+ * summed, and the 2024 margin and vote share of exactly the counties that answered.
+ * @param {{ challenger: string|null, challengerParty: "D"|"I", republican: string|null }} race
+ * @param {{ name: string, parsed: { candidates: { name: string, party: string, votes: number }[], units?: object|null }, president2024: { dem: number, rep: number, total: number } }[]} counties
+ */
+export function combineCounties(race, counties, stateTotal2024) {
+  const byName = new Map();
+  let reporting = 0, total = 0, precinctsKnown = true;
+  for (const { parsed } of counties) {
+    for (const candidate of parsed.candidates) {
+      const key = lastName(candidate.name);
+      const entry = byName.get(key) ?? { name: candidate.name, party: candidate.party, votes: 0 };
+      entry.votes += candidate.votes;
+      byName.set(key, entry);
+    }
+    if (parsed.units?.kind === "precincts") { reporting += parsed.units.reporting; total += parsed.units.total; } else precinctsKnown = false;
+  }
+  const summary = summarizeReturns(race, { candidates: [...byName.values()], units: precinctsKnown && total ? { reporting, total, kind: "precincts" } : null });
+  const dem = counties.reduce((t, c) => t + c.president2024.dem, 0), rep = counties.reduce((t, c) => t + c.president2024.rep, 0), votes2024 = counties.reduce((t, c) => t + c.president2024.total, 0);
+  return {
+    ...summary,
+    counties: counties.map((c) => c.name),
+    president2024Margin: votes2024 ? Math.round((1000 * (dem - rep)) / votes2024) / 10 : null,
+    share2024: stateTotal2024 ? Math.round((1000 * votes2024) / stateTotal2024) / 1000 : null,
+  };
 }
 
 /**

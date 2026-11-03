@@ -7,7 +7,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { advanceSenateNight, createSenateNightDocument, mergeCalls, parseSenateCalls } from "./ingest/senate-night.js";
 import { runNeedle } from "./ingest/needle.js";
-import { SENATE_RETURN_SOURCES, mergeReturns, relayReturns, summarizeReturns, wikipediaReturns, wikipediaReturnsUrl } from "./ingest/senate-returns.js";
+import { SENATE_COUNTY_SOURCES, SENATE_RETURN_SOURCES, combineCounties, mergeReturns, relayReturns, summarizeReturns, wikipediaReturns, wikipediaReturnsUrl } from "./ingest/senate-returns.js";
 
 const s3 = new S3Client({});
 const { BUCKET, OBJECT_KEY = "senate.json", TEXAS_KEY = "needle.json", RELAY_KEY = "relay.json", SNAPSHOT_URL, OVERRIDES_URL, WIKIPEDIA_PAGE, FRESH_AFTER, TEXAS_FRESH_AFTER } = process.env;
@@ -64,6 +64,28 @@ async function unofficialReturns(races, previous = {}) {
   }
 }
 
+/**
+ * Big counties' own files for states whose statewide site is out of reach (SENATE_COUNTY_SOURCES), combined into a
+ * partial count; the counties that fail this pass are left out of it. With none answering, the last one is kept, stale.
+ */
+async function bigCountyReturns(races, previous = {}) {
+  const raceByState = new Map(races.map((race) => [race.state, race]));
+  const entries = await Promise.all(Object.entries(SENATE_COUNTY_SOURCES).map(async ([state, source]) => {
+    const read = await Promise.all(source.counties.map(async (county) => {
+      try {
+        return { name: county.name, parsed: await county.read(getText), president2024: county.president2024 };
+      } catch (error) {
+        console.log(`county ${state} ${county.name}: ${error.message}`);
+        return null;
+      }
+    }));
+    const answered = read.filter(Boolean);
+    if (!answered.length) return previous[state] ? [state, { ...previous[state], stale: true }] : null;
+    return [state, { ...combineCounties(raceByState.get(state), answered, source.stateTotal2024), countiesListed: source.counties.length, label: source.label, fetchedAt: new Date().toISOString() }];
+  }));
+  return Object.fromEntries(entries.filter(Boolean));
+}
+
 /** Every state's results file, read at once; a state whose file fails keeps its last good count, marked stale. */
 async function stateReturns(races, previous = {}) {
   const raceByState = new Map(races.map((race) => [race.state, race]));
@@ -110,7 +132,7 @@ export async function handler(event = {}) {
   }
   const codeByStateName = Object.fromEntries(doc.inputs.races.map((race) => [race.stateName, race.state]));
   // All sources at once. Each one failing leaves its last good value in place, so one outage never wipes calls.
-  const [wikipedia, overridesRead, texasRead, officialReturns, wikipediaCounts, relayed] = await Promise.all([
+  const [wikipedia, overridesRead, texasRead, officialReturns, wikipediaCounts, relayed, countyReturns] = await Promise.all([
     wikipediaCalls(codeByStateName).catch((error) => { console.log(`calls: ${error.message}; keeping the last ones`); return null; }),
     fetch(`${OVERRIDES_URL}?t=${Date.now()}`, { signal: AbortSignal.timeout(15_000) }).then((response) => (response.ok ? response.json() : null)).catch((error) => { console.log(`overrides: ${error.message}`); return null; }),
     texasRace().catch((error) => { console.log(`texas: ${error.message}`); return null; }),
@@ -118,6 +140,7 @@ export async function handler(event = {}) {
     unofficialReturns(doc.inputs.races, doc.returns ?? {}),
     // Ohio, through the Raspberry Pi at home (relay/pi-relay.py), since Ohio refuses cloud servers.
     readObject(RELAY_KEY).then((object) => relayReturns(doc.inputs.races, object?.doc)).catch((error) => { console.log(`relay: ${error.message}`); return {}; }),
+    bigCountyReturns(doc.inputs.races, doc.countyReturns ?? {}),
   ]);
   const returns = mergeReturns({ ...officialReturns, ...relayed }, wikipediaCounts);
   const fromWikipedia = wikipedia ?? doc.latest?.wikipediaCalls ?? {};
@@ -125,7 +148,7 @@ export async function handler(event = {}) {
   const texas = texasRead;
 
   const fetchedAt = new Date().toISOString();
-  const { changed, events } = advanceSenateNight(doc, { calls: mergeCalls(fromWikipedia, overrides), texas, returns, fetchedAt });
+  const { changed, events } = advanceSenateNight(doc, { calls: mergeCalls(fromWikipedia, overrides), texas, returns, countyReturns, fetchedAt });
   doc.latest.wikipediaCalls = fromWikipedia;
   doc.latest.overrides = overrides;
   try {

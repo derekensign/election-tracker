@@ -1744,6 +1744,7 @@ function askSenateDigest(doc, central) {
         pollingAverageMargin: race.pollMargin, projectedFinalMargin: byState.get(race.state)?.expectedMargin ?? null,
         count: count ? { estimatedShareCounted: Math.round(count.share * 1000) / 1000, votesCounted: count.votes, marginSoFar: count.margin, progress: count.detail } : `no live count: ${senateState.gaps?.[race.state]?.[1] ?? "no official results file read for this state"}`,
         lastRaceForSeat: bench?.seat ? { year: bench.seat.year, margin: bench.seat.margin } : undefined, president2024Margin: bench?.president2024?.margin,
+        bigCountiesOnly: doc.countyReturns?.[race.state] ? { counties: doc.countyReturns[race.state].counties, votesCounted: doc.countyReturns[race.state].total, marginSoFar: doc.countyReturns[race.state].margin, sameCounties2024PresidentMargin: doc.countyReturns[race.state].president2024Margin, shareOfState2024Vote: doc.countyReturns[race.state].share2024 } : undefined,
       };
     }),
     calls: doc.events.slice(-35).map((e) => ({ time: central(e.t), what: e.detail })),
@@ -2275,6 +2276,13 @@ function senateRaceDetail(doc, race, index, now) {
         ? `<div><h4>Count</h4><p>No votes yet. The site reads the <a href="${esc(senateState.feeds[race.state].url)}" target="_blank" rel="noopener">${esc(senateState.feeds[race.state].label)}</a> results file every two minutes from 5 p.m. Central.</p></div>`
         : `<div><h4>Count</h4><p>No live count: ${esc(senateState.gaps?.[race.state]?.[1] ?? `there's no official results file the site can read for ${race.stateName}`)}. This race moves on its call and on calls elsewhere.</p></div>`);
   }
+  const big = doc.countyReturns?.[race.state];
+  if (big) {
+    const swing = big.total >= 1000 && big.margin != null && big.president2024Margin != null ? big.margin - big.president2024Margin : null;
+    parts.push(`<div><h4>Big counties only${big.stale ? " (last good read)" : ""}</h4>${big.total
+      ? `<table class="mini"><tbody>${big.candidates.filter((c) => c.votes > 0).map((c) => `<tr><td>${esc(c.name)}${c.party === "other" ? "" : ` (${c.party})`}</td><td class="num">${senateVotes(c.votes)}</td><td class="num">${pct(c.votes / big.total, 1)}</td></tr>`).join("")}</tbody></table>`
+      : "<p>No votes yet.</p>"}<p class="thin">The official counts of ${esc(listNames(big.counties))} (${big.counties.length === big.countiesListed ? `all ${big.countiesListed} counties the site reads` : `${big.counties.length} of the ${big.countiesListed} counties the site reads`}${big.share2024 ? `, ${pct(big.share2024)} of the state's 2024 vote` : ""}), read ${needleTime(big.fetchedAt)} Central${big.units ? `, ${senateVotes(big.units.reporting)} of ${senateVotes(big.units.total)} precincts in` : ""}. These counties went ${challengerMargin(big.president2024Margin, "D")} for president in 2024${swing != null ? `, so the count so far is a swing of ${challengerMargin(swing, race.challengerParty)} in the same counties` : ""}. A partial count, not the state's.</p></div>`);
+  }
   const moves = senateRaceMoves(doc, index, race);
   parts.push(`<div><h4>Why the chance moved</h4>${moves.length
     ? `<ol class="moves">${moves.slice().reverse().map((move) => `<li><span class="when">${needleTime(move.t)}</span> <span class="move ${move.to >= move.from ? (race.challengerParty === "I" ? "lean-i" : "lean-d") : "lean-r"}">${needleChance(move.from)} → ${needleChance(move.to)}</span> ${esc(move.text)}</li>`).join("")}</ol>`
@@ -2310,8 +2318,10 @@ function renderSenateNightTable(doc, run) {
     const callCell = call
       ? `<b class="${call.winner === "D" ? "lean-d" : call.winner === "R" ? "lean-r" : "lean-i"}">${esc(lastName(senateWinnerName(race, call)) || call.winner)} (${call.winner})</b>${call.via === "manual" ? '<span class="thin below">set by hand</span>' : ""}`
       : '<span class="muted">not called</span>';
-    const countCell = !count ? `<span class="muted">no live count</span><span class="thin below">${esc(senateState.gaps?.[race.state]?.[0] ?? "moves on calls")}</span>`
-      : `<span class="progress" aria-hidden="true"><span style="width:${Math.round(Math.min(1, count.share) * 100)}%"></span></span>${pct(count.share)}<span class="thin">${esc(count.detail)}</span>`;
+    const big = doc.countyReturns?.[race.state];
+    const bigLine = big?.total >= 1000 ? `<span class="thin below">big counties: ${challengerMargin(big.margin, party)} so far, 2024 ${challengerMargin(big.president2024Margin, "D")}</span>` : "";
+    const countCell = !count ? `<span class="muted">${big ? "big counties only" : "no live count"}</span>${bigLine || `<span class="thin below">${esc(big ? "not yet" : senateState.gaps?.[race.state]?.[0] ?? "moves on calls")}</span>`}`
+      : `<span class="progress" aria-hidden="true"><span style="width:${Math.round(Math.min(1, count.share) * 100)}%"></span></span>${pct(count.share)}<span class="thin">${esc(count.detail)}</span>${bigLine}`;
     return `<tr data-state="${race.state}" class="race-row${open ? " open" : ""}" tabindex="0" aria-expanded="${open}">
       <td class="county"><b><span class="caret" aria-hidden="true">${open ? "▾" : "▸"}</span>${esc(race.stateName)}</b>${race.special ? ' <span class="thin special">special</span>' : ""}<span class="thin below">${esc(lastName(race.challenger) || "—")} (${party}) v. ${esc(lastName(race.republican) || "—")} (R)</span></td>
       <td>${countCell}</td>
