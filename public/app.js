@@ -1232,8 +1232,11 @@ function renderNeedleStatus(doc, topRun) {
       : `<b>Waiting for the first returns.</b><span>Counties post early votes first, usually within an hour of polls closing.</span>${refresh}${problem}`;
   } else {
     box.classList.add("live");
+    // The state's status file lags its county file, so count the counties with votes in the returns themselves.
     const status = doc.status;
-    const reporting = status?.countiesReporting != null ? ` ${status.countiesReporting} of ${status.countiesTotal} counties reporting.` : "";
+    const withVotes = Object.values(doc.latest?.returns ?? {}).filter((county) => Object.values(county.races ?? {}).some((race) => race[3] > 0)).length;
+    const counted = Math.max(withVotes, status?.countiesReporting ?? 0);
+    const reporting = counted ? ` ${counted} of ${status?.countiesTotal ?? 254} counties reporting; the biggest counties often post on their own websites before the state's feed has them.` : "";
     const how = needleState.source === "browser" ? "read directly by your browser" : "checked every two minutes";
     box.innerHTML = `<b><span class="live-dot" aria-hidden="true"></span>Returns as of ${needleTime(doc.checkedAt)} Central.</b><span>${reporting} Unofficial results from the Texas Secretary of State, ${how}. The needle is a projection, not a race call.</span>${refresh}${problem}`;
   }
