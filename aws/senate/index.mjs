@@ -142,7 +142,10 @@ export async function handler(event = {}) {
     readObject(RELAY_KEY).then((object) => relayReturns(doc.inputs.races, object?.doc)).catch((error) => { console.log(`relay: ${error.message}`); return {}; }),
     bigCountyReturns(doc.inputs.races, doc.countyReturns ?? {}),
   ]);
-  const returns = mergeReturns({ ...officialReturns, ...relayed }, wikipediaCounts);
+  // A state's own file read this pass beats the relay's copy (up to two minutes older); the relay beats a stale read.
+  const official = { ...officialReturns };
+  for (const [state, entry] of Object.entries(relayed)) if (!official[state] || official[state].stale) official[state] = entry;
+  const returns = mergeReturns(official, wikipediaCounts);
   const fromWikipedia = wikipedia ?? doc.latest?.wikipediaCalls ?? {};
   const overrides = overridesRead ?? doc.latest?.overrides ?? {};
   const texas = texasRead;
