@@ -1,20 +1,18 @@
-Texas Polls Tracker, Tuesday, November 3, 2026
+Texas Polls Tracker, Wednesday, November 4, 2026
 
 Talarico 73% to win the Senate seat on a polling average of D+3.7. Hinojosa 39% for governor. Democrats 88% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
 
 WHAT MOVED
-- Kansas Senate: Split Ticket moved Tossup → Lean D
-- South Carolina Senate: Decision Desk HQ moved Lean R → Tossup
-- TX U.S. Senate: abcnews moved Tossup → Lean D
-- Kansas Governor: Silver Bulletin moved Lean R → Tossup
-- South Carolina Governor: Decision Desk HQ moved Lean R → Likely R
-- TX-9 (U.S. House): Split Ticket moved Safe R → Likely R
-- TX-21 (U.S. House): Decision Desk HQ moved Safe R → Likely R
-- Georgia Senate: polling average D+10.6 → D+8.4
-- South Carolina Senate: poll-model D win chance 34% → 40% (+6.0 pts)
-- Georgia Senate: poll-model D win chance 94% → 90% (−4.4 pts)
-- Minnesota Senate: poll-model D win chance 69% → 66% (−3.6 pts)
-- Georgia Governor: poll-model D win chance 44% → 47% (+3.4 pts)
+- Alaska Senate: Decision Desk HQ moved Lean D → Tossup
+- Texas Senate: Decision Desk HQ moved Lean D → Tossup
+- TX U.S. Senate: ddhq moved Lean D → Tossup
+- New Hampshire Governor: poll-model D win chance 10% → 30% (+19.7 pts)
+- Florida Senate: poll-model D win chance 19% → 22% (+3.0 pts)
+- New Hampshire Governor: new poll — University of New Hampshire (through 2026-10-31): Even
+- New Hampshire Governor: new poll — National Public Affairs (through 2026-10-29): R+9.0
+- New Hampshire Governor: new poll — Saint Anselm (through 2026-10-20): R+8.0
+- New Hampshire Governor: new poll — University of Massachusetts Lowell Center for Public Opinion/YouGov (through 2026-10-19): R+6.0
+- New Hampshire Governor: new poll — The New York Times/Siena University (through 2026-09-22): R+11.0
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 73%. Average D+3.7 over 43 polls; latest Research Co. Nov 2 D+3.0.
@@ -32,14 +30,13 @@ TEXAS LEGISLATURE
 - Texas Senate: 12 D today; model expects 11.8 D seats, 0% for a majority (16). Closest: SD-9 59% D (Likely D), SD-11 13% D (Lean R), SD-2 10% D (Lean R).
 
 U.S. SENATE
-- Control: 88% for Democrats. Expected 52.4 Democratic-caucus seats; 51 needed.
-- Closest races: IA 49% D (average R+0.1, 12 polls); SC 40% D (average R+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); MN 66% D (average D+2.5, 4 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 12 polls); KS 79% D (average D+4.9, 6 polls); ME 79% D (average D+4.9, 10 polls).
+- Control: 88% for Democrats. Expected 52.5 Democratic-caucus seats; 51 needed.
+- Closest races: IA 49% D (average R+0.1, 12 polls); SC 40% D (average R+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); MN 65% D (average D+2.4, 3 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 12 polls); FL 22% D (average R+4.8, 7 polls); KS 79% D (average D+4.9, 6 polls); ME 79% D (average D+4.9, 9 polls).
 
 U.S. HOUSE
 - Control: 91% for Democrats (expected 236.7 seats, 218 needed). Generic ballot D+8.1 over 3 polls.
 - Texas seats in play: TX-9 19% D (Likely R, polls R+3.2); TX-15 63% D (Tilt D, polls D+7.0); TX-23 37% D (Tilt R, polls Even); TX-34 77% D (Lean D, polls D+7.0); TX-35 51% D (Tossup, polls D+0.2).
 
 COMING UP
-- Election Day: Tuesday, November 3, 2026 (today).
 
 https://texas-race-tracker.vercel.app
