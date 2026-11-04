@@ -270,6 +270,10 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .race-detail-grid table.mini td { padding: 2px 12px 2px 0; border: 0; white-space: nowrap; }
 .race-detail-grid table.mini td.num { text-align: right; }
 .race-detail-grid ol.moves { margin: 0; padding-left: 0; list-style: none; }
+.race-chance-wide { grid-column: 1 / -1; }
+.race-chance-chart svg { display: block; width: 100%; max-width: 760px; height: auto; margin: 2px 0 4px; }
+.race-chance-chart .chart-call-badge circle { fill: #fff; stroke-width: 2.4; }
+.race-chance-chart .chart-call-badge path { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .race-detail-grid ol.moves li { padding: 3px 0; line-height: 1.4; }
 .race-detail-grid ol.moves .when { color: var(--ink-3); font-size: 12px; margin-right: 4px; }
 

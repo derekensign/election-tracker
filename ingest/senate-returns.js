@@ -382,6 +382,8 @@ export const SENATE_RETURN_SOURCES = {
  */
 export const SENATE_RELAY_SOURCES = {
   OH: { label: "Ohio Secretary of State", url: "https://liveresults.ohiosos.gov/", parse: parseOhio },
+  // Virginia's file answered the recorder this afternoon and started refusing it on election night.
+  VA: { label: "Virginia Department of Elections", url: "https://enr.elections.virginia.gov/", parse: (text) => parseEnhancedVoting(text, /^Member, United States Senate$/i, "localities") },
 };
 
 /**

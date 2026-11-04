@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Election-night relay for states that refuse cloud servers, run from a home network by cron every two minutes.
 
-Ohio's results site turns away the AWS recorder (HTTP 403) but answers a home connection, so this reads it from the
-Raspberry Pi and drops the response, unparsed, into the recorder's S3 bucket as relay.json (gzipped). The bucket
-accepts that one object only from the home network's IP address (aws/needle-template.yaml), so the Pi holds no AWS
-keys. The recorder parses it with the same code it uses for every other state (ingest/senate-returns.js) and falls
+Ohio's and Virginia's results sites turn away the AWS recorder (HTTP 403) but answer a home connection, so this reads
+them from the Raspberry Pi and drops the responses, unparsed, into the recorder's S3 bucket as relay.json (gzipped).
+The bucket accepts that one object only from the home network's IP address (aws/needle-template.yaml), so the Pi holds
+no AWS keys. The recorder parses it with the same code it uses for every other state (ingest/senate-returns.js) and falls
 back to the race's Wikipedia count if this goes quiet. Python standard library only.
 
 Installed on the Pi in ~/election-relay with this crontab line (flock keeps two runs from overlapping):
@@ -23,6 +23,7 @@ BUCKET_OBJECT = "https://election-tracker-needle-needlebucket-92bzmtfdaxc0.s3.us
 STOP_AFTER = datetime(2026, 11, 4, 14, 0, tzinfo=timezone.utc)
 SOURCES = {
     "OH": "https://liveresults.ohiosos.gov/Api/v1/Contest/GetContestDetailsObject?contestName=U.S.%20Senator&contestObjectId=_55A742EA56A709A3E0633390EE0AE290",
+    "VA": "https://enr.elections.virginia.gov/results/public/api/elections/virginia/2026-November-General/data",
 }
 
 

@@ -2284,6 +2284,7 @@ function senateRaceDetail(doc, race, index, now) {
       : "<p>No votes yet.</p>"}<p class="thin">The official counts of ${esc(listNames(big.counties))} (${big.counties.length === big.countiesListed ? `all ${big.countiesListed} counties the site reads` : `${big.counties.length} of the ${big.countiesListed} counties the site reads`}${big.share2024 ? `, ${pct(big.share2024)} of the state's 2024 vote` : ""}), read ${needleTime(big.fetchedAt)} Central${big.units ? `, ${senateVotes(big.units.reporting)} of ${senateVotes(big.units.total)} precincts in` : ""}. These counties went ${challengerMargin(big.president2024Margin, "D")} for president in 2024${swing != null ? `, so the count so far is a swing of ${challengerMargin(swing, race.challengerParty)} in the same counties` : ""}. A partial count, not the state's.</p></div>`);
   }
   const moves = senateRaceMoves(doc, index, race);
+  parts.unshift(`<div class="race-chance-wide"><h4>${esc(lastName(race.challenger) || "Challenger")}'s chance through the night</h4><div class="race-chance-chart" data-state="${race.state}" data-index="${index}"></div></div>`);
   parts.push(`<div><h4>Why the chance moved</h4>${moves.length
     ? `<ol class="moves">${moves.slice().reverse().map((move) => `<li><span class="when">${needleTime(move.t)}</span> <span class="move ${move.to >= move.from ? (race.challengerParty === "I" ? "lean-i" : "lean-d") : "lean-r"}">${needleChance(move.from)} → ${needleChance(move.to)}</span> ${esc(move.text)}</li>`).join("")}</ol>`
     : `<p>${now.call ? "Called." : `No real change since this morning (${needleChance(race.prior)}).`}</p>`}</div>`);
@@ -2291,6 +2292,39 @@ function senateRaceDetail(doc, race, index, now) {
   const read = doc.timeline.at(-1)?.n;
   parts.push(`<div><h4>Going in</h4><p>${esc(race.rating || "Unrated")} by the forecasters' consensus. Polls ${challengerMargin(race.pollMargin, race.challengerParty)}; the polls model gave ${esc(lastName(race.challenger) || "the challenger")} ${needleChance(race.prior)} this morning.${seat ? ` Last race for this seat (${seat.year}): ${esc(seat.democrat || "")} ${challengerMargin(seat.margin, race.challengerParty === "I" ? "D" : race.challengerParty)} against ${esc(seat.republican || "")}.${seat.note ? ` ${esc(seat.note)}` : ""}` : ""}${independent ? ` Osborn's 2024 race against Deb Fischer: ${challengerMargin(independent.margin, "I")}.` : ""}${read != null && !now.call ? ` Now: ${esc(nationalReadText(read))}, so the projection is ${challengerMargin(now.expectedMargin, race.challengerParty)}.` : ""}</p></div>`);
   return `<div class="race-detail-grid">${parts.join("")}</div>`;
+}
+
+/**
+ * One race's chance through the night, as a step line from this morning's polls-model chance: the 50% line, the
+ * hours, and a mark where the race was called. Drawn inside the race's open row.
+ */
+function renderRaceChanceChart(box, doc, race, index, now) {
+  const points = doc.timeline.filter((point) => Array.isArray(point.r)).map((point) => ({ time: Math.max(Date.parse(point.t), SENATE_NIGHT_TIMING.chartStart), p: point.r[index] }));
+  if (!points.length) return;
+  const width = 760, height = 140, margin = { top: 12, right: 60, bottom: 22, left: 36 };
+  const last = points[points.length - 1];
+  const holdUntil = senateWindowOpen() ? Math.max(last.time, Date.now()) : last.time;
+  const end = Math.max(holdUntil + 15 * 60_000, SENATE_NIGHT_TIMING.chartStart + 3 * 3_600_000);
+  const drawn = [...points, { ...last, time: holdUntil }];
+  const x = d3.scaleLinear().domain([SENATE_NIGHT_TIMING.chartStart, end]).range([margin.left, width - margin.right]);
+  const y = d3.scaleLinear().domain([0, 1]).range([height - margin.bottom, margin.top]);
+  const color = race.challengerParty === "I" ? cssVar("--toss") : cssVar("--d3");
+  const svg = d3.select(box).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img")
+    .attr("aria-label", `${race.challenger || "The challenger"}'s chance through the night: ${needleChance(race.prior)} this morning, ${needleChance(last.p)} now`);
+  svg.append("line").attr("class", "even-line").attr("stroke-dasharray", "3 3").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", y(0.5)).attr("y2", y(0.5));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).tickValues([0, 0.5, 1]).tickFormat((v) => `${Math.round(v * 100)}%`).tickSize(0).tickPadding(6)).select(".domain").remove();
+  const hours = d3.range(Math.ceil(SENATE_NIGHT_TIMING.chartStart / 3_600_000) * 3_600_000, end, 3_600_000);
+  const step = Math.max(1, Math.ceil(hours.length / 6));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x).tickValues(hours.filter((_, i) => i % step === 0)).tickFormat((t) => needleHour.format(new Date(t)).replace(/\s+/g, " ").toLowerCase()).tickSize(0).tickPadding(6)).select(".domain").remove();
+  svg.append("path").datum(drawn).attr("fill", "none").attr("stroke", color).attr("stroke-width", 2).attr("d", d3.line().curve(d3.curveStepAfter).x((d) => x(d.time)).y((d) => y(d.p)));
+  // The race's own call, as the same check badge the map uses.
+  const call = doc.events.filter((event) => event.state === race.state && event.kind !== "uncall").at(-1);
+  if (call && now?.call) {
+    const badge = svg.append("g").attr("class", "chart-call-badge").attr("transform", `translate(${x(Math.max(Date.parse(call.t), SENATE_NIGHT_TIMING.chartStart))},${y(now.chance)})`);
+    badge.append("circle").attr("r", 7).style("stroke", senateCalledFill(now.call.winner));
+    badge.append("path").attr("d", checkPath(7)).style("stroke", senateCalledFill(now.call.winner));
+  }
+  svg.append("text").attr("class", "event-label").attr("x", x(holdUntil) + 5).attr("y", y(last.p) + 4).text(now?.call ? "called" : needleChance(last.p));
 }
 
 /**
@@ -2336,6 +2370,10 @@ function renderSenateNightTable(doc, run) {
       <td>${callCell}</td></tr>${open ? `<tr class="race-detail"><td colspan="11">${senateRaceDetail(doc, race, index, now)}</td></tr>` : ""}`;
   }).join("");
   document.getElementById("senate-night-table").innerHTML = `${header}<tbody>${body}</tbody>`;
+  for (const box of document.querySelectorAll("#senate-night-table .race-chance-chart")) {
+    const index = Number(box.dataset.index);
+    renderRaceChanceChart(box, doc, doc.inputs.races[index], index, byState.get(box.dataset.state));
+  }
 }
 
 // ---------- governors ----------
