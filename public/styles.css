@@ -252,6 +252,27 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .legend .badge-icon { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }
 .senate-night-dist svg { display: block; width: 100%; height: auto; }
 .senate-night-dist .morning-outline { fill: none; stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 3 2; pointer-events: none; }
+/* Results for called races, in place of a needle. */
+.results-race .call-line { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; font-size: 17px; flex-wrap: wrap; }
+.results-race .call-line.big { font-size: 22px; }
+.results-race .call-line .badge-icon { width: 20px; height: 20px; flex: none; }
+.results-race .call-line .thin { display: block; width: 100%; margin: 0; }
+.results-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.results-table td { padding: 7px 8px 7px 0; border-top: 1px solid var(--rule-soft); white-space: nowrap; }
+.results-table td.num { text-align: right; }
+.results-table td.name { position: relative; padding-left: 12px; }
+.results-table .party-bar { position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; border-radius: 2px; }
+.results-table .badge-icon { width: 14px; height: 14px; vertical-align: -2px; }
+.results-table tr.winner td { font-weight: 600; }
+.results-table tr.total td { color: var(--ink-2); }
+.results-table td.bar-cell { width: 34%; }
+.results-table .share-bar { display: block; height: 8px; border-radius: 2px; }
+.control-result .seat-line { font-size: 17px; margin: 0 0 6px; }
+/* The small cards are narrow: tighter type, and names may wrap. */
+.needle-small .results-race .call-line { font-size: 15px; }
+.needle-small .results-table { font-size: 12.5px; table-layout: fixed; }
+.needle-small .results-table td { padding: 5px 4px 5px 0; }
+.needle-small .results-table td.name { white-space: normal; padding-left: 10px; width: 46%; }
 /* Flips: a hatch and dark outline on the map, a dark ring on the floor, a tag in the table and calls list. */
 .senate-night-map .flip-marks path { stroke: var(--ink); stroke-width: 2; pointer-events: none; }
 .senate-floor .seat.flip { stroke: var(--ink); stroke-width: 3; }

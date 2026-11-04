@@ -8,6 +8,8 @@
 // the state's turnout report), every vote counted is an early vote; that snapshot is kept, and the rest of the count
 // after it is Election Day votes. That's how the needle's early and Election Day cells stay apart.
 
+import { parseWikipediaWinner } from "./senate-returns.js";
+
 /** Contest names for the needle's races, as counties write them. */
 const RACE_PATTERNS = {
   "tx-senate": /^(united states|u\.?\s*s\.?)\s+senat/i,
@@ -164,4 +166,51 @@ export function mergeCountyReturns(returns, sites) {
     if (siteVotes > stateVotes) { merged[key] = site; used.push(key); }
   }
   return { returns: merged, used };
+}
+
+/**
+ * Calls for the Texas statewide races, from each race's Wikipedia page: editors fill its infobox's winner when the
+ * networks call it. Pages that don't exist (some down-ballot races have none) are skipped; those races can be
+ * called by hand in public/data/texas-calls.json.
+ */
+export const TEXAS_RACE_PAGES = {
+  "tx-senate": "2026 United States Senate election in Texas",
+  "tx-governor": "2026 Texas gubernatorial election",
+  "tx-ltgov": "2026 Texas lieutenant gubernatorial election",
+  "tx-ag": "2026 Texas Attorney General election",
+  "tx-comptroller": "2026 Texas Comptroller of Public Accounts election",
+  "tx-land": "2026 Texas Land Commissioner election",
+  "tx-agriculture": "2026 Texas Agriculture Commissioner election",
+  "tx-railroad": "2026 Texas Railroad Commission election",
+};
+
+/** The Wikipedia API URL for those pages' lead sections, where the infobox is. */
+export function texasCallsUrl() {
+  const titles = Object.values(TEXAS_RACE_PAGES).join("|");
+  return `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2&titles=${encodeURIComponent(titles)}`;
+}
+
+/**
+ * The races called, by race ID: the pages' winners (matched to the race's candidates by last name), then the
+ * site's manual calls on top ({ "tx-railroad": "D" }, or "none" to withdraw one).
+ * @param {{ id: string, democrat: string, republican: string }[]} races
+ */
+export function texasRaceCalls(races, apiResponse, overrides = {}) {
+  const raceByTitle = new Map(races.map((race) => [TEXAS_RACE_PAGES[race.id], race]));
+  const calls = {};
+  for (const page of apiResponse?.query?.pages ?? []) {
+    const race = raceByTitle.get(page.title);
+    const winner = race ? parseWikipediaWinner(page.revisions?.[0]?.slots?.main?.content ?? "") : null;
+    if (!winner) continue;
+    const party = lastName(winner.name) === lastName(race.democrat) ? "D" : lastName(winner.name) === lastName(race.republican) ? "R" : winner.party;
+    calls[race.id] = { winner: party, name: winner.name, via: "Wikipedia" };
+  }
+  for (const [id, value] of Object.entries(overrides || {})) {
+    if (id.startsWith("_")) continue;
+    const race = races.find((r) => r.id === id);
+    if (!race) continue;
+    if (value === "none" || value === null) delete calls[id];
+    else if (value === "D" || value === "R") calls[id] = { winner: value, name: value === "D" ? race.democrat : race.republican, via: "manual" };
+  }
+  return calls;
 }

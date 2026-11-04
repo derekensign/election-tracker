@@ -9,10 +9,10 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { advanceNeedle, createNeedleDocument, NEEDLE_ELECTION } from "./ingest/needle.js";
 import { fetchCountyReturns, fetchElectionStatus } from "./ingest/sources/sos-results.js";
-import { TEXAS_COUNTY_SOURCES, countyReturnFromContests, mergeCountyReturns } from "./ingest/texas-counties.js";
+import { TEXAS_COUNTY_SOURCES, countyReturnFromContests, mergeCountyReturns, texasCallsUrl, texasRaceCalls } from "./ingest/texas-counties.js";
 
 const s3 = new S3Client({});
-const { BUCKET, OBJECT_KEY = "needle.json", SNAPSHOT_URL, FRESH_AFTER = "2026-11-03T18:00:00Z" } = process.env;
+const { BUCKET, OBJECT_KEY = "needle.json", SNAPSHOT_URL, FRESH_AFTER = "2026-11-03T18:00:00Z", CALLS_URL = "https://texas-race-tracker.vercel.app/data/texas-calls.json" } = process.env;
 
 /** The night's document and its S3 version (ETag), or a fresh one from the published morning snapshot. */
 async function loadDocument() {
@@ -68,13 +68,32 @@ async function countySiteReturns(doc) {
   return Object.fromEntries(entries.filter(Boolean));
 }
 
+/**
+ * The networks' calls in the Texas statewide races, from the races' Wikipedia pages and the site's manual calls
+ * (public/data/texas-calls.json). If Wikipedia doesn't answer, the last calls stand.
+ */
+async function raceCalls(doc) {
+  try {
+    const [pages, overrides] = await Promise.all([
+      fetch(texasCallsUrl(), { headers: { "User-Agent": "election-tracker/0.1 (https://github.com/derekensign/election-tracker)" }, signal: AbortSignal.timeout(20_000) })
+        .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`)))),
+      fetch(`${CALLS_URL}?t=${Date.now()}`, { signal: AbortSignal.timeout(15_000) }).then((response) => (response.ok ? response.json() : {})).catch(() => ({})),
+    ]);
+    return texasRaceCalls(doc.inputs.races, pages, overrides);
+  } catch (error) {
+    console.log(`Texas calls: ${error.message}; keeping the last ones`);
+    return doc.calls ?? {};
+  }
+}
+
 export async function handler() {
   const started = Date.now();
   const { doc, etag } = await loadDocument();
   const fetchedAt = new Date().toISOString();
-  const stateReturns = await fetchCountyReturns();
-  const { returns, used } = mergeCountyReturns(stateReturns, await countySiteReturns(doc));
+  const [stateReturns, sites, calls] = await Promise.all([fetchCountyReturns(), countySiteReturns(doc), raceCalls(doc)]);
+  const { returns, used } = mergeCountyReturns(stateReturns, sites);
   doc.countySitesUsed = used;
+  doc.calls = calls;
   // The results site's status line comes from a 1.6 MB file; every third pass (six minutes) is plenty.
   const status = new Date().getUTCMinutes() % 6 === 0 || !doc.status
     ? await fetchElectionStatus().catch((error) => { console.log(`status fetch failed: ${error.message}`); return null; })

@@ -294,7 +294,8 @@ export function parseWikipediaWinner(wikitext) {
   const name = plainWikitext(raw);
   const party = plainWikitext(field("after_party")).toUpperCase();
   if (!name) return null;
-  return { name, party: /^DEMOCRATIC/.test(party) ? "D" : /^REPUBLICAN/.test(party) ? "R" : /INDEPENDENT/.test(party) ? "I" : "other" };
+  // Parties appear as "Democratic Party (United States)" or a state party, like "Texas Democratic Party".
+  return { name, party: /DEMOCRAT/.test(party) ? "D" : /REPUBLICAN/.test(party) ? "R" : /INDEPENDENT/.test(party) ? "I" : "other" };
 }
 
 /** Calls from the races' own pages, from the same API response wikipediaReturns reads. */

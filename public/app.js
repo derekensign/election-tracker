@@ -1238,13 +1238,45 @@ function renderNeedleStatus(doc, topRun) {
     const counted = Math.max(withVotes, status?.countiesReporting ?? 0);
     const reporting = counted ? ` ${counted} of ${status?.countiesTotal ?? 254} counties reporting; the biggest counties often post on their own websites before the state's feed has them.` : "";
     const how = needleState.source === "browser" ? "read directly by your browser" : "checked every two minutes";
-    box.innerHTML = `<b><span class="live-dot" aria-hidden="true"></span>Returns as of ${needleTime(doc.checkedAt)} Central.</b><span>${reporting} Unofficial results from the Texas Secretary of State, ${how}. The needle is a projection, not a race call.</span>${refresh}${problem}`;
+    const calledCount = Object.keys(doc.calls ?? {}).length;
+    const callNote = calledCount ? ` ${calledCount} of ${doc.inputs.races.length} statewide races called by the networks show results; the rest show the needle, a projection, not a call.` : " The needle is a projection, not a race call.";
+    box.innerHTML = `<b><span class="live-dot" aria-hidden="true"></span>Returns as of ${needleTime(doc.checkedAt)} Central.</b><span>${reporting} Unofficial results from the Texas Secretary of State and the biggest counties' own sites, ${how}.${callNote}</span>${refresh}${problem}`;
   }
   document.getElementById("needle-refresh")?.addEventListener("click", () => refreshNeedle({ forceSos: true }).catch((error) => console.error("needle", error)));
 }
 
-/** One race: gauge, both candidates' chances, and the projection in words. */
+/**
+ * A called race as results: the candidates' votes and shares so far, the winner checked, and how much is in. Votes
+ * are the sum of the counties' counts the needle reads (the state's feed, or a county's own site when it's ahead).
+ */
+function resultsRaceBlock(run, doc, call, { large }) {
+  let total = 0, dem = 0, rep = 0;
+  for (const county of Object.values(doc.latest?.returns ?? {})) {
+    const counted = county.races?.[run.id];
+    if (counted) { total += counted[3]; dem += counted[4]; rep += counted[5]; }
+  }
+  const rows = [
+    { name: run.democrat, party: "D", word: "Democrat", votes: dem },
+    { name: run.republican, party: "R", word: "Republican", votes: rep },
+    { name: "Others", party: "other", word: "", votes: Math.max(0, total - dem - rep) },
+  ].filter((row) => row.party !== "other" || row.votes > 0);
+  const winner = call.winner === "D" ? run.democrat : call.winner === "R" ? run.republican : call.name;
+  const color = (party) => cssVar(party === "D" ? "--d3" : party === "R" ? "--r3" : "--toss");
+  return `<div class="needle-race results-race">
+    <h4>${esc(run.office)}</h4>
+    <p class="call-line">${checkBadgeIcon(color(call.winner), { inverse: true })}<b>${esc(winner)} wins</b><span class="thin">${call.via === "manual" ? "called by the networks, set by hand" : "called by the networks, as posted to Wikipedia"}</span></p>
+    <table class="results-table"><tbody>
+      ${rows.map((row) => `<tr class="${row.party === call.winner ? "winner" : ""}"><td class="name"><i class="party-bar" style="background:${color(row.party)}"></i>${row.party === call.winner ? `${checkBadgeIcon(color(row.party))} ` : ""}${esc(row.name)}</td>${large ? `<td class="muted">${row.word}</td>` : ""}<td class="num">${senateVotes(row.votes)}</td><td class="num"><b>${total ? pct(row.votes / total, 1) : "—"}</b></td>${large ? `<td class="bar-cell"><span class="share-bar" style="width:${total ? Math.round((100 * row.votes) / total) : 0}%;background:${color(row.party)}"></span></td>` : ""}</tr>`).join("")}
+      ${large ? `<tr class="total"><td class="name">Total reported</td><td></td><td class="num">${senateVotes(total)}</td><td></td><td></td></tr>` : ""}
+    </tbody></table>
+    <p class="thin">${pct(run.countedShare)} of about ${compact(run.expectedVotes)} expected votes in. Unofficial results.</p>
+  </div>`;
+}
+
+/** One race: gauge, both candidates' chances, and the projection in words; results once the race is called. */
 function needleRaceBlock(run, doc, { large }) {
+  const call = doc.calls?.[run.id];
+  if (call && !needleState.demo) return resultsRaceBlock(run, doc, call, { large });
   // The gauge's tick marks the polls model; the needle starts a little off it, moved by the early-vote turnout mix.
   const prior = run.prior.pD;
   const start = doc.timeline[run.id]?.[0]?.p ?? prior;
@@ -1945,7 +1977,7 @@ async function senateOwnCheck() {
   const pageCalls = pages ? wikipediaPageCalls(doc.inputs.races, pages) : {};
   const texasRun = needleState.runs?.find((run) => run.id === "tx-senate");
   const texas = texasRun?.countedVotes ? { pD: texasRun.pD, margin: texasRun.margin, statewide: texasRun.shared.statewide, counted: texasRun.countedShare, countedVotes: texasRun.countedVotes, countedMargin: texasRun.countedMargin, expectedVotes: texasRun.expectedVotes, returnsAt: needleState.doc?.checkedAt ?? null } : null;
-  model.advanceSenateNight(doc, { calls: model.mergeCalls({ ...pageCalls, ...model.parseSenateCalls(content, codeByStateName) }, overrides), texas, returns: mergeReturns(doc.returns ?? {}, unofficial), fetchedAt: new Date().toISOString() });
+  model.advanceSenateNight(doc, { calls: model.mergeCalls(model.fixCallParties({ ...pageCalls, ...model.parseSenateCalls(content, codeByStateName) }, doc.inputs.races), overrides), texas, returns: mergeReturns(doc.returns ?? {}, unofficial), fetchedAt: new Date().toISOString() });
   senateState.source = "browser";
 }
 
@@ -1969,10 +2001,20 @@ function renderSenateNight() {
     ? `Calls so far suggest ${swing.mean > 0 ? "Democrats" : "Republicans"} are beating their polls by about ${Math.abs(swing.mean).toFixed(0)} points nationally.`
     : calledCount ? "Calls so far are about what the polls expected." : "No calls yet, so no read on a national polling miss.";
   const site = senateState.snapshot.senateControl?.pollModel?.control?.D;
-  document.getElementById("senate-night-board").innerHTML = `<div class="needle-race">
+  // Control decided by calls alone: 51 seats for the Democratic caucus, or 50 for Republicans with the vice president.
+  const seatsD = doc.inputs.notUp.democraticCaucus + run.called.D, seatsR = doc.inputs.notUp.republican + run.called.R;
+  const decided = seatsD >= 51 ? "D" : seatsR >= 50 ? "R" : null;
+  const headline = decided
+    ? `<div class="needle-race results-race control-result">
+        <p class="call-line big">${checkBadgeIcon(senateCalledFill(decided), { inverse: true })}<b>${decided === "D" ? "Democrats win control of the Senate" : "Republicans keep control of the Senate"}</b></p>
+        <p class="seat-line"><b class="lean-d">${seatsD}</b> Democratic caucus <span class="muted">·</span> <b class="lean-r">${seatsR}</b> Republican <span class="muted">·</span> ${run.uncalled} not called</p>
+        <p class="thin">${decided === "D" ? `${doc.inputs.notUp.democraticCaucus} not up plus ${run.called.D} won tonight` : `${doc.inputs.notUp.republican} not up plus ${run.called.R} won tonight, with the vice president's tie-breaking vote`}, from the networks' calls.</p>
+      </div>`
+    : `<div class="needle-race">
       <div class="needle-gauge">${needleGaugeSvg(run.pD, start, { large: true, dem: "Democrats", rep: "Republicans" })}</div>
       <div class="needle-odds"><div class="side${run.pD >= 0.5 ? "" : " trails"}"><b>${needleChance(run.pD)}</b>Democrats</div><div class="side right${run.pD >= 0.5 ? " trails" : ""}"><b>${needleChance(run.pR)}</b>Republicans</div></div>
-    </div>
+    </div>`;
+  document.getElementById("senate-night-board").innerHTML = `${headline}
     <ul class="facts">
       <li>Expected Democratic-caucus seats <b>${run.expectedD.toFixed(1)}</b>; Democrats need 51, and a 50–50 Senate goes to Republicans (Vice President Vance breaks ties).</li>
       <li>${esc(swingWords)}</li>

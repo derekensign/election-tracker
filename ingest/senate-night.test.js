@@ -123,3 +123,10 @@ test("the seat distribution sums to one, puts the control chance at 51 or more, 
   const called = runSenateNight({ races: RACES, calls: { AA: { winner: "D" }, BB: { winner: "D" } }, notUp: NOT_UP });
   assert.ok(called.seatHistogram.length < open.seatHistogram.length);
 });
+
+test("a call's party follows its winner's name, so Minnesota's DFL counts as Democratic", async () => {
+  const { fixCallParties } = await import("./senate-night.js");
+  const races = [{ state: "MN", democrat: "Peggy Flanagan", republican: "Michele Tafoya", independent: "Marisa Simonetti" }];
+  assert.equal(fixCallParties({ MN: { winner: "other", name: "Peggy Flanagan", via: "winner marked" } }, races).MN.winner, "D");
+  assert.equal(fixCallParties({ MN: { winner: "D", name: null, via: "result: Democratic hold" } }, races).MN.winner, "D");
+});

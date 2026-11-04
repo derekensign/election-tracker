@@ -5,7 +5,7 @@
 // writes senate.json beside needle.json. Separate from the Texas recorder, so a problem here never touches it.
 import { gunzipSync, gzipSync } from "node:zlib";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { advanceSenateNight, createSenateNightDocument, mergeCalls, parseSenateCalls } from "./ingest/senate-night.js";
+import { advanceSenateNight, createSenateNightDocument, fixCallParties, mergeCalls, parseSenateCalls } from "./ingest/senate-night.js";
 import { runNeedle } from "./ingest/needle.js";
 import { SENATE_COUNTY_SOURCES, SENATE_RETURN_SOURCES, combineCounties, mergeReturns, relayReturns, summarizeReturns, wikipediaPageCalls, wikipediaReturns, wikipediaReturnsUrl } from "./ingest/senate-returns.js";
 
@@ -157,7 +157,7 @@ export async function handler(event = {}) {
   const texas = texasRead;
 
   const fetchedAt = new Date().toISOString();
-  const { changed, events } = advanceSenateNight(doc, { calls: mergeCalls(fromWikipedia, overrides), texas, returns, countyReturns, fetchedAt });
+  const { changed, events } = advanceSenateNight(doc, { calls: mergeCalls(fixCallParties(fromWikipedia, doc.inputs.races), overrides), texas, returns, countyReturns, fetchedAt });
   doc.latest.wikipediaCalls = wikipedia ?? doc.latest?.wikipediaCalls ?? {};
   doc.latest.pageCalls = pages.calls;
   doc.latest.overrides = overrides;

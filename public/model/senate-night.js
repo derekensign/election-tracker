@@ -170,7 +170,7 @@ export function parseSenateCalls(wikitext, codeByStateName) {
     if (!stateMatch) continue;
     const code = codeByStateName[stateMatch[1].trim()];
     if (!code) continue;
-    const partyOf = (text) => (/\(Democratic/.test(text) ? "D" : /\(Republican/.test(text) ? "R" : /\(Independent/.test(text) ? "I" : "other");
+    const partyOf = (text) => (/\((Democratic|DFL)/.test(text) ? "D" : /\(Republican/.test(text) ? "R" : /\(Independent/.test(text) ? "I" : "other");
     const candidateLines = row.split("\n").filter((line) => line.trim().startsWith("*"));
     const winnerLine = candidateLines.find((line) => /\{\{\s*(aye|ya|yes check|check mark|tick|✓)\s*\}\}/i.test(line));
     if (winnerLine) {
@@ -187,6 +187,22 @@ export function parseSenateCalls(wikitext, codeByStateName) {
     }
   }
   return calls;
+}
+
+/**
+ * A call's party from its winner's name when the name is one of the race's candidates, so a party label the
+ * readers don't know (Minnesota's "Democratic–Farmer–Labor") can't turn a Democratic win into a third-party one.
+ */
+export function fixCallParties(calls, races) {
+  const last = (name) => String(name || "").toLowerCase().replace(/[^a-z\s'-]/g, " ").split(/\s+/).filter((t) => t && !["jr", "sr", "ii", "iii"].includes(t)).at(-1) ?? "";
+  const fixed = {};
+  for (const [state, call] of Object.entries(calls)) {
+    const race = races.find((r) => r.state === state);
+    const name = last(call.name);
+    const party = !race || !name ? call.winner : name === last(race.democrat) ? "D" : name === last(race.republican) ? "R" : name === last(race.independent) ? "I" : call.winner;
+    fixed[state] = party === call.winner ? call : { ...call, winner: party };
+  }
+  return fixed;
 }
 
 /** Wikipedia calls with manual overrides on top: a state set to a party wins; set to "none" it is uncalled. */
