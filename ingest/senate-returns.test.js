@@ -197,3 +197,13 @@ test("Big counties: candidates matched by last name across formats, precincts su
   assert.equal(combined.share2024, 0.2);
   assert.deepEqual(combined.counties, ["Oakland", "Macomb"]);
 });
+
+test("a state page's winner: filled after_election and after_party; blank or placeholder means no call", async () => {
+  const { parseWikipediaWinner } = await import("./senate-returns.js");
+  const page = (after, party) => `{{Infobox election\n| election_name = x\n| before_election = [[Jon Husted]]\n| after_election = ${after}\n| after_party = ${party}\n}}`;
+  assert.deepEqual(parseWikipediaWinner(page("[[Sherrod Brown]]", "Democratic Party (United States)")), { name: "Sherrod Brown", party: "D" });
+  assert.deepEqual(parseWikipediaWinner(page("[[Dan Osborn]]", "Independent politician")), { name: "Dan Osborn", party: "I" });
+  assert.equal(parseWikipediaWinner(page("", "")), null);
+  assert.equal(parseWikipediaWinner(page("TBD", "")), null);
+  assert.equal(parseWikipediaWinner(`{{Infobox election\n<!--\n| after_election = [[Sherrod Brown]]\n-->\n}}`), null);
+});

@@ -1939,11 +1939,13 @@ async function senateOwnCheck() {
   const content = (await (await fetch(SENATE_WIKIPEDIA_API, { cache: "no-store" })).json()).query?.pages?.[0]?.revisions?.[0]?.slots?.main?.content;
   if (!content) throw new Error("Wikipedia returned no page");
   const overrides = await fetchJson("data/senate-calls.json").catch(() => ({}));
-  const { wikipediaReturns, wikipediaReturnsUrl, mergeReturns } = senateState.returnsModel;
-  const unofficial = await fetch(wikipediaReturnsUrl(doc.inputs.races, { browser: true }), { cache: "no-store" }).then((r) => r.json()).then((json) => wikipediaReturns(doc.inputs.races, json, new Date().toISOString())).catch(() => ({}));
+  const { wikipediaReturns, wikipediaReturnsUrl, wikipediaPageCalls, mergeReturns } = senateState.returnsModel;
+  const pages = await fetch(wikipediaReturnsUrl(doc.inputs.races, { browser: true }), { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+  const unofficial = pages ? wikipediaReturns(doc.inputs.races, pages, new Date().toISOString()) : {};
+  const pageCalls = pages ? wikipediaPageCalls(doc.inputs.races, pages) : {};
   const texasRun = needleState.runs?.find((run) => run.id === "tx-senate");
   const texas = texasRun?.countedVotes ? { pD: texasRun.pD, margin: texasRun.margin, statewide: texasRun.shared.statewide, counted: texasRun.countedShare, countedVotes: texasRun.countedVotes, countedMargin: texasRun.countedMargin, expectedVotes: texasRun.expectedVotes, returnsAt: needleState.doc?.checkedAt ?? null } : null;
-  model.advanceSenateNight(doc, { calls: model.mergeCalls(model.parseSenateCalls(content, codeByStateName), overrides), texas, returns: mergeReturns(doc.returns ?? {}, unofficial), fetchedAt: new Date().toISOString() });
+  model.advanceSenateNight(doc, { calls: model.mergeCalls({ ...pageCalls, ...model.parseSenateCalls(content, codeByStateName) }, overrides), texas, returns: mergeReturns(doc.returns ?? {}, unofficial), fetchedAt: new Date().toISOString() });
   senateState.source = "browser";
 }
 

@@ -7,7 +7,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { advanceSenateNight, createSenateNightDocument, mergeCalls, parseSenateCalls } from "./ingest/senate-night.js";
 import { runNeedle } from "./ingest/needle.js";
-import { SENATE_COUNTY_SOURCES, SENATE_RETURN_SOURCES, combineCounties, mergeReturns, relayReturns, summarizeReturns, wikipediaReturns, wikipediaReturnsUrl } from "./ingest/senate-returns.js";
+import { SENATE_COUNTY_SOURCES, SENATE_RETURN_SOURCES, combineCounties, mergeReturns, relayReturns, summarizeReturns, wikipediaPageCalls, wikipediaReturns, wikipediaReturnsUrl } from "./ingest/senate-returns.js";
 
 const s3 = new S3Client({});
 const { BUCKET, OBJECT_KEY = "senate.json", TEXAS_KEY = "needle.json", RELAY_KEY = "relay.json", SNAPSHOT_URL, OVERRIDES_URL, WIKIPEDIA_PAGE, FRESH_AFTER, TEXAS_FRESH_AFTER } = process.env;
@@ -52,15 +52,19 @@ async function getText(url) {
 }
 
 /**
- * Unofficial counts from the races' Wikipedia infoboxes (one API request): the only counts for states with no
- * official file, and the fallback when a state's file fails. If the request fails, the last ones are kept, stale.
+ * The races' own Wikipedia pages (one API request for every lead section): their infoboxes' unofficial counts (the
+ * only counts for states with no official file, and the fallback when a state's file fails) and their winners
+ * (editors often fill a state page's winner before the national page's table). If the request fails, the last
+ * counts are kept, stale, and the last calls stand.
  */
-async function unofficialReturns(races, previous = {}) {
+async function statePages(races, previousReturns = {}, previousCalls = {}) {
   try {
-    return wikipediaReturns(races, JSON.parse(await getText(wikipediaReturnsUrl(races))), new Date().toISOString());
+    const response = JSON.parse(await getText(wikipediaReturnsUrl(races)));
+    return { counts: wikipediaReturns(races, response, new Date().toISOString()), calls: wikipediaPageCalls(races, response) };
   } catch (error) {
-    console.log(`returns from Wikipedia: ${error.message}`);
-    return Object.fromEntries(Object.entries(previous).filter(([, r]) => r.unofficial).map(([state, r]) => [state, { ...r, stale: true, error: error.message }]));
+    console.log(`Wikipedia state pages: ${error.message}`);
+    const counts = Object.fromEntries(Object.entries(previousReturns).filter(([, r]) => r.unofficial).map(([state, r]) => [state, { ...r, stale: true, error: error.message }]));
+    return { counts, calls: previousCalls };
   }
 }
 
@@ -132,27 +136,30 @@ export async function handler(event = {}) {
   }
   const codeByStateName = Object.fromEntries(doc.inputs.races.map((race) => [race.stateName, race.state]));
   // All sources at once. Each one failing leaves its last good value in place, so one outage never wipes calls.
-  const [wikipedia, overridesRead, texasRead, officialReturns, wikipediaCounts, relayed, countyReturns] = await Promise.all([
+  const [wikipedia, overridesRead, texasRead, officialReturns, pages, relayed, countyReturns] = await Promise.all([
     wikipediaCalls(codeByStateName).catch((error) => { console.log(`calls: ${error.message}; keeping the last ones`); return null; }),
     fetch(`${OVERRIDES_URL}?t=${Date.now()}`, { signal: AbortSignal.timeout(15_000) }).then((response) => (response.ok ? response.json() : null)).catch((error) => { console.log(`overrides: ${error.message}`); return null; }),
     texasRace().catch((error) => { console.log(`texas: ${error.message}`); return null; }),
     stateReturns(doc.inputs.races, doc.returns ?? {}),
-    unofficialReturns(doc.inputs.races, doc.returns ?? {}),
+    statePages(doc.inputs.races, doc.returns ?? {}, doc.latest?.pageCalls ?? {}),
     // Ohio, through the Raspberry Pi at home (relay/pi-relay.py), since Ohio refuses cloud servers.
     readObject(RELAY_KEY).then((object) => relayReturns(doc.inputs.races, object?.doc)).catch((error) => { console.log(`relay: ${error.message}`); return {}; }),
     bigCountyReturns(doc.inputs.races, doc.countyReturns ?? {}),
   ]);
   // A state's own file read this pass beats the relay's copy (up to two minutes older); the relay beats a stale read.
+  const wikipediaCounts = pages.counts;
   const official = { ...officialReturns };
   for (const [state, entry] of Object.entries(relayed)) if (!official[state] || official[state].stale) official[state] = entry;
   const returns = mergeReturns(official, wikipediaCounts);
-  const fromWikipedia = wikipedia ?? doc.latest?.wikipediaCalls ?? {};
+  // The national page's calls, then the state pages' where the national table hasn't caught up.
+  const fromWikipedia = { ...pages.calls, ...(wikipedia ?? doc.latest?.wikipediaCalls ?? {}) };
   const overrides = overridesRead ?? doc.latest?.overrides ?? {};
   const texas = texasRead;
 
   const fetchedAt = new Date().toISOString();
   const { changed, events } = advanceSenateNight(doc, { calls: mergeCalls(fromWikipedia, overrides), texas, returns, countyReturns, fetchedAt });
-  doc.latest.wikipediaCalls = fromWikipedia;
+  doc.latest.wikipediaCalls = wikipedia ?? doc.latest?.wikipediaCalls ?? {};
+  doc.latest.pageCalls = pages.calls;
   doc.latest.overrides = overrides;
   try {
     await s3.send(new PutObjectCommand({

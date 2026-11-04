@@ -280,6 +280,35 @@ export function parseWikipediaInfobox(wikitext) {
   };
 }
 
+/**
+ * The winner a race's own Wikipedia page names, when its editors have filled in the infobox's after_election (left
+ * blank until a race is called): { name, party } with party "D", "R", "I", or "other", or null.
+ */
+export function parseWikipediaWinner(wikitext) {
+  const text = String(wikitext).replace(/<!--[\s\S]*?-->/g, "");
+  const start = text.indexOf("{{Infobox election");
+  if (start === -1) return null;
+  const field = (name) => text.slice(start).match(new RegExp(`\\n\\s*\\|\\s*${name}\\s*=([^\\n]*)`))?.[1]?.trim() ?? "";
+  const raw = field("after_election");
+  if (!/\[\[/.test(raw)) return null; // blank, or a placeholder like "TBD"
+  const name = plainWikitext(raw);
+  const party = plainWikitext(field("after_party")).toUpperCase();
+  if (!name) return null;
+  return { name, party: /^DEMOCRATIC/.test(party) ? "D" : /^REPUBLICAN/.test(party) ? "R" : /INDEPENDENT/.test(party) ? "I" : "other" };
+}
+
+/** Calls from the races' own pages, from the same API response wikipediaReturns reads. */
+export function wikipediaPageCalls(races, apiResponse) {
+  const byTitle = new Map(races.map((race) => [wikipediaPageTitle(race), race]));
+  const calls = {};
+  for (const page of apiResponse?.query?.pages ?? []) {
+    const race = byTitle.get(page.title);
+    const winner = race ? parseWikipediaWinner(page.revisions?.[0]?.slots?.main?.content ?? "") : null;
+    if (winner) calls[race.state] = { winner: winner.party, name: winner.name, via: "state page" };
+  }
+  return calls;
+}
+
 /** A race's Wikipedia page. */
 export function wikipediaPageTitle(race) {
   return `2026 United States Senate ${race.special ? "special " : ""}election in ${race.stateName}`;
@@ -306,11 +335,12 @@ export function wikipediaReturns(races, apiResponse, fetchedAt) {
 }
 
 /**
- * The Wikipedia API URL for every race's page but Texas's (the Texas needle covers it): only each page's lead section,
- * where the infobox is, so about 100 KB in all. Add origin=* when a browser reads it.
+ * The Wikipedia API URL for every race's page: only each page's lead section, where the infobox is, so about 100 KB
+ * in all. Its counts (but Texas's, which the Texas needle covers) and its winners are read. Add origin=* when a
+ * browser reads it.
  */
 export function wikipediaReturnsUrl(races, { browser = false } = {}) {
-  const titles = races.filter((race) => race.state !== "TX").map(wikipediaPageTitle).join("|");
+  const titles = races.map(wikipediaPageTitle).join("|");
   return `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content%7Ctimestamp&rvslots=main&rvsection=0&redirects=1&format=json&formatversion=2${browser ? "&origin=*" : ""}&titles=${encodeURIComponent(titles)}`;
 }
 
