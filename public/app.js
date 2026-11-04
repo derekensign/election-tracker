@@ -1878,7 +1878,8 @@ const SENATE_NIGHT_TIMING = {
   windowOpens: Date.parse("2026-11-03T22:00:00Z"), // first Senate polls close, 6 p.m. Eastern
   windowCloses: Date.parse("2026-11-05T18:00:00Z"),
   freshAfter: Date.parse("2026-11-03T21:00:00Z"), // recorder files from earlier are test runs
-  chartStart: Date.parse("2026-11-03T21:30:00Z"), // 3:30 p.m. Central
+  // Just before 6 p.m. Central, when most of the East's polls close; the afternoon before it is empty.
+  chartStart: Date.parse("2026-11-03T23:45:00Z"), // 5:45 p.m. Central
   chartMinimumEnd: Date.parse("2026-11-04T07:00:00Z"), // 1 a.m. Central
   staleMs: 6 * 60_000, pollMs: 60_000, ownCheckMs: 3 * 60_000,
 };
@@ -1999,7 +2000,7 @@ function renderSenateNightChart(doc) {
   const hourTicks = d3.range(Math.ceil(SENATE_NIGHT_TIMING.chartStart / 3_600_000) * 3_600_000, end + 1, 3_600_000).filter((t, i) => !narrow || i % 2 === 0);
   svg.append("g").attr("class", "grid").selectAll("line").data([0.25, 0.75, 1]).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => y(v)).attr("y2", (v) => y(v));
   svg.append("line").attr("class", "even-line").attr("stroke-dasharray", "3 3").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", y(0.5)).attr("y2", y(0.5));
-  for (const [time, label] of [[SENATE_NIGHT_TIMING.windowOpens, "First polls close"], [NEEDLE_TIMING.pollsClose, narrow ? "" : "Texas closes"]]) {
+  for (const [time, label] of [[Date.parse("2026-11-04T00:00:00Z"), "Most of the East closes"], [NEEDLE_TIMING.pollsClose, narrow ? "" : "Texas closes"]]) {
     svg.append("line").attr("class", "close-rule").attr("x1", x(time)).attr("x2", x(time)).attr("y1", top - 6).attr("y2", bottom);
     if (label) svg.append("text").attr("class", "close-label").attr("x", x(time) + 4).attr("y", top - 10).text(label);
   }
