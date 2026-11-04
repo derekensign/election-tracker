@@ -122,12 +122,15 @@ export function runSenateNight({ races, calls = {}, texas = null, notUp, params 
   const control = { D: 0, R: 0, none: 0 };
   let expectedD = 0, epsilonMean = 0, epsilonSq = 0;
   const perRace = races.map(() => 0), perRaceMargin = races.map(() => 0);
+  // The chance of each Democratic-caucus seat total, mixed over the national swing like everything else.
+  const seatChance = new Map();
   for (const point of posterior) {
     if (point.weight < 1e-7) continue;
     const chances = races.map((race) => chanceAt(race, point.e));
     const seats = seatDistribution(chances, { democraticCaucusNotUp: notUp.democraticCaucus, republicanNotUp: notUp.republican });
     control.D += point.weight * seats.control.D; control.R += point.weight * seats.control.R; control.none += point.weight * seats.control.none;
     expectedD += point.weight * seats.expected.D;
+    for (const { d, probability } of seats.histogram) seatChance.set(d, (seatChance.get(d) || 0) + point.weight * probability);
     epsilonMean += point.weight * point.e; epsilonSq += point.weight * point.e * point.e;
     chances.forEach((c, i) => { perRace[i] += point.weight * (races[i].challengerParty === "I" ? c.pI : c.pD); });
     races.forEach((race, i) => { perRaceMargin[i] += point.weight * marginAt(race, point.e); });
@@ -142,6 +145,7 @@ export function runSenateNight({ races, calls = {}, texas = null, notUp, params 
     expectedD: Math.round((expectedD / used) * 10) / 10,
     nationalSwing: { mean: Math.round((epsilonMean / used) * 100) / 100, sd: Math.round(Math.sqrt(Math.max(0, epsilonSq / used - (epsilonMean / used) ** 2)) * 100) / 100 },
     called, uncalled: races.length - called.D - called.R - called.I,
+    seatHistogram: [...seatChance.entries()].map(([d, probability]) => ({ d, probability: Math.round((probability / used) * 10000) / 10000 })).filter((h) => h.probability > 0).sort((a, b) => a.d - b.d),
     races: races.map((race, i) => ({ state: race.state, challengerParty: race.challengerParty, prior: race.prior, chance: Math.round((perRace[i] / used) * 1000) / 1000, expectedMargin: Math.round((perRaceMargin[i] / used) * 10) / 10, call: calls[race.state] ?? null })),
   };
 }

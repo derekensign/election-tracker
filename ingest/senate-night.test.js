@@ -113,3 +113,13 @@ test("each point carries every race's chance and the national read; counts are s
   assert.equal(doc.timeline.length, 2);
   assert.deepEqual(doc.returns, returns);
 });
+
+test("the seat distribution sums to one, puts the control chance at 51 or more, and narrows as races are called", () => {
+  const open = runSenateNight({ races: RACES, calls: {}, notUp: NOT_UP });
+  const total = open.seatHistogram.reduce((t, h) => t + h.probability, 0);
+  assert.ok(Math.abs(total - 1) < 0.003);
+  const atLeast51 = open.seatHistogram.filter((h) => h.d >= 51).reduce((t, h) => t + h.probability, 0);
+  assert.ok(Math.abs(atLeast51 - open.pD) < 0.003);
+  const called = runSenateNight({ races: RACES, calls: { AA: { winner: "D" }, BB: { winner: "D" } }, notUp: NOT_UP });
+  assert.ok(called.seatHistogram.length < open.seatHistogram.length);
+});

@@ -250,6 +250,8 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .senate-night-map .call-badges path, .senate-floor .seat-checks path { fill: none; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .senate-floor .seat-checks path { stroke: #fff; stroke-width: 2.6; }
 .legend .badge-icon { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 3px; }
+.senate-night-dist svg { display: block; width: 100%; height: auto; }
+.senate-night-dist .morning-outline { fill: none; stroke: var(--ink-2); stroke-width: 1.2; stroke-dasharray: 3 2; pointer-events: none; }
 /* Flips: a hatch and dark outline on the map, a dark ring on the floor, a tag in the table and calls list. */
 .senate-night-map .flip-marks path { stroke: var(--ink); stroke-width: 2; pointer-events: none; }
 .senate-floor .seat.flip { stroke: var(--ink); stroke-width: 3; }

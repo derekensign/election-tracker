@@ -1980,6 +1980,7 @@ function renderSenateNight() {
 
   renderSenateFloor(doc, run);
   renderSenateNightMap(doc, run);
+  renderSenateSeatDistribution(doc, run);
   renderSenateNightChart(doc);
   renderSenateNightEvents(doc);
   renderSenateNightTable(doc, run);
@@ -2199,6 +2200,49 @@ function renderSenateFloor(doc, run) {
   const net = !flips.length ? "" : ` · ${netD > 0 ? `Democrats +${netD}` : netD < 0 ? `Republicans +${-netD}` : "flips even"}`;
   svg.append("text").attr("class", "floor-sub").attr("x", cx).attr("y", cy - 4).attr("text-anchor", "middle").text(`decided · ${out.length} out${won("I").length ? ` · ${won("I").length} independent` : ""}${net}`);
   document.getElementById("senate-night-seats-legend").innerHTML = `<span>${seatIcon(cssVar("--d4"))}${checkBadgeIcon(cssVar("--d3"), { inverse: true })}Democratic caucus: not up, won tonight</span><span>${seatIcon(cssVar("--d2"), { out: true })}${seatIcon("#e9e9e6", { out: true })}${seatIcon(cssVar("--r2"), { out: true })}Still out, shaded by the chance now</span><span>${checkBadgeIcon(cssVar("--r3"), { inverse: true })}${seatIcon(cssVar("--r4"))}Republicans: won tonight, not up</span><span>${seatIcon(cssVar("--d3"), { flip: true })}${seatIcon(cssVar("--r3"), { flip: true })}Flipped seat</span>`;
+}
+
+/**
+ * The chance of each Democratic-caucus seat total now, over this morning's as an outline; 51 or more is control.
+ * Recorder files from before the model carried the distribution are recomputed here with the same model.
+ */
+function renderSenateSeatDistribution(doc, run) {
+  const box = document.getElementById("senate-night-dist");
+  if (!box) return;
+  const { model } = senateState;
+  const histogram = run.seatHistogram ?? model.runSenateNight({ races: doc.inputs.races, calls: doc.latest?.calls ?? {}, texas: doc.latest?.texas ?? null, notUp: doc.inputs.notUp }).seatHistogram;
+  if (senateState.morningSeats?.createdAt !== doc.createdAt) {
+    const morning = model.runSenateNight({ races: doc.inputs.races, calls: {}, texas: null, notUp: doc.inputs.notUp });
+    senateState.morningSeats = { createdAt: doc.createdAt, histogram: morning.seatHistogram, expected: morning.expectedD };
+  }
+  const now = new Map(histogram.map((h) => [h.d, h.probability])), before = new Map(senateState.morningSeats.histogram.map((h) => [h.d, h.probability]));
+  const shown = [...now.keys(), ...before.keys()].filter((d) => (now.get(d) ?? 0) >= 0.002 || (before.get(d) ?? 0) >= 0.002);
+  if (!shown.length) return;
+  const seats = d3.range(Math.min(...shown), Math.max(...shown) + 1);
+  const width = 760, height = 200, margin = { top: 16, right: 12, bottom: 30, left: 40 };
+  const x = d3.scaleBand().domain(seats.map(String)).range([margin.left, width - margin.right]).paddingInner(0.18);
+  const y = d3.scaleLinear().domain([0, Math.max(0.05, d3.max(seats, (d) => Math.max(now.get(d) ?? 0, before.get(d) ?? 0)) * 1.15)]).range([height - margin.bottom, margin.top]);
+  const svg = d3.select(box).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img")
+    .attr("aria-label", `Chance of each Democratic-caucus seat total: ${run.expectedD} expected now, ${senateState.morningSeats.expected} this morning`);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(3)).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => y(v)).attr("y2", (v) => y(v));
+  const every = Math.max(1, Math.ceil(seats.length / 16));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(x).tickSize(0).tickValues(x.domain().filter((_, i) => i % every === 0))).select(".domain").remove();
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(3).tickFormat((v) => `${Math.round(v * 100)}%`).tickSize(0)).select(".domain").remove();
+  svg.append("g").selectAll("rect").data(seats).join("rect").attr("class", "bar")
+    .attr("x", (d) => x(String(d))).attr("width", x.bandwidth()).attr("y", (d) => y(now.get(d) ?? 0)).attr("height", (d) => y(0) - y(now.get(d) ?? 0)).attr("rx", 2)
+    .attr("fill", (d) => (d >= 51 ? cssVar("--d3") : cssVar("--r2")))
+    .on("mousemove", (event, d) => showTooltip(event, `<b>${d} Democratic-caucus seats</b><div class="row"><span>Chance now</span><span>${pct(now.get(d) ?? 0, 1)}</span></div><div class="row"><span>This morning</span><span>${pct(before.get(d) ?? 0, 1)}</span></div>`))
+    .on("mouseleave", hideTooltip);
+  svg.append("g").selectAll("rect").data(seats.filter((d) => (before.get(d) ?? 0) > 0)).join("rect").attr("class", "morning-outline")
+    .attr("x", (d) => x(String(d))).attr("width", x.bandwidth()).attr("y", (d) => y(before.get(d))).attr("height", (d) => y(0) - y(before.get(d))).attr("rx", 2);
+  const majority = seats.indexOf(51);
+  if (majority > 0) {
+    const xLine = x("51") - (x.step() - x.bandwidth()) / 2, onLeft = xLine > width * 0.6;
+    svg.append("line").attr("x1", xLine).attr("x2", xLine).attr("y1", margin.top).attr("y2", height - margin.bottom).attr("stroke", cssVar("--ink")).attr("stroke-dasharray", "3 3");
+    svg.append("text").attr("class", "label").attr("x", xLine + (onLeft ? -5 : 5)).attr("y", margin.top + 10).attr("text-anchor", onLeft ? "end" : "start").text(`51 or more: Democratic control (${needleChance(run.pD)})`);
+  }
+  const likeliest = seats.reduce((best, d) => ((now.get(d) ?? 0) > (now.get(best) ?? 0) ? d : best), seats[0]);
+  document.getElementById("senate-night-dist-title").textContent = `Democratic-caucus seats, projected now: ${run.expectedD.toFixed(1)} expected, ${likeliest} most likely (${senateState.morningSeats.expected.toFixed(1)} this morning)`;
 }
 
 /** The map: called states solid, races still out shaded by the chance now, counting states outlined. */
