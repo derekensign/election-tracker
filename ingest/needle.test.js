@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { advanceNeedle, explainMove, normalCdf, parseCountyReturns, runNeedleRace, studentMixtureNodes } from "./needle.js";
+import { advanceNeedle, explainMove, NEEDLE_MODEL_VERSION, normalCdf, parseCountyReturns, runNeedleRace, studentMixtureNodes } from "./needle.js";
 import { studentTCdf } from "./metrics.js";
 
 // A three-county toy state: a blue city, a red rural county, a swingy suburb.
@@ -114,7 +114,7 @@ test("the explanation names the batch that surprised the model most", () => {
 
 test("the document gains a point only when returns change, and annotates the first returns", () => {
   const doc = {
-    createdAt: "2026-11-04T00:30:00Z", events: [], latest: null,
+    createdAt: "2026-11-04T00:30:00Z", events: [], latest: null, modelVersion: NEEDLE_MODEL_VERSION,
     inputs: { counties: COUNTIES, races: [{ ...RACE, office: "U.S. Senate", democrat: "James Talarico", republican: "Ken Paxton" }] },
     timeline: { "tx-senate": [{ t: "2026-11-04T00:30:00Z", p: 0.62, m: 2, c: 0 }] },
   };
@@ -127,4 +127,25 @@ test("the document gains a point only when returns change, and annotates the fir
   assert.equal(doc.events.length, 1);
   assert.equal(doc.events[0].kind, "first");
   assert.match(doc.events[0].detail, /City County's early vote: Talarico \+/);
+});
+
+test("a model change mid-night restates the last returns as its own point and event, before any new votes", () => {
+  const doc = {
+    createdAt: "2026-11-04T00:30:00Z", events: [], latest: null, modelVersion: NEEDLE_MODEL_VERSION,
+    inputs: { counties: COUNTIES, races: [{ ...RACE, office: "U.S. Senate", democrat: "James Talarico", republican: "Ken Paxton" }] },
+    timeline: { "tx-senate": [{ t: "2026-11-04T00:30:00Z", p: 0.62, m: 2, c: 0 }] },
+  };
+  const returns = { CITY: countyReturn("City", 0, [394000, 236000, 150000], [394000, 236000, 150000]) };
+  advanceNeedle(doc, { returns, fetchedAt: "2026-11-04T01:05:00Z" });
+  // A document recorded under an earlier model, then a pass with the same returns.
+  doc.modelVersion = NEEDLE_MODEL_VERSION - 1;
+  doc.timeline["tx-senate"].at(-1).p -= 0.1;
+  const { changed } = advanceNeedle(doc, { returns, fetchedAt: "2026-11-04T01:07:00Z" });
+  assert.equal(changed, true);
+  assert.equal(doc.modelVersion, NEEDLE_MODEL_VERSION);
+  assert.equal(doc.timeline["tx-senate"].length, 3);
+  assert.equal(doc.events.at(-1).kind, "model");
+  assert.equal(doc.events.at(-1).t, "2026-11-04T01:07:00Z");
+  // And nothing more until the returns change.
+  assert.equal(advanceNeedle(doc, { returns, fetchedAt: "2026-11-04T01:09:00Z" }).changed, false);
 });

@@ -64,6 +64,9 @@ export const NEEDLE_RACES = [
 
 export const NEEDLE_REGIONS = [...Object.keys(COUNTY_GROUPS), RURAL_GROUP];
 
+/** Bumped when NEEDLE_MODEL changes during a night, so advanceNeedle restates the count under the new model. */
+export const NEEDLE_MODEL_VERSION = 2;
+
 export const NEEDLE_MODEL = {
   // County lean: weights on each past race's margin relative to the state. 2022 is the last midterm, 2024 carries
   // the latest realignment (the South Texas shift), 2018 the last high-turnout midterm with a close Senate race.
@@ -92,8 +95,11 @@ export const NEEDLE_MODEL = {
   electionDayOffset: { mean: 0, sd: 8 },
   batchSd: 6,
   // Error the structure above cannot see (county types beyond the five regions, which counties count first),
-  // applied to the uncounted vote: ±3 points with nothing counted, shrinking to zero as the count finishes.
-  unmodeledSd: 3,
+  // applied to the uncounted vote: ±5 points with nothing counted, shrinking to zero as the count finishes. The
+  // statewide swing is calibrated to the polls with this taken out, so a larger value lets the first counties to
+  // report move the state less. Raised from 3 at 7:45 p.m. Central on election night, when 31 small counties (1.5%
+  // of the vote) had moved Talarico from 79% to 99.7% (NEEDLE_MODEL_VERSION 2).
+  unmodeledSd: 5,
   // Election Day ballots as a ratio of early ballots. 2026 early turnout already passed 95% of the 2022 total.
   // logSd is the statewide ratio's uncertainty, regionLogSd each region's own on top of it (the turnout mix between
   // red and blue regions is partisan), countyLogSd each county's. All shrink as counties finish counting.
@@ -713,7 +719,7 @@ export function createNeedleDocument(snapshot, { now = new Date().toISOString(),
   const races = needlePriors(snapshot.texas.races);
   const runs = runNeedle({ counties, returns: null, races, params });
   const timeline = Object.fromEntries(runs.map((run) => [run.id, [timelinePoint(run, now)]]));
-  return { version: 1, election: NEEDLE_ELECTION, inputs: { snapshotAsOf: snapshot.asOf, counties, races }, createdAt: now, updatedAt: now, checkedAt: now, status: null, timeline, events: [], latest: null };
+  return { version: 1, modelVersion: NEEDLE_MODEL_VERSION, election: NEEDLE_ELECTION, inputs: { snapshotAsOf: snapshot.asOf, counties, races }, createdAt: now, updatedAt: now, checkedAt: now, status: null, timeline, events: [], latest: null };
 }
 
 /**
@@ -728,9 +734,31 @@ export function createNeedleDocument(snapshot, { now = new Date().toISOString(),
 export function advanceNeedle(doc, { returns, fetchedAt, status = null, params = NEEDLE_MODEL, rules = NEEDLE_EVENT_RULES }, memory = {}) {
   doc.checkedAt = fetchedAt;
   if (status) doc.status = status;
-  const signature = returnsSignature(returns);
-  if (doc.latest?.signature === signature) return { doc, changed: false, events: [], runs: memory.lastRuns ?? null };
   const { counties, races } = doc.inputs;
+  // A model change mid-night: restate the last returns under the new model first, as its own point and event, so
+  // the step it makes is never credited to the next counties to report.
+  const modelEvents = [];
+  if ((doc.modelVersion ?? 1) !== NEEDLE_MODEL_VERSION) {
+    const restated = runNeedle({ counties, returns: doc.latest?.returns ?? null, races, params });
+    memory.eventBase ||= {};
+    races.forEach((race, index) => {
+      const series = (doc.timeline[race.id] ||= []);
+      const p0 = series[series.length - 1]?.p ?? restated[index].pD, p1 = restated[index].pD;
+      series.push(timelinePoint(restated[index], fetchedAt));
+      if (Math.abs(p1 - p0) >= 0.005) {
+        modelEvents.push({
+          t: fetchedAt, race: race.id, p0: round(p0, 4), p1: round(p1, 4), kind: "model", subject: "Model update", headline: "Model update",
+          detail: `The site widened the needle's room for error the count can't see yet, like which counties report first, so the first counties to report move the state less. With no new votes, the Democrat's chance went from ${Math.round(p0 * 100)}% to ${Math.round(p1 * 100)}%.`,
+        });
+      }
+      memory.eventBase[race.id] = { run: restated[index], p: p1, t: fetchedAt };
+    });
+    memory.lastRuns = restated;
+    doc.modelVersion = NEEDLE_MODEL_VERSION;
+    doc.events.push(...modelEvents);
+  }
+  const signature = returnsSignature(returns);
+  if (doc.latest?.signature === signature) return { doc, changed: modelEvents.length > 0, events: modelEvents, runs: memory.lastRuns ?? null };
   const before = memory.lastRuns ?? runNeedle({ counties, returns: doc.latest?.returns ?? null, races, params });
   const after = runNeedle({ counties, returns, races, params });
   memory.eventBase ||= {};
