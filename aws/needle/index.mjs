@@ -41,7 +41,8 @@ async function freshDocument() {
 
 /**
  * Big counties' own results files (ingest/texas-counties.js), which run ahead of the state's feed. Each county's
- * early-vote snapshot is kept in the document; a county whose file fails this pass falls back to the state's count.
+ * early-vote snapshot and last good read are kept in the document; a county whose file fails this pass (Clarity's
+ * servers often do on election night) keeps its last good read, so its votes never drop out between passes.
  */
 async function countySiteReturns(doc) {
   doc.countySites ||= {};
@@ -54,13 +55,14 @@ async function countySiteReturns(doc) {
   const entries = await Promise.all(Object.entries(TEXAS_COUNTY_SOURCES).map(async ([key, source]) => {
     const county = countyByKey.get(key);
     if (!county) return null;
+    const saved = doc.countySites[key] ?? {};
     try {
-      const { result, early } = countyReturnFromContests(county, await source.read(get), doc.inputs.races, doc.countySites[key]?.early ?? null);
-      if (early) doc.countySites[key] = { early, at: new Date().toISOString() };
+      const { result, early } = countyReturnFromContests(county, await source.read(get), doc.inputs.races, saved.early ?? null);
+      doc.countySites[key] = { ...saved, ...(early ? { early } : {}), last: result, at: new Date().toISOString() };
       return [key, result];
     } catch (error) {
-      console.log(`county site ${key}: ${error.message}`);
-      return null;
+      console.log(`county site ${key}: ${error.message}${saved.last ? "; keeping its last read" : ""}`);
+      return saved.last ? [key, saved.last] : null;
     }
   }));
   return Object.fromEntries(entries.filter(Boolean));

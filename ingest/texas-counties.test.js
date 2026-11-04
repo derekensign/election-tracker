@@ -32,3 +32,14 @@ test("a county's own count replaces the state's only when it has more votes", ()
   assert.deepEqual(used, ["WILLIAMSON"]);
   assert.equal(returns.DENTON.races["tx-senate"][3], 10);
 });
+
+test("vote-type splits from Harris, LiveVoterTurnout, and Montgomery become the early and Election Day cells", async () => {
+  const { parseHarris, parseLiveVoterTurnout, parseMontgomery } = await import("./texas-counties.js");
+  const harris = JSON.stringify({ vc: 100, vt: 623, bc: 0, contests: [{ t: "United States Senator", ca: ["KEN PAXTON (REP)", "JAMES TALARICO (DEM)"], ab: [10, 20], ev: [300, 500], tv: [400, 600] }] });
+  const lvt = "<NewDataSet><Table><RaceName>US Senator</RaceName><ContestantName>REP Ken Paxton</ContestantName><EarlyVotingVotes>300</EarlyVotingVotes><MailBallotsVotes>10</MailBallotsVotes><ElectionDayVotes>90</ElectionDayVotes><TotalVotes>400</TotalVotes></Table><Table><RaceName>US Senator</RaceName><ContestantName>DEM James Talarico</ContestantName><EarlyVotingVotes>500</EarlyVotingVotes><MailBallotsVotes>20</MailBallotsVotes><ElectionDayVotes>80</ElectionDayVotes><TotalVotes>600</TotalVotes></Table></NewDataSet>";
+  const montgomery = '<td id="rptCandidates_ContestTitle2_0" class="myContest">United States Senator</td><td id="rptCandidates_txtCandName2_0">Ken Paxton (REP)</td><td id="rptCandidates_txtABSVotes_0">10</td><td id="rptCandidates_txtEVVotes2_0">300</td><td id="rptCandidates_txtTotalVotes2_0">400</td><td id="rptCandidates_txtCandName2_1">James Talarico (DEM)</td><td id="rptCandidates_txtABSVotes_1">20</td><td id="rptCandidates_txtEVVotes2_1">500</td><td id="rptCandidates_txtTotalVotes2_1">600</td>';
+  for (const contests of [parseHarris(harris), parseLiveVoterTurnout(lvt), parseMontgomery(montgomery)]) {
+    const { result } = countyReturnFromContests(COUNTY, contests, RACES);
+    assert.deepEqual(result.races["tx-senate"], [830, 520, 310, 1000, 600, 400]);
+  }
+});
