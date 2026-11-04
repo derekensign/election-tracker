@@ -18,7 +18,7 @@ PACKAGE=needle/package
 mkdir -p "$PACKAGE/ingest/sources"
 find "$PACKAGE" -type f -delete
 cp needle/index.mjs "$PACKAGE/"
-cp ../ingest/needle.js ../ingest/early-vote.js ../ingest/http.js ../ingest/config.js "$PACKAGE/ingest/"
+cp ../ingest/needle.js ../ingest/early-vote.js ../ingest/http.js ../ingest/config.js ../ingest/texas-counties.js "$PACKAGE/ingest/"
 cp ../ingest/sources/sos-results.js "$PACKAGE/ingest/sources/"
 echo '{ "type": "module" }' > "$PACKAGE/package.json"
 
