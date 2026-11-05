@@ -1,40 +1,33 @@
-Texas Polls Tracker, Wednesday, November 4, 2026
+Texas Polls Tracker, Thursday, November 5, 2026
 
 Talarico 73% to win the Senate seat on a polling average of D+3.7. Hinojosa 39% for governor. Democrats 88% to control the U.S. Senate, 91% for the House, 11% for the Texas House.
 
 WHAT MOVED
-- Alaska Senate: Decision Desk HQ moved Lean D → Tossup
-- Texas Senate: Decision Desk HQ moved Lean D → Tossup
-- TX U.S. Senate: ddhq moved Lean D → Tossup
-- New Hampshire Governor: poll-model D win chance 10% → 30% (+19.7 pts)
-- Florida Senate: poll-model D win chance 19% → 22% (+3.0 pts)
-- New Hampshire Governor: new poll — University of New Hampshire (through 2026-10-31): Even
-- New Hampshire Governor: new poll — National Public Affairs (through 2026-10-29): R+9.0
-- New Hampshire Governor: new poll — Saint Anselm (through 2026-10-20): R+8.0
-- New Hampshire Governor: new poll — University of Massachusetts Lowell Center for Public Opinion/YouGov (through 2026-10-19): R+6.0
-- New Hampshire Governor: new poll — The New York Times/Siena University (through 2026-09-22): R+11.0
+- TX Lieutenant Governor: poll-model D win chance 31% → 26% (−5.1 pts)
+- TX Attorney General: poll-model D win chance 31% → 27% (−3.5 pts)
+- TX Lieutenant Governor: polling average R+3.0 → R+4.0
 
 TEXAS STATEWIDE
-- U.S. Senate: Talarico 73%. Average D+3.7 over 43 polls; latest Research Co. Nov 2 D+3.0.
-- Governor: Hinojosa 39%. Average R+1.6 over 37 polls; latest Research Co. Nov 2 R+2.0.
-- Lieutenant Governor: Goodwin 31%. Average R+3.0 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
-- Attorney General: Johnson 31%. Average R+3.1 over 4 polls; latest Texas Southern University Oct 25 R+4.0.
-- Comptroller: Eckhardt 23%. Average R+4.7 over 4 polls; latest Texas Southern University Oct 25 R+6.0.
-- Railroad Commissioner: Rosenthal 41%. Average R+1.4 over 5 polls; latest Texas Southern University Oct 25 R+1.0.
+- U.S. Senate: Talarico 73%. Average D+3.7 over 41 polls; latest Research Co. Nov 2 D+3.0.
+- Governor: Hinojosa 39%. Average R+1.7 over 35 polls; latest Research Co. Nov 2 R+2.0.
+- Lieutenant Governor: Goodwin 26%. Average R+4.0 over 3 polls; latest Texas Southern University Oct 25 R+4.0.
+- Attorney General: Johnson 27%. Average R+3.8 over 3 polls; latest Texas Southern University Oct 25 R+4.0.
+- Comptroller: Eckhardt 20%. Average R+5.3 over 3 polls; latest Texas Southern University Oct 25 R+6.0.
+- Railroad Commissioner: Rosenthal 38%. Average R+1.8 over 4 polls; latest Texas Southern University Oct 25 R+1.0.
 - Land Commissioner: Flores 26%. Average R+4.0 over 3 polls; latest Texas Public Opinion Research Oct 18 R+1.0.
 - Agriculture Commissioner: Tucker 25%. Average R+4.2 over 3 polls; latest Texas Public Opinion Research Oct 18 R+2.0.
 
 TEXAS LEGISLATURE
-- Statewide environment R+2.8: legislative generic ballot R+2.4 over 4 polls, down-ballot statewide races R+3.4; a D+10.9 swing from Trump's 2024 margin.
-- Texas House: 62 D today; model expects 70.3 D seats, 11% for a Democratic majority (76). Closest: HD-108 49% D (Tossup), HD-63 47% D (Lean D), HD-138 53% D (Lean D), HD-37 46% D (Lean D), HD-94 46% D (Tossup).
-- Texas Senate: 12 D today; model expects 11.8 D seats, 0% for a majority (16). Closest: SD-9 59% D (Likely D), SD-11 13% D (Lean R), SD-2 10% D (Lean R).
+- Statewide environment R+3.0: legislative generic ballot R+2.4 over 4 polls, down-ballot statewide races R+3.8; a D+10.7 swing from Trump's 2024 margin.
+- Texas House: 62 D today; model expects 70.1 D seats, 11% for a Democratic majority (76). Closest: HD-108 48% D (Tossup), HD-138 53% D (Lean D), HD-63 47% D (Lean D), HD-52 54% D (Lean D), HD-37 46% D (Lean D).
+- Texas Senate: 12 D today; model expects 11.8 D seats, 0% for a majority (16). Closest: SD-9 58% D (Likely D), SD-11 12% D (Lean R), SD-2 9% D (Lean R).
 
 U.S. SENATE
 - Control: 88% for Democrats. Expected 52.5 Democratic-caucus seats; 51 needed.
-- Closest races: IA 49% D (average R+0.1, 12 polls); SC 40% D (average R+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); MN 65% D (average D+2.4, 3 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.1, 12 polls); FL 22% D (average R+4.8, 7 polls); KS 79% D (average D+4.9, 6 polls); ME 79% D (average D+4.9, 9 polls).
+- Closest races: IA 50% D (average Even, 11 polls); SC 40% D (average R+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); MN 65% D (average D+2.4, 3 polls); TX 72% D (average D+3.5, 18 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 75% D (average D+4.0, 11 polls); FL 22% D (average R+4.8, 7 polls); KS 79% D (average D+4.9, 6 polls); ME 79% D (average D+4.9, 8 polls).
 
 U.S. HOUSE
-- Control: 91% for Democrats (expected 236.7 seats, 218 needed). Generic ballot D+8.1 over 3 polls.
+- Control: 91% for Democrats (expected 236.8 seats, 218 needed). Generic ballot D+8.1 over 3 polls.
 - Texas seats in play: TX-9 19% D (Likely R, polls R+3.2); TX-15 63% D (Tilt D, polls D+7.0); TX-23 37% D (Tilt R, polls Even); TX-34 77% D (Lean D, polls D+7.0); TX-35 51% D (Tossup, polls D+0.2).
 
 COMING UP
