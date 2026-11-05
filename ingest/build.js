@@ -9,6 +9,7 @@ import {
 import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
 import * as sosEarlyVote from "./sources/sos-early-vote.js";
+import * as sosResults from "./sources/sos-results.js";
 import { fetchCountyReports } from "./sources/county-early-vote.js";
 import { buildEarlyVote } from "./early-vote.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
@@ -175,6 +176,14 @@ export async function build() {
   writeFileSync(join(DATA_DIR, "changelog.json"), JSON.stringify(buildChangelog()));
   writeFileSync(join(DATA_DIR, "digest.txt"), snapshot.digest.text);
   log(`wrote snapshot ${asOf} (${snapshot.changes.length} changes)`);
+  // The 2026 Texas House and Senate results, refreshed from the state's file until the canvass; never fatal.
+  try {
+    const results = await sosResults.fetchLegislativeResults();
+    writeFileSync(join(DATA_DIR, "tx-legislature-results.json"), JSON.stringify({ election: "2026-11-03", fetchedAt: new Date().toISOString(), ...results }));
+    log(`wrote Texas legislature results (${Object.keys(results.house).length} House, ${Object.keys(results.senate).length} Senate races)`);
+  } catch (error) {
+    log(`Texas legislature results: ${error.message}`);
+  }
   return snapshot;
 }
 

@@ -275,6 +275,7 @@ details.ev-more summary { cursor: pointer; font-weight: 600; font-size: 14.5px; 
 .needle-small .results-table td.name { white-space: normal; padding-left: 10px; width: 46%; }
 /* Flips: a hatch and dark outline on the map, a dark ring on the floor, a tag in the table and calls list. */
 .senate-night-map .flip-marks path { stroke: var(--ink); stroke-width: 2; pointer-events: none; }
+#tx-house-map .flip-marks path, #tx-senate-map .flip-marks path { stroke: var(--ink); stroke-width: 1.2; pointer-events: none; }
 .senate-floor .seat.flip { stroke: var(--ink); stroke-width: 3; }
 .legend .sw.flip-sw { background: repeating-linear-gradient(45deg, var(--ink-2) 0 3px, #fff 3px 5px); border-color: var(--ink); }
 .flip-tag { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 3px; background: var(--ink); color: #fff; font: 700 10px/16px var(--sans); letter-spacing: 0.05em; text-transform: uppercase; vertical-align: 1px; }

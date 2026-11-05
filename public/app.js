@@ -1,9 +1,11 @@
 /* 2026 Race Tracker front end. Reads data/latest.json + data/series.json and three TopoJSON files. No build step. */
 (async function main() {
-  const [snapshot, series, usTopo, houseTopo, senateTopo, congressTopo] = await Promise.all([
+  const [snapshot, series, usTopo, houseTopo, senateTopo, congressTopo, legislatureResults] = await Promise.all([
     fetchJson("data/latest.json"), fetchJson("data/series.json").catch(() => []),
     fetchJson("geo/us-states.json"), fetchJson("geo/tx-house.json"), fetchJson("geo/tx-senate.json"), fetchJson("geo/tx-congress.json").catch(() => null),
+    fetchJson("data/tx-legislature-results.json").catch(() => null),
   ]);
+  LEGISLATURE_RESULTS = legislatureResults;
   const previousDay = series.length >= 2 ? series[series.length - 2] : null;
   SNAPSHOT = snapshot; PREVIOUS_DAY = previousDay; US_TOPO = usTopo;
 
@@ -35,7 +37,7 @@
 });
 
 // ---------- probabilities (polls model only) ----------
-let SNAPSHOT = null, PREVIOUS_DAY = null, US_TOPO = null;
+let SNAPSHOT = null, PREVIOUS_DAY = null, US_TOPO = null, LEGISLATURE_RESULTS = null;
 let SENATE_MAP_MODE = "rating";
 /** Democratic win probability for a race from the polls model (or the rating prior when a race has no polls). */
 function raceProbability(race) {
@@ -480,15 +482,32 @@ function renderChamber(kind, chamber, topo, s) {
   const rated = Object.entries(counts).sort((a, b) => RATING_ORDER.indexOf(a[0]) - RATING_ORDER.indexOf(b[0])).map(([k, v]) => `${v} ${k}`).join(", ");
   const model = chamber.model;
   const env = model?.environment;
-  const tiles = [
-    { k: "Today", v: `${current.D} D, ${current.R} R`, s: `${chamber.majority} seats make a majority; ${chamber.upForElection} seats are up` },
-    { k: "Our model, Democratic control", v: model ? pct(model.control.D) : "—", s: model ? `expected ${model.expected.D.toFixed(1)} D, ${model.expected.R.toFixed(1)} R` : "unavailable", primary: true },
+  // Unofficial results from the state's file: each district's leader, the new chamber, and the flips.
+  const results = LEGISLATURE_RESULTS?.[kind] ?? null;
+  const resultOf = (d) => results?.[d.district] ?? null;
+  const flipped = (d) => Boolean(resultOf(d) && d.party && resultOf(d).leader !== d.party);
+  const tiles = [];
+  let resultSeatsD = null;
+  if (results) {
+    const count = (list, key) => list.reduce((t, d) => ({ ...t, [key(d)]: (t[key(d)] || 0) + 1 }), {});
+    const held = count(chamber.districts, (d) => d.party), won = count(chamber.districts.filter(resultOf), (d) => resultOf(d).leader);
+    const seatsD = current.D - (held.D || 0) + (won.D || 0), seatsR = current.R - (held.R || 0) + (won.R || 0);
+    const toD = chamber.districts.filter((d) => flipped(d) && resultOf(d).leader === "D").length, toR = chamber.districts.filter((d) => flipped(d) && resultOf(d).leader === "R").length;
+    const majority = seatsD >= chamber.majority ? "Democratic majority" : seatsR >= chamber.majority ? "Republican majority" : "no majority";
+    tiles.push({ k: "Results, unofficial", v: `${seatsD} D, ${seatsR} R`, s: `${majority}; was ${current.D} D, ${current.R} R. ${toD || toR ? `${toD ? `${toD} flipped to Democrats` : ""}${toD && toR ? ", " : ""}${toR ? `${toR} to Republicans` : ""}` : "No seats changed party"}. From the Secretary of State's file${LEGISLATURE_RESULTS.lastUpdated ? `, last updated ${LEGISLATURE_RESULTS.lastUpdated}` : ""}.`, primary: true });
+    resultSeatsD = seatsD;
+  }
+  tiles.push(
+    { k: results ? "Before the election" : "Today", v: `${current.D} D, ${current.R} R`, s: `${chamber.majority} seats make a majority; ${chamber.upForElection} seats ${results ? "were" : "are"} up` },
+    { k: "Our model, Democratic control", v: model ? pct(model.control.D) : "—", s: model ? `expected ${model.expected.D.toFixed(1)} D, ${model.expected.R.toFixed(1)} R` : "unavailable", primary: !results },
+  );
+  tiles.push(
     { k: "Statewide environment", v: env ? marginText(env.margin) : "—", s: env ? `generic ballot ${marginText(env.genericBallot)} over ${env.genericBallotPolls} polls; down-ballot races ${marginText(env.downBallotMean)}; swing ${env.swingFrom2024 > 0 ? "D" : "R"}+${Math.abs(env.swingFrom2024).toFixed(1)} from 2024` : "no polls" },
     { k: `Seats rated by ${chamber.ratingSource?.name || "State Navigate"}`, v: String(Object.values(counts).reduce((a, b) => a + b, 0)), s: rated || "none" },
-  ];
+  );
   const preds = Object.values(chamber.chamberPredictions || {});
   if (preds.length) tiles.push({ k: "Chamber ratings", v: preds.map((p) => p.label).join(", "), s: preds.map((p) => `${p.name}${p.asOf ? ` (${p.asOf})` : ""}`).join("; ") });
-  document.getElementById(`${prefix}-tiles`).innerHTML = tiles.map((t) => `<div class="figure"><div class="k">${esc(t.k)}</div><div class="v${/^[\d.,% ]+$|^\d+ D, \d+ R$/.test(t.v) ? "" : " text"}">${esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
+  document.getElementById(`${prefix}-tiles`).innerHTML = tiles.map((t) => `<div class="figure${t.primary ? " primary" : ""}"><div class="k">${esc(t.k)}</div><div class="v${/^[\d.,% ]+$|^\d+ D, \d+ R$/.test(t.v) ? "" : " text"}">${esc(t.v)}</div><div class="s">${esc(t.s)}</div></div>`).join("");
 
   const width = 800, height = 760;
   const svgRoot = d3.select(`#${prefix}-map`).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Texas ${kind} districts`);
@@ -500,6 +519,12 @@ function renderChamber(kind, chamber, topo, s) {
   const pScale = probabilityScale();
   const fillFor = (district, mode) => {
     if (!district) return cssVar("--notup");
+    if (mode === "results") {
+      const result = resultOf(district);
+      if (!result) return cssVar("--notup");
+      if (result.uncontested) return cssVar(result.leader === "D" ? "--d4" : result.leader === "R" ? "--r4" : "--toss");
+      return result.margin == null ? cssVar("--toss") : marginScale(Math.max(-60, Math.min(60, result.margin * 2)));
+    }
     if (mode === "model") return district.modelD == null ? cssVar("--notup") : pScale(district.modelD);
     if (mode === "margin") return district.presidentialMargin2024 == null ? cssVar("--notup") : marginScale(district.presidentialMargin2024);
     if (district.rating) return ratingColor(district.rating);
@@ -509,10 +534,23 @@ function renderChamber(kind, chamber, topo, s) {
     .attr("class", (f) => (districts.get(f.properties.district)?.rating ? "rated" : ""))
     .on("mousemove", (event, f) => showTooltip(event, districtTooltip(kind, f.properties.district, districts.get(f.properties.district))))
     .on("mouseleave", hideTooltip);
-  const labelled = features.filter((f) => { const d = districts.get(f.properties.district); return d && (d.rating || (d.modelD != null && Math.abs(d.modelD - 0.5) < 0.3)) && path.area(f) > 420; });
+  // Flipped districts are hatched in the results view.
+  svgRoot.append("defs").append("pattern").attr("id", `${prefix}-flip-hatch`).attr("patternUnits", "userSpaceOnUse").attr("width", 7).attr("height", 7).attr("patternTransform", "rotate(45)")
+    .append("rect").attr("width", 2.6).attr("height", 7).attr("fill", "#fff").attr("fill-opacity", 0.55);
+  const flipMarks = svg.append("g").attr("class", "flip-marks").selectAll("path").data(features.filter((f) => { const d = districts.get(f.properties.district); return d && flipped(d); })).join("path")
+    .attr("d", path).attr("fill", `url(#${prefix}-flip-hatch)`);
+  const labelled = features.filter((f) => { const d = districts.get(f.properties.district); return d && (d.rating || flipped(d) || (d.modelD != null && Math.abs(d.modelD - 0.5) < 0.3)) && path.area(f) > 420; });
   svg.append("g").selectAll("text").data(labelled).join("text").attr("class", "state-label").attr("text-anchor", "middle").attr("transform", (f) => `translate(${path.centroid(f)})`).attr("dy", "0.35em").text((f) => f.properties.district);
+  const unopposedParties = ["D", "R"].filter((p) => chamber.districts.some((d) => resultOf(d)?.uncontested && resultOf(d).leader === p));
   const apply = (mode) => {
     paths.attr("fill", (f) => fillFor(districts.get(f.properties.district), mode));
+    flipMarks.attr("display", mode === "results" ? null : "none");
+    if (mode === "results") {
+      document.getElementById(`${prefix}-legend`).innerHTML = [-30, -15, -5, 0, 5, 15, 30].map((m) => `<span><i class="sw" style="background:${marginScale(m * 2)}"></i>${m === 0 ? "Even" : `${m > 0 ? "D" : "R"} +${Math.abs(m)}`}</span>`).join("")
+        + (unopposedParties.length ? `<span>${unopposedParties.map((p) => `<i class="sw" style="background:${cssVar(p === "D" ? "--d4" : "--r4")}"></i>`).join("")}Unopposed</span>` : "")
+        + (chamber.districts.some(flipped) ? '<span><i class="sw flip-sw"></i>Flipped</span>' : "") + (kind === "senate" ? `<span><i class="sw" style="background:${cssVar("--notup")}"></i>Not up in 2026</span>` : "");
+      return;
+    }
     if (mode === "model") {
       document.getElementById(`${prefix}-legend`).innerHTML = [0.02, 0.15, 0.3, 0.5, 0.7, 0.85, 0.98].map((p) => `<span><i class="sw" style="background:${pScale(p)}"></i>${p === 0.5 ? "50/50" : `${Math.round(p * 100)}% D`}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--notup")}"></i>Not up / no data</span>`;
       return;
@@ -521,18 +559,29 @@ function renderChamber(kind, chamber, topo, s) {
       ? [-60, -30, -10, 0, 10, 30, 60].map((m) => `<span><i class="sw" style="background:${marginScale(m)}"></i>${m === 0 ? "Even" : `${m > 0 ? "Harris" : "Trump"} +${Math.abs(m)}`}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--notup")}"></i>Not up / no data</span>`
       : RATING_ORDER.filter((r) => counts[r]).map((r) => `<span><i class="sw" style="background:${ratingColor(r)}"></i>${r}</span>`).join("") + `<span><i class="sw" style="background:${cssVar("--d-held")}"></i>D-held, unrated</span><span><i class="sw" style="background:${cssVar("--r-held")}"></i>R-held, unrated</span>` + (kind === "senate" ? `<span><i class="sw" style="background:${cssVar("--notup")}"></i>Not up in 2026</span>` : "");
   };
-  apply("model");
+  const firstMode = results ? "results" : "model";
+  apply(firstMode);
+  document.querySelectorAll(`button.mode[data-chamber="${kind}"]`).forEach((b) => b.classList.toggle("active", b.dataset.mode === firstMode));
+  document.querySelector(`button.mode[data-chamber="${kind}"][data-mode="results"]`)?.toggleAttribute("hidden", !results);
   attachZoom(svgRoot, `${prefix}-map`, { width, height });
-  renderChamberChart(kind, chamber);
+  renderChamberChart(kind, chamber, resultSeatsD);
   document.querySelectorAll(`button.mode[data-chamber="${kind}"]`).forEach((button) => button.addEventListener("click", () => {
     document.querySelectorAll(`button.mode[data-chamber="${kind}"]`).forEach((b) => b.classList.toggle("active", b === button));
     apply(button.dataset.mode);
   }));
 
-  const byCompetitiveness = [...chamber.districts].sort((a, b) => Math.abs((a.modelD ?? 0.5) - 0.5) - Math.abs((b.modelD ?? 0.5) - 0.5) || a.district - b.district);
+  const closeness = (d) => (resultOf(d) ? (resultOf(d).uncontested ? 999 : resultOf(d).lead ?? 999) : Math.abs((d.modelD ?? 0.5) - 0.5) * 100);
+  const byCompetitiveness = [...chamber.districts].sort((a, b) => closeness(a) - closeness(b) || a.district - b.district);
   const closest = kind === "house" ? byCompetitiveness.slice(0, 24) : byCompetitiveness;
-  const headRow = `<tr><th>District</th><th>Incumbent</th><th>Held by</th><th class="num">2024 Pres.</th><th class="num">Model margin</th><th class="num">D wins<span class="sub">our model</span></th><th>Rating${chamber.ratingSource?.asOf ? `<span class="sub">${esc(chamber.ratingSource.name)}, ${esc(chamber.ratingSource.asOf)}</span>` : ""}</th></tr>`;
-  const rowFor = (d) => `<tr><td><b>${kind === "house" ? "HD" : "SD"}-${d.district}</b></td><td class="wrap">${esc(d.incumbent || "Open")}${d.retiring ? ' <span class="muted">retiring</span>' : ""}${d.defeatedInPrimary ? ' <span class="muted">lost primary</span>' : ""}</td><td>${esc(d.party || "—")}</td><td class="num">${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</td><td class="num" title="${esc(baselineText(d))}">${d.modelBaseline ? marginText(d.modelBaseline.margin) : "—"}</td><td class="num"><b>${pct(d.modelD)}</b></td><td>${ratingPill(d.rating)}${d.flip ? ' <span class="thin">flip</span>' : ""}</td></tr>`;
+  const resultCell = (d) => {
+    const result = resultOf(d);
+    if (!result) return '<td class="muted">—</td><td class="num muted">—</td>';
+    const party = result.leader;
+    const verb = result.uncontested ? "unopposed" : result.lead != null && result.lead < 1 ? "leads" : "won";
+    return `<td class="wrap"><b class="${party === "D" ? "lean-d" : party === "R" ? "lean-r" : "lean-i"}">${esc(result.leaderName || "—")} (${party})</b> <span class="muted">${verb}</span>${flipped(d) ? '<span class="flip-tag">flip</span>' : ""}</td><td class="num">${result.uncontested ? "—" : marginText(result.margin)}</td>`;
+  };
+  const headRow = `<tr><th>District</th>${results ? '<th>Result<span class="sub">unofficial</span></th><th class="num">Margin</th>' : ""}<th>Incumbent</th><th>Held by</th><th class="num">2024 Pres.</th><th class="num">Model margin</th><th class="num">D wins<span class="sub">our model</span></th><th>Rating${chamber.ratingSource?.asOf ? `<span class="sub">${esc(chamber.ratingSource.name)}, ${esc(chamber.ratingSource.asOf)}</span>` : ""}</th></tr>`;
+  const rowFor = (d) => `<tr><td><b>${kind === "house" ? "HD" : "SD"}-${d.district}</b></td>${results ? resultCell(d) : ""}<td class="wrap">${esc(d.incumbent || "Open")}${d.retiring ? ' <span class="muted">retiring</span>' : ""}${d.defeatedInPrimary ? ' <span class="muted">lost primary</span>' : ""}</td><td>${esc(d.party || "—")}</td><td class="num">${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</td><td class="num" title="${esc(baselineText(d))}">${d.modelBaseline ? marginText(d.modelBaseline.margin) : "—"}</td><td class="num"><b>${pct(d.modelD)}</b></td><td>${ratingPill(d.rating)}${d.flip ? ' <span class="thin">flip</span>' : ""}</td></tr>`;
   document.getElementById(`${prefix}-table`).innerHTML = headRow + closest.map(rowFor).join("");
   const allTable = document.getElementById(`${prefix}-table-all`);
   if (allTable) allTable.innerHTML = headRow + [...chamber.districts].sort((a, b) => a.district - b.district).map(rowFor).join("");
@@ -554,16 +603,22 @@ function renderGenericBallot(legislature) {
     polls.slice(0, 8).map((poll) => { const w = weightFor(poll); return `<tr><td>${esc(poll.pollster)}${poll.partisan ? ` <span class="muted">(${esc(poll.partisan)})</span>` : ""}</td><td>${esc(poll.startDate ? `${fmtDate(poll.startDate)}–${fmtDate(poll.endDate)}` : fmtDate(poll.endDate))}</td><td class="num">${poll.sampleSize ? poll.sampleSize.toLocaleString() : "—"}${poll.population ? ` ${esc(poll.population)}` : ""}</td><td class="num">${poll.dem}%</td><td class="num">${poll.rep}%</td><td class="num"><b>${marginText(poll.dem - poll.rep)}</b></td><td>${w?.grade ? esc(w.grade) : '<span class="muted">unrated</span>'}</td><td class="num muted">${w ? w.weight.toFixed(2) : "—"}</td></tr>`; }).join("") +
     (average ? `<tr><td colspan="5"><b>Weighted average</b> (${average.pollCount} polls)</td><td class="num"><b>${marginText(average.margin)}</b></td><td colspan="2"></td></tr>` : "");
 }
-function renderChamberChart(kind, chamber) { renderSeatHistogram(`tx-${kind}-chart`, `tx-${kind}-chart-title`, chamber.model, `Texas ${kind}`); }
-function renderSeatHistogram(containerId, titleId, model, chamberLabel) {
+function renderChamberChart(kind, chamber, resultSeatsD = null) { renderSeatHistogram(`tx-${kind}-chart`, `tx-${kind}-chart-title`, chamber.model, `Texas ${kind}`, resultSeatsD); }
+/** The model's seat distribution; `resultSeatsD`, when the election is in, is marked with a solid line. */
+function renderSeatHistogram(containerId, titleId, model, chamberLabel, resultSeatsD = null) {
   const container = document.getElementById(containerId);
   if (!container) return;
   if (!model) { container.innerHTML = '<p class="note">Model unavailable (no environment polls).</p>'; return; }
-  const rows = model.histogram.filter((h) => h.probability >= 0.002);
+  let rows = model.histogram.filter((h) => h.probability >= 0.002);
+  if (resultSeatsD != null && rows.length) {
+    // Widen the chart to take in the result when it landed where the model gave it next to no chance.
+    const byD = new Map(model.histogram.map((h) => [h.d, h.probability]));
+    rows = d3.range(Math.min(d3.min(rows, (r) => r.d), resultSeatsD), Math.max(d3.max(rows, (r) => r.d), resultSeatsD) + 1).map((d) => ({ d, probability: byD.get(d) ?? 0 }));
+  }
   const width = 760, height = 190, margin = { top: 14, right: 12, bottom: 32, left: 38 };
   const svg = d3.select(container).html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img").attr("aria-label", `Probability of each Democratic seat count in the ${chamberLabel}`);
   const x = d3.scaleBand().domain(rows.map((r) => String(r.d))).range([margin.left, width - margin.right]).paddingInner(0.2);
-  const yMax = Math.max(0.05, d3.max(rows, (r) => r.probability) * 1.15);
+  const yMax = Math.max(0.05, d3.max(rows, (r) => r.probability) * (resultSeatsD != null ? 1.4 : 1.15));
   const y = d3.scaleLinear().domain([0, yMax]).range([height - margin.bottom, margin.top]);
   svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(3)).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (d) => y(d)).attr("y2", (d) => y(d));
   const tickEvery = Math.max(1, Math.ceil(rows.length / 14));
@@ -581,6 +636,19 @@ function renderSeatHistogram(containerId, titleId, model, chamberLabel) {
   } else if (majorityIndex === -1 && rows.length && rows[rows.length - 1].d < model.majority) {
     svg.append("text").attr("class", "label").attr("x", width - margin.right).attr("y", margin.top + 10).attr("text-anchor", "end").text(`Majority line (${model.majority}) is off the chart; chance ${pct(model.control.D, 1)}`);
   }
+  if (resultSeatsD != null && x(String(resultSeatsD)) != null) {
+    const xResult = x(String(resultSeatsD)) + x.bandwidth() / 2;
+    const above = resultSeatsD >= model.expected.D;
+    const chance = d3.sum(model.histogram.filter((h) => (above ? h.d >= resultSeatsD : h.d <= resultSeatsD)), (h) => h.probability);
+    svg.append("line").attr("x1", xResult).attr("x2", xResult).attr("y1", margin.top + 16).attr("y2", height - margin.bottom).attr("stroke", cssVar("--ink")).attr("stroke-width", 2.5);
+    const label = svg.append("text").attr("class", "label").attr("y", margin.top + 27).attr("font-weight", 700)
+      .text(`Result: ${resultSeatsD} D seats, unofficial · our model's chance of ${resultSeatsD}${above ? "+" : " or fewer"}: ${chance < 0.01 ? "under 1%" : pct(chance)}`);
+    // The label goes on whichever side of the line has room for it. A chart drawn in a hidden tab can't measure its
+    // text, so the width is estimated there.
+    const labelWidth = label.node().getComputedTextLength?.() || label.text().length * 5;
+    const onLeft = labelWidth > width - margin.right - xResult - 6 && xResult - margin.left > width - margin.right - xResult;
+    label.attr("x", xResult + (onLeft ? -6 : 6)).attr("text-anchor", onLeft ? "end" : "start");
+  }
   const notUpCount = model.notUp.D + model.notUp.R;
   document.getElementById(titleId).textContent = `Seat distribution: Democratic seats after the election, our model (expected ${model.expected.D.toFixed(1)}${notUpCount ? `; ${notUpCount} seats ${chamberLabel === "U.S. House" ? "assumed to stay with the party holding them" : "not up"}` : ""})`;
 }
@@ -588,7 +656,13 @@ function ratingScoreOf(label) { const i = RATING_ORDER.indexOf(label); return i 
 function districtTooltip(kind, number, d) {
   const head = `<b>${kind === "house" ? "House" : "Senate"} District ${number}</b>`;
   if (!d) return `${head}<br>${kind === "senate" ? "Not up for election in 2026" : "No data"}`;
-  return `${head}<hr><div class="row"><span>Incumbent</span><span>${esc(d.incumbent || "Open")}${d.retiring ? " (retiring)" : ""}</span></div><div class="row"><span>Held by</span><span>${esc(d.party || "—")}</span></div><div class="row"><span>2024 presidential</span><span>${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</span></div>${d.modelD != null ? `<div class="row"><span><b>Our model, D wins</b></span><span><b>${pct(d.modelD)}</b></span></div><div class="row"><span>Model margin</span><span>${marginText(d.modelBaseline?.margin)}</span></div><div class="row"><span>${esc(baselineText(d))}</span></div>` : ""}<div class="row"><span>Rating</span><span>${esc(d.rating || "not rated competitive")}${d.flip ? " (flip)" : ""}</span></div>`;
+  const result = LEGISLATURE_RESULTS?.[kind]?.[number];
+  const resultRows = result
+    ? `<hr><div class="row"><span><b>Result, unofficial</b></span><span><b>${result.uncontested ? "unopposed" : esc(marginText(result.margin))}</b>${d.party && result.leader !== d.party ? ` · flip ${esc(d.party)} → ${esc(result.leader)}` : ""}</span></div>`
+      + result.candidates.map((c) => `<div class="row"><span>${esc(c.name)} (${esc(c.party)})${c.incumbent ? " · incumbent" : ""}</span><span>${c.votes.toLocaleString()}${result.total && !result.uncontested ? ` · ${((100 * c.votes) / result.total).toFixed(1)}%` : ""}</span></div>`).join("")
+      + "<hr>"
+    : "<hr>";
+  return `${head}${resultRows}<div class="row"><span>Incumbent</span><span>${esc(d.incumbent || "Open")}${d.retiring ? " (retiring)" : ""}</span></div><div class="row"><span>Held by</span><span>${esc(d.party || "—")}</span></div><div class="row"><span>2024 presidential</span><span>${d.presidentialMargin2024 == null ? "—" : marginText(d.presidentialMargin2024).replace("D+", "Harris +").replace("R+", "Trump +")}</span></div>${d.modelD != null ? `<div class="row"><span><b>Our model, D wins</b></span><span><b>${pct(d.modelD)}</b></span></div><div class="row"><span>Model margin</span><span>${marginText(d.modelBaseline?.margin)}</span></div><div class="row"><span>${esc(baselineText(d))}</span></div>` : ""}<div class="row"><span>Rating</span><span>${esc(d.rating || "not rated competitive")}${d.flip ? " (flip)" : ""}</span></div>`;
 }
 
 // ---------- U.S. House ----------
