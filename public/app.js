@@ -2877,7 +2877,7 @@ function showTooltip(event, html) {
 function hideTooltip() { tooltip.hidden = true; }
 
 // ---------- tabs (hash-routed panels) ----------
-const PANELS = ["overview", "election-night", "senate-night", "ask", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
+const PANELS = ["overview", "election-night", "senate-night", "texas-2026", "ask", "digest", "senate", "texas", "courts", "house", "tx-senate", "us-house", "governors", "early-vote", "scenarios", "trends", "pollsters", "sources"];
 function showPanel(name, { push = true } = {}) {
   const panel = PANELS.includes(name) ? name : name === "needle" ? "election-night" : "overview"; // #needle was the first name
   if (name === "needle") history.replaceState(null, "", "#election-night");

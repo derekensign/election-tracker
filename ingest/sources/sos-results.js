@@ -35,7 +35,7 @@ export async function fetchElectionStatus(electionId = NEEDLE_ELECTION.enrId) {
 }
 
 const PARTY_LETTERS = { DEM: "D", D: "D", REP: "R", R: "R", LIB: "L", L: "L", GRN: "G", G: "G", W: "W", IND: "I" };
-const titleName = (name) => String(name).toLowerCase().replace(/(^|[\s\-'.(])([a-z])/g, (m, lead, letter) => lead + letter.toUpperCase());
+const titleName = (name) => String(name).toLowerCase().replace(/(^|[\s\-'.(])([a-z])/g, (m, lead, letter) => lead + letter.toUpperCase()).replace(/\b(Ii|Iii|Iv)\b/g, (numeral) => numeral.toUpperCase());
 
 /**
  * Every Texas House and Senate race from the election file's Districted section: candidates (name, party, votes,

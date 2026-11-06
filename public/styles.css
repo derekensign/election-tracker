@@ -436,3 +436,40 @@ details summary { cursor: pointer; color: var(--ink-2); font-size: 14px; margin:
   .moves-list li { grid-template-columns: 1fr; gap: 2px; }
 }
 @media (prefers-reduced-motion: no-preference) { .segmented button, button.mode { transition: background-color .15s, color .15s; } }
+
+/* ---- How Texas flipped (texas-2026.js) ---- */
+.tx26 .tx26-dek { font-family: var(--serif); font-size: 18px; line-height: 1.5; color: var(--ink); max-width: var(--measure); margin: 0 0 6px; }
+.tx26 h3 { font-size: 19px; margin-top: 46px; }
+.tx26 h4 { margin: 24px 0 6px; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.tx26 table.tx26-narrow { width: auto; min-width: 60%; }
+.tx26 table.data tr.group-start td { border-top: 1px solid var(--rule); }
+.tx26 .sw.dot { width: 10px; height: 10px; border-radius: 50%; border: 0; }
+.tx26 .sw.dot.hollow { background: #fff; box-shadow: inset 0 0 0 2px var(--ink-2); }
+.tx26 .sw.dot.ring { background: transparent; box-shadow: inset 0 0 0 2px var(--ink); }
+/* Each candidate's votes as one tall bar of blocks, split by 2024 vote. */
+.seg-chart { margin: 4px 0 6px; }
+.seg-row { display: grid; grid-template-columns: 160px 1fr; gap: 10px; align-items: center; margin: 8px 0; }
+.seg-name b { display: block; font-size: 13.5px; }
+.seg-name span { font-size: 12px; color: var(--ink-3); }
+.seg-track { min-width: 0; }
+.seg-bar { display: flex; gap: 2px; height: 28px; }
+.seg-bar .seg { min-width: 0; border-radius: 4px; color: #fff; font: 600 12px/28px var(--sans); padding-left: 6px; white-space: nowrap; cursor: default; }
+.seg-bar .seg.light { color: var(--ink); }
+/* Exit-poll groups: bars either side of even. */
+.gm { max-width: 880px; }
+.gm-head { margin: 14px 0 2px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.gm-row { display: grid; grid-template-columns: minmax(120px, 210px) 64px 1fr 64px; gap: 10px; align-items: center; padding: 3px 0; font-size: 13.5px; }
+.gm-row:hover { background: var(--wash); }
+.gm-share, .gm-value { text-align: right; }
+.gm-share { color: var(--ink-3); }
+.gm-track { position: relative; height: 14px; background: linear-gradient(var(--rule), var(--rule)) center / 1px 100% no-repeat; }
+.gm-track i { position: absolute; top: 0; bottom: 0; }
+.gm-track i.d { background: var(--d3); border-radius: 0 4px 4px 0; }
+.gm-track i.r { background: var(--r3); border-radius: 4px 0 0 4px; }
+.gm-cols { font-size: 12px; color: var(--ink-3); }
+.gm-cols:hover { background: none; }
+.gm-track-head { display: flex; justify-content: space-between; }
+@media (max-width: 640px) {
+  .seg-row { grid-template-columns: 1fr; gap: 4px; }
+  .gm-row { grid-template-columns: minmax(96px, 1fr) 44px 1.3fr 52px; gap: 6px; font-size: 12.5px; }
+}

@@ -13,6 +13,7 @@
 <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha256-8glLv2FBs1lyLE/kVOtsSw8OQswQzHr5IfwVj864ZTk=" crossorigin="anonymous" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha256-Jc0CrkhsxQY+AhWk5M+xXeg3AMh6xIusTVfcaq8+u4k=" crossorigin="anonymous" defer></script>
 <script src="app.js" defer></script>
+<script src="texas-2026.js" defer></script>
 </head>
 <body>
 <header class="masthead wrap">
@@ -30,6 +31,7 @@
   <a href="#overview" data-tab="overview" class="active">Overview</a>
   <a href="#election-night" data-tab="election-night">Texas Election Night</a>
   <a href="#senate-night" data-tab="senate-night">Senate Election Night</a>
+  <a href="#texas-2026" data-tab="texas-2026">How Texas flipped</a>
   <a href="#ask" data-tab="ask">Ask the data</a>
   <a href="#digest" data-tab="digest">Morning digest</a>
   <a href="#texas" data-tab="texas">Texas statewide</a>
@@ -304,6 +306,96 @@
     <div id="texas-detail"></div>
   </section>
 
+</div>
+
+<div class="panel" data-panel="texas-2026">
+  <section id="texas-2026-section" class="tx26">
+    <h2>How Texas flipped</h2>
+    <p class="tx26-dek" id="tx26-dek"></p>
+    <p class="note" id="tx26-asof"></p>
+    <div class="figures" id="tx26-tiles"></div>
+
+    <h3>Where Talarico's and Hinojosa's votes came from</h3>
+    <p class="note" id="tx26-sources-note"></p>
+    <div class="table-scroll"><table id="tx26-vote2024" class="data tx26-narrow"></table></div>
+    <h4>Each candidate's votes, by how those voters voted in 2024</h4>
+    <div class="legend" id="tx26-coalition-legend"></div>
+    <div id="tx26-coalitions" class="seg-chart"></div>
+    <p class="note hint">Estimated from the exit poll's shares and the state's count, so each group's number is approximate. Hover a block for its votes.</p>
+
+    <h3>Turnout or persuasion? Both, and switching mattered more</h3>
+    <div class="mode-row">
+      <span>Race:</span>
+      <button class="mode active" data-tx26-split="tx-senate">U.S. Senate</button>
+      <button class="mode" data-tx26-split="tx-governor">Governor</button>
+    </div>
+    <div id="tx26-waterfall" class="chart"></div>
+    <p class="note" id="tx26-waterfall-note"></p>
+    <p class="note hint">How the split works: the exit poll asked each voter how they voted in 2024. Comparing that recalled vote with the real 2024 result shows how different this year's electorate was (turnout). Comparing it with the same people's 2026 vote shows how many changed sides (switching). Adding voters who skipped 2024 gives the poll's margin, and the last step reconciles it with the count. People misremember past votes, and exit polls are weighted to match the count, so read the parts as approximate. The poll is clear that both mattered.</p>
+
+    <h3>Where the vote moved</h3>
+    <p class="note" id="tx26-geo-note"></p>
+    <div class="mode-row">
+      <span>Color by:</span>
+      <button class="mode active" data-tx26-map="swing">Swing from 2024</button>
+      <button class="mode" data-tx26-map="margin">2026 Senate margin</button>
+      <button class="mode" data-tx26-map="dem">Talarico's vote vs. Harris's</button>
+      <button class="mode" data-tx26-map="rep">Paxton's vote vs. Trump's</button>
+      <span class="zoom-controls" data-zoom-for="tx26-map"><button class="mode" data-zoom="in" aria-label="Zoom in">+</button><button class="mode" data-zoom="out" aria-label="Zoom out">−</button><button class="mode" data-zoom="reset">Reset view</button></span>
+    </div>
+    <div class="legend" id="tx26-map-legend"></div>
+    <div id="tx26-map" class="map zoomable" tabindex="0"></div>
+    <p class="note hint">Scroll to zoom, drag to pan. Hover or tap a county for its numbers.</p>
+    <h4>By region</h4>
+    <div class="table-scroll"><table id="tx26-regions" class="data"></table></div>
+    <p class="note hint" id="tx26-regions-note"></p>
+    <h4>Every county: how Republican it was in 2024, and how far it moved</h4>
+    <div class="mode-row">
+      <span>Highlight:</span>
+      <button class="mode active" data-tx26-region="Rio Grande Valley and border">Valley and border</button>
+      <button class="mode" data-tx26-region="Big cities">Big cities</button>
+      <button class="mode" data-tx26-region="Suburbs">Suburbs</button>
+      <button class="mode" data-tx26-region="Midsize cities">Midsize cities</button>
+      <button class="mode" data-tx26-region="Rural and small-town">Rural and small-town</button>
+      <button class="mode" data-tx26-region="all">All</button>
+    </div>
+    <div id="tx26-scatter" class="chart"></div>
+    <p class="note hint">Each circle is a county, sized by its 2026 vote. Hover for its numbers.</p>
+    <details class="ev-more"><summary>All 254 counties</summary><div class="table-scroll"><table id="tx26-counties" class="data"></table></div></details>
+
+    <h3>Who moved: the exit poll's groups</h3>
+    <p class="note" id="tx26-groups-note"></p>
+    <div class="mode-row">
+      <span>Race:</span>
+      <button class="mode active" data-tx26-groups="tx-senate">U.S. Senate</button>
+      <button class="mode" data-tx26-groups="tx-governor">Governor</button>
+    </div>
+    <div id="tx26-groups" class="gm"></div>
+
+    <h3>What voters said</h3>
+    <p class="note" id="tx26-said-note"></p>
+    <div class="table-scroll"><table id="tx26-said" class="data tx26-narrow"></table></div>
+
+    <h3>What the polls missed</h3>
+    <p class="note" id="tx26-polls-note"></p>
+    <div class="legend" id="tx26-polls-legend"></div>
+    <div id="tx26-polls" class="chart"></div>
+    <div class="table-scroll"><table id="tx26-polls-table" class="data"></table></div>
+
+    <h3>Down the ballot</h3>
+    <h4>Every statewide race</h4>
+    <div class="table-scroll"><table id="tx26-offices" class="data tx26-narrow"></table></div>
+    <h4>The Texas House and Texas's U.S. House seats</h4>
+    <p class="note" id="tx26-house-note"></p>
+    <div class="legend" id="tx26-house-legend"></div>
+    <div id="tx26-house" class="chart"></div>
+    <p class="note hint">Each dot is a Texas House district with both a Democrat and a Republican on the ballot. The <a href="#house">Texas House tab</a> has every district's result.</p>
+    <h4>U.S. House: the seats Democrats won, and the close ones</h4>
+    <div class="table-scroll"><table id="tx26-us-house" class="data tx26-narrow"></table></div>
+
+    <h3>About these numbers</h3>
+    <p class="note">Votes are the Texas Secretary of State's unofficial count and will change a little until the canvass. This page refreshes with the daily build. Past results are each county's 2018 Senate, 2022 governor, and 2024 presidential results, from the state's canvass. Swings compare the 2026 Senate margin with the 2024 presidential margin. Exit-poll figures are the published shares from ABC News's Texas exit polls, linked above, and only the questions this page uses are copied here. Polling averages and model chances are this site's own, as of the morning of Election Day.</p>
+  </section>
 </div>
 
 <div class="panel" data-panel="house">

@@ -10,6 +10,7 @@ import * as votehub from "./sources/votehub.js";
 import * as wikipedia from "./sources/wikipedia.js";
 import * as sosEarlyVote from "./sources/sos-early-vote.js";
 import * as sosResults from "./sources/sos-results.js";
+import { buildTexas2026Analysis } from "./texas-2026-analysis.js";
 import { fetchCountyReports } from "./sources/county-early-vote.js";
 import { buildEarlyVote } from "./early-vote.js";
 import { dedupePolls, pollWinProbability, pollingAverage, priorFromRating, ratingConsensus, ratingScore, seatDistribution } from "./metrics.js";
@@ -183,6 +184,14 @@ export async function build() {
     log(`wrote Texas legislature results (${Object.keys(results.house).length} House, ${Object.keys(results.senate).length} Senate races)`);
   } catch (error) {
     log(`Texas legislature results: ${error.message}`);
+  }
+  // The "How Texas flipped" page's numbers, from the same state files and the results above; never fatal.
+  try {
+    const analysis = await buildTexas2026Analysis(DATA_DIR);
+    writeFileSync(join(DATA_DIR, "tx-2026-analysis.json"), JSON.stringify(analysis));
+    log(`wrote Texas 2026 analysis (${analysis.counties.length} counties)`);
+  } catch (error) {
+    log(`Texas 2026 analysis: ${error.message}`);
   }
   return snapshot;
 }

@@ -1,0 +1,1269 @@
+{
+ "source": "ABC News exit polls, Texas, November 3, 2026",
+ "retrieved": "2026-11-06",
+ "note": "A selection of the exit poll's questions, as published: each answer's share of voters and the percentage of that group voting for the Democrat and the Republican. Answers with too few respondents are published as 0 and 0.",
+ "races": {
+  "tx-senate": {
+   "url": "https://abcnews.com/Elections/texas-polls-2026-us-senate-election-results-analysis",
+   "democrat": "Talarico",
+   "republican": "Paxton",
+   "questions": {
+    "vote2024": {
+     "question": "In the 2024 election for president, did you vote for:",
+     "respondents": 5163,
+     "answers": [
+      {
+       "label": "Kamala Harris (Dem)",
+       "share": 42,
+       "dem": 98,
+       "rep": 1
+      },
+      {
+       "label": "Donald Trump (Rep)",
+       "share": 47,
+       "dem": 11,
+       "rep": 86
+      },
+      {
+       "label": "Other",
+       "share": 2,
+       "dem": 74,
+       "rep": 16
+      },
+      {
+       "label": "Did not vote",
+       "share": 8,
+       "dem": 81,
+       "rep": 16
+      }
+     ]
+    },
+    "firstMidterm": {
+     "question": "Is this the first time you have ever voted in a midterm election?",
+     "respondents": 2582,
+     "answers": [
+      {
+       "label": "Yes",
+       "share": 14,
+       "dem": 75,
+       "rep": 23
+      },
+      {
+       "label": "No",
+       "share": 86,
+       "dem": 52,
+       "rep": 46
+      }
+     ]
+    },
+    "party": {
+     "question": "No matter how you voted today, do you usually think of yourself as a:",
+     "respondents": 5100,
+     "answers": [
+      {
+       "label": "Democrat",
+       "share": 33,
+       "dem": 99,
+       "rep": 1
+      },
+      {
+       "label": "Republican",
+       "share": 38,
+       "dem": 11,
+       "rep": 87
+      },
+      {
+       "label": "Independent or something else",
+       "share": 29,
+       "dem": 64,
+       "rep": 33
+      }
+     ]
+    },
+    "ideology": {
+     "question": "On most political matters, do you consider yourself:",
+     "respondents": 5081,
+     "answers": [
+      {
+       "label": "Liberal",
+       "share": 22,
+       "dem": 97,
+       "rep": 2
+      },
+      {
+       "label": "Moderate",
+       "share": 40,
+       "dem": 72,
+       "rep": 26
+      },
+      {
+       "label": "Conservative",
+       "share": 38,
+       "dem": 13,
+       "rep": 84
+      }
+     ]
+    },
+    "gender": {
+     "question": "Do you describe yourself as...",
+     "respondents": 5145,
+     "answers": [
+      {
+       "label": "Male",
+       "share": 45,
+       "dem": 51,
+       "rep": 47
+      },
+      {
+       "label": "Female",
+       "share": 54,
+       "dem": 58,
+       "rep": 40
+      },
+      {
+       "label": "I identify another way",
+       "share": 1,
+       "dem": 0,
+       "rep": 0
+      }
+     ]
+    },
+    "race": {
+     "question": "Are you:",
+     "respondents": 5136,
+     "answers": [
+      {
+       "label": "White",
+       "share": 55,
+       "dem": 42,
+       "rep": 56
+      },
+      {
+       "label": "Black",
+       "share": 12,
+       "dem": 90,
+       "rep": 8
+      },
+      {
+       "label": "Hispanic/Latino",
+       "share": 24,
+       "dem": 68,
+       "rep": 30
+      },
+      {
+       "label": "Asian",
+       "share": 4,
+       "dem": 71,
+       "rep": 28
+      },
+      {
+       "label": "Other",
+       "share": 4,
+       "dem": 43,
+       "rep": 53
+      }
+     ]
+    },
+    "raceGender": {
+     "question": "Gender by race",
+     "respondents": 5122,
+     "answers": [
+      {
+       "label": "White Men",
+       "share": 26,
+       "dem": 39,
+       "rep": 59
+      },
+      {
+       "label": "White women",
+       "share": 29,
+       "dem": 44,
+       "rep": 54
+      },
+      {
+       "label": "Black men",
+       "share": 5,
+       "dem": 87,
+       "rep": 10
+      },
+      {
+       "label": "Black women",
+       "share": 7,
+       "dem": 92,
+       "rep": 6
+      },
+      {
+       "label": "Latino men",
+       "share": 11,
+       "dem": 63,
+       "rep": 36
+      },
+      {
+       "label": "Latino women",
+       "share": 13,
+       "dem": 73,
+       "rep": 25
+      },
+      {
+       "label": "All others",
+       "share": 9,
+       "dem": 57,
+       "rep": 40
+      }
+     ]
+    },
+    "age": {
+     "question": "In which age group are you?",
+     "respondents": 5157,
+     "answers": [
+      {
+       "label": "18-29",
+       "share": 13,
+       "dem": 79,
+       "rep": 19
+      },
+      {
+       "label": "30-44",
+       "share": 22,
+       "dem": 66,
+       "rep": 32
+      },
+      {
+       "label": "45-64",
+       "share": 35,
+       "dem": 49,
+       "rep": 49
+      },
+      {
+       "label": "65 or over",
+       "share": 30,
+       "dem": 44,
+       "rep": 55
+      }
+     ]
+    },
+    "college": {
+     "question": "What was the last grade of school you completed?",
+     "respondents": 5136,
+     "answers": [
+      {
+       "label": "College graduate",
+       "share": 45,
+       "dem": 60,
+       "rep": 38
+      },
+      {
+       "label": "No college degree",
+       "share": 55,
+       "dem": 51,
+       "rep": 47
+      }
+     ]
+    },
+    "educationRace": {
+     "question": "Education by race",
+     "respondents": 5117,
+     "answers": [
+      {
+       "label": "White college graduates",
+       "share": 28,
+       "dem": 51,
+       "rep": 47
+      },
+      {
+       "label": "White non-college graduates",
+       "share": 28,
+       "dem": 32,
+       "rep": 66
+      },
+      {
+       "label": "Non White college graduates",
+       "share": 18,
+       "dem": 74,
+       "rep": 24
+      },
+      {
+       "label": "Non White non-college graduates",
+       "share": 27,
+       "dem": 70,
+       "rep": 28
+      }
+     ]
+    },
+    "area": {
+     "question": "Which of the following best describes the area where you live?",
+     "respondents": 4297,
+     "answers": [
+      {
+       "label": "Urban",
+       "share": 23,
+       "dem": 73,
+       "rep": 26
+      },
+      {
+       "label": "Suburban",
+       "share": 48,
+       "dem": 59,
+       "rep": 40
+      },
+      {
+       "label": "Small town",
+       "share": 16,
+       "dem": 39,
+       "rep": 57
+      },
+      {
+       "label": "Rural",
+       "share": 13,
+       "dem": 32,
+       "rep": 66
+      }
+     ]
+    },
+    "region": {
+     "question": "Geo Stratum Code",
+     "respondents": 5163,
+     "answers": [
+      {
+       "label": "East",
+       "share": 14,
+       "dem": 35,
+       "rep": 63
+      },
+      {
+       "label": "Dallas/Ft. Worth",
+       "share": 24,
+       "dem": 61,
+       "rep": 37
+      },
+      {
+       "label": "Houston Area",
+       "share": 20,
+       "dem": 63,
+       "rep": 36
+      },
+      {
+       "label": "South Central",
+       "share": 17,
+       "dem": 59,
+       "rep": 39
+      },
+      {
+       "label": "West",
+       "share": 11,
+       "dem": 30,
+       "rep": 68
+      },
+      {
+       "label": "Latino SW",
+       "share": 15,
+       "dem": 67,
+       "rep": 31
+      }
+     ]
+    },
+    "method": {
+     "question": "Voting method",
+     "respondents": 5163,
+     "answers": [
+      {
+       "label": "Election Day",
+       "share": 22,
+       "dem": 49,
+       "rep": 48
+      },
+      {
+       "label": "By mail",
+       "share": 3,
+       "dem": 56,
+       "rep": 41
+      },
+      {
+       "label": "Early in-person",
+       "share": 75,
+       "dem": 57,
+       "rep": 42
+      }
+     ]
+    },
+    "trumpApproval": {
+     "question": "Overall, do you approve or disapprove of the way Donald Trump is handling his job as president?",
+     "respondents": 5163,
+     "answers": [
+      {
+       "label": "Strongly approve",
+       "share": 23,
+       "dem": 3,
+       "rep": 96
+      },
+      {
+       "label": "Somewhat approve",
+       "share": 17,
+       "dem": 8,
+       "rep": 89
+      },
+      {
+       "label": "Somewhat disapprove",
+       "share": 9,
+       "dem": 46,
+       "rep": 49
+      },
+      {
+       "label": "Strongly disapprove",
+       "share": 51,
+       "dem": 96,
+       "rep": 2
+      }
+     ]
+    },
+    "issue": {
+     "question": "Which ONE of these six issues is the most important facing the country?",
+     "respondents": 5163,
+     "answers": [
+      {
+       "label": "Crime",
+       "share": 3,
+       "dem": 29,
+       "rep": 68
+      },
+      {
+       "label": "The economy",
+       "share": 40,
+       "dem": 57,
+       "rep": 40
+      },
+      {
+       "label": "Foreign policy",
+       "share": 4,
+       "dem": 52,
+       "rep": 46
+      },
+      {
+       "label": "Healthcare",
+       "share": 7,
+       "dem": 64,
+       "rep": 33
+      },
+      {
+       "label": "Immigration",
+       "share": 15,
+       "dem": 15,
+       "rep": 84
+      },
+      {
+       "label": "The state of democracy",
+       "share": 29,
+       "dem": 74,
+       "rep": 25
+      }
+     ]
+    },
+    "economy": {
+     "question": "Do you think the condition of the nation's economy is:",
+     "respondents": 2564,
+     "answers": [
+      {
+       "label": "Excellent",
+       "share": 3,
+       "dem": 0,
+       "rep": 0
+      },
+      {
+       "label": "Good",
+       "share": 25,
+       "dem": 9,
+       "rep": 89
+      },
+      {
+       "label": "Not so good",
+       "share": 37,
+       "dem": 59,
+       "rep": 38
+      },
+      {
+       "label": "Poor",
+       "share": 34,
+       "dem": 87,
+       "rep": 11
+      }
+     ]
+    },
+    "finances": {
+     "question": "Compared to two years ago, is your family's financial situation:",
+     "respondents": 2564,
+     "answers": [
+      {
+       "label": "Better",
+       "share": 20,
+       "dem": 24,
+       "rep": 74
+      },
+      {
+       "label": "Worse",
+       "share": 44,
+       "dem": 77,
+       "rep": 21
+      },
+      {
+       "label": "About the same",
+       "share": 36,
+       "dem": 45,
+       "rep": 53
+      }
+     ]
+    },
+    "tariffs": {
+     "question": "Do you think Trump's tariff policies have helped or hurt the national economy?",
+     "respondents": 2184,
+     "answers": [
+      {
+       "label": "Helped",
+       "share": 24,
+       "dem": 5,
+       "rep": 94
+      },
+      {
+       "label": "Hurt",
+       "share": 62,
+       "dem": 83,
+       "rep": 15
+      },
+      {
+       "label": "No difference",
+       "share": 14,
+       "dem": 13,
+       "rep": 84
+      }
+     ]
+    },
+    "iran": {
+     "question": "Did the U.S. make the right decision or wrong decision in taking military action against Iran?",
+     "respondents": 2147,
+     "answers": [
+      {
+       "label": "Right decision",
+       "share": 39,
+       "dem": 8,
+       "rep": 90
+      },
+      {
+       "label": "Wrong decision",
+       "share": 60,
+       "dem": 85,
+       "rep": 13
+      }
+     ]
+    },
+    "immigration": {
+     "question": "Have the Trump administration's actions on immigration enforcement:",
+     "respondents": 2147,
+     "answers": [
+      {
+       "label": "Gone too far",
+       "share": 55,
+       "dem": 91,
+       "rep": 7
+      },
+      {
+       "label": "Not gone far enough",
+       "share": 22,
+       "dem": 9,
+       "rep": 89
+      },
+      {
+       "label": "Been about right",
+       "share": 23,
+       "dem": 10,
+       "rep": 87
+      }
+     ]
+    },
+    "maga": {
+     "question": "Do you consider yourself MAGA?",
+     "respondents": 5163,
+     "answers": [
+      {
+       "label": "Yes",
+       "share": 27,
+       "dem": 5,
+       "rep": 94
+      },
+      {
+       "label": "No",
+       "share": 71,
+       "dem": 75,
+       "rep": 23
+      }
+     ]
+    },
+    "paxtonCharacter": {
+     "question": "Do you think Ken Paxton has the right personal character to serve as a U.S. Senator?",
+     "respondents": 2184,
+     "answers": [
+      {
+       "label": "Yes",
+       "share": 33,
+       "dem": 5,
+       "rep": 94
+      },
+      {
+       "label": "No",
+       "share": 67,
+       "dem": 80,
+       "rep": 17
+      }
+     ]
+    },
+    "talaricoExtreme": {
+     "question": "Do you think James Talarico's views are too extreme?",
+     "respondents": 2184,
+     "answers": [
+      {
+       "label": "Yes",
+       "share": 46,
+       "dem": 10,
+       "rep": 87
+      },
+      {
+       "label": "No",
+       "share": 54,
+       "dem": 94,
+       "rep": 5
+      }
+     ]
+    },
+    "governorVote": {
+     "question": "In today's election for governor, did you just vote for:",
+     "respondents": 5146,
+     "answers": [
+      {
+       "label": "Hinojosa",
+       "share": 53,
+       "dem": 98,
+       "rep": 2
+      },
+      {
+       "label": "Abbott",
+       "share": 46,
+       "dem": 6,
+       "rep": 92
+      }
+     ]
+    }
+   }
+  },
+  "tx-governor": {
+   "url": "https://abcnews.com/Elections/texas-polls-2026-us-governor-election-results-analysis",
+   "democrat": "Hinojosa",
+   "republican": "Abbott",
+   "questions": {
+    "vote2024": {
+     "question": "In the 2024 election for president, did you vote for:",
+     "respondents": 5178,
+     "answers": [
+      {
+       "label": "Kamala Harris (Dem)",
+       "share": 42,
+       "dem": 96,
+       "rep": 3
+      },
+      {
+       "label": "Donald Trump (Rep)",
+       "share": 47,
+       "dem": 10,
+       "rep": 89
+      },
+      {
+       "label": "Other",
+       "share": 2,
+       "dem": 66,
+       "rep": 21
+      },
+      {
+       "label": "Did not vote",
+       "share": 8,
+       "dem": 76,
+       "rep": 20
+      }
+     ]
+    },
+    "firstMidterm": {
+     "question": "Is this the first time you have ever voted in a midterm election?",
+     "respondents": 2596,
+     "answers": [
+      {
+       "label": "Yes",
+       "share": 14,
+       "dem": 72,
+       "rep": 26
+      },
+      {
+       "label": "No",
+       "share": 86,
+       "dem": 50,
+       "rep": 49
+      }
+     ]
+    },
+    "party": {
+     "question": "No matter how you voted today, do you usually think of yourself as a:",
+     "respondents": 5116,
+     "answers": [
+      {
+       "label": "Democrat",
+       "share": 33,
+       "dem": 98,
+       "rep": 2
+      },
+      {
+       "label": "Republican",
+       "share": 38,
+       "dem": 9,
+       "rep": 90
+      },
+      {
+       "label": "Independent or something else",
+       "share": 29,
+       "dem": 59,
+       "rep": 38
+      }
+     ]
+    },
+    "ideology": {
+     "question": "On most political matters, do you consider yourself:",
+     "respondents": 5097,
+     "answers": [
+      {
+       "label": "Liberal",
+       "share": 22,
+       "dem": 97,
+       "rep": 2
+      },
+      {
+       "label": "Moderate",
+       "share": 40,
+       "dem": 67,
+       "rep": 31
+      },
+      {
+       "label": "Conservative",
+       "share": 38,
+       "dem": 13,
+       "rep": 86
+      }
+     ]
+    },
+    "gender": {
+     "question": "Do you describe yourself as...",
+     "respondents": 5161,
+     "answers": [
+      {
+       "label": "Male",
+       "share": 45,
+       "dem": 49,
+       "rep": 50
+      },
+      {
+       "label": "Female",
+       "share": 54,
+       "dem": 56,
+       "rep": 43
+      },
+      {
+       "label": "I identify another way",
+       "share": 1,
+       "dem": 0,
+       "rep": 0
+      }
+     ]
+    },
+    "race": {
+     "question": "Are you:",
+     "respondents": 5152,
+     "answers": [
+      {
+       "label": "White",
+       "share": 55,
+       "dem": 40,
+       "rep": 59
+      },
+      {
+       "label": "Black",
+       "share": 12,
+       "dem": 88,
+       "rep": 10
+      },
+      {
+       "label": "Hispanic/Latino",
+       "share": 24,
+       "dem": 65,
+       "rep": 33
+      },
+      {
+       "label": "Asian",
+       "share": 4,
+       "dem": 66,
+       "rep": 34
+      },
+      {
+       "label": "Other",
+       "share": 4,
+       "dem": 42,
+       "rep": 55
+      }
+     ]
+    },
+    "raceGender": {
+     "question": "Gender by race",
+     "respondents": 5138,
+     "answers": [
+      {
+       "label": "White Men",
+       "share": 26,
+       "dem": 38,
+       "rep": 61
+      },
+      {
+       "label": "White women",
+       "share": 29,
+       "dem": 42,
+       "rep": 57
+      },
+      {
+       "label": "Black men",
+       "share": 5,
+       "dem": 85,
+       "rep": 12
+      },
+      {
+       "label": "Black women",
+       "share": 7,
+       "dem": 90,
+       "rep": 9
+      },
+      {
+       "label": "Latino men",
+       "share": 11,
+       "dem": 59,
+       "rep": 40
+      },
+      {
+       "label": "Latino women",
+       "share": 13,
+       "dem": 70,
+       "rep": 28
+      },
+      {
+       "label": "All others",
+       "share": 9,
+       "dem": 55,
+       "rep": 44
+      }
+     ]
+    },
+    "age": {
+     "question": "In which age group are you?",
+     "respondents": 5173,
+     "answers": [
+      {
+       "label": "18-29",
+       "share": 13,
+       "dem": 77,
+       "rep": 21
+      },
+      {
+       "label": "30-44",
+       "share": 22,
+       "dem": 62,
+       "rep": 36
+      },
+      {
+       "label": "45-64",
+       "share": 35,
+       "dem": 47,
+       "rep": 51
+      },
+      {
+       "label": "65 or over",
+       "share": 30,
+       "dem": 42,
+       "rep": 57
+      }
+     ]
+    },
+    "college": {
+     "question": "What was the last grade of school you completed?",
+     "respondents": 5151,
+     "answers": [
+      {
+       "label": "College graduate",
+       "share": 45,
+       "dem": 58,
+       "rep": 41
+      },
+      {
+       "label": "No college degree",
+       "share": 55,
+       "dem": 49,
+       "rep": 50
+      }
+     ]
+    },
+    "educationRace": {
+     "question": "Education by race",
+     "respondents": 5132,
+     "answers": [
+      {
+       "label": "White college graduates",
+       "share": 28,
+       "dem": 51,
+       "rep": 48
+      },
+      {
+       "label": "White non-college graduates",
+       "share": 28,
+       "dem": 30,
+       "rep": 68
+      },
+      {
+       "label": "Non White college graduates",
+       "share": 18,
+       "dem": 70,
+       "rep": 29
+      },
+      {
+       "label": "Non White non-college graduates",
+       "share": 27,
+       "dem": 68,
+       "rep": 30
+      }
+     ]
+    },
+    "area": {
+     "question": "Which of the following best describes the area where you live?",
+     "respondents": 4315,
+     "answers": [
+      {
+       "label": "Urban",
+       "share": 23,
+       "dem": 71,
+       "rep": 28
+      },
+      {
+       "label": "Suburban",
+       "share": 48,
+       "dem": 56,
+       "rep": 43
+      },
+      {
+       "label": "Small town",
+       "share": 16,
+       "dem": 37,
+       "rep": 60
+      },
+      {
+       "label": "Rural",
+       "share": 13,
+       "dem": 31,
+       "rep": 68
+      }
+     ]
+    },
+    "region": {
+     "question": "Geo Stratum Code",
+     "respondents": 5178,
+     "answers": [
+      {
+       "label": "East",
+       "share": 14,
+       "dem": 33,
+       "rep": 65
+      },
+      {
+       "label": "Dallas/Ft. Worth",
+       "share": 24,
+       "dem": 59,
+       "rep": 40
+      },
+      {
+       "label": "Houston Area",
+       "share": 20,
+       "dem": 61,
+       "rep": 38
+      },
+      {
+       "label": "South Central",
+       "share": 17,
+       "dem": 57,
+       "rep": 42
+      },
+      {
+       "label": "West",
+       "share": 11,
+       "dem": 28,
+       "rep": 70
+      },
+      {
+       "label": "Latino SW",
+       "share": 15,
+       "dem": 65,
+       "rep": 34
+      }
+     ]
+    },
+    "method": {
+     "question": "Voting method",
+     "respondents": 5178,
+     "answers": [
+      {
+       "label": "Election Day",
+       "share": 22,
+       "dem": 46,
+       "rep": 52
+      },
+      {
+       "label": "By mail",
+       "share": 3,
+       "dem": 53,
+       "rep": 44
+      },
+      {
+       "label": "Early in-person",
+       "share": 75,
+       "dem": 55,
+       "rep": 44
+      }
+     ]
+    },
+    "trumpApproval": {
+     "question": "Overall, do you approve or disapprove of the way Donald Trump is handling his job as president?",
+     "respondents": 5178,
+     "answers": [
+      {
+       "label": "Strongly approve",
+       "share": 23,
+       "dem": 2,
+       "rep": 97
+      },
+      {
+       "label": "Somewhat approve",
+       "share": 17,
+       "dem": 7,
+       "rep": 92
+      },
+      {
+       "label": "Somewhat disapprove",
+       "share": 9,
+       "dem": 37,
+       "rep": 59
+      },
+      {
+       "label": "Strongly disapprove",
+       "share": 51,
+       "dem": 94,
+       "rep": 4
+      }
+     ]
+    },
+    "issue": {
+     "question": "Which ONE of these six issues is the most important facing the country?",
+     "respondents": 5178,
+     "answers": [
+      {
+       "label": "Crime",
+       "share": 3,
+       "dem": 22,
+       "rep": 78
+      },
+      {
+       "label": "The economy",
+       "share": 40,
+       "dem": 54,
+       "rep": 44
+      },
+      {
+       "label": "Foreign policy",
+       "share": 4,
+       "dem": 52,
+       "rep": 47
+      },
+      {
+       "label": "Healthcare",
+       "share": 7,
+       "dem": 62,
+       "rep": 36
+      },
+      {
+       "label": "Immigration",
+       "share": 15,
+       "dem": 15,
+       "rep": 84
+      },
+      {
+       "label": "The state of democracy",
+       "share": 29,
+       "dem": 72,
+       "rep": 27
+      }
+     ]
+    },
+    "economy": {
+     "question": "Do you think the condition of the nation's economy is:",
+     "respondents": 2566,
+     "answers": [
+      {
+       "label": "Excellent",
+       "share": 3,
+       "dem": 0,
+       "rep": 0
+      },
+      {
+       "label": "Good",
+       "share": 25,
+       "dem": 8,
+       "rep": 91
+      },
+      {
+       "label": "Not so good",
+       "share": 37,
+       "dem": 56,
+       "rep": 42
+      },
+      {
+       "label": "Poor",
+       "share": 34,
+       "dem": 85,
+       "rep": 13
+      }
+     ]
+    },
+    "finances": {
+     "question": "Compared to two years ago, is your family's financial situation:",
+     "respondents": 2566,
+     "answers": [
+      {
+       "label": "Better",
+       "share": 20,
+       "dem": 23,
+       "rep": 76
+      },
+      {
+       "label": "Worse",
+       "share": 44,
+       "dem": 74,
+       "rep": 24
+      },
+      {
+       "label": "About the same",
+       "share": 36,
+       "dem": 44,
+       "rep": 55
+      }
+     ]
+    },
+    "tariffs": {
+     "question": "Do you think Trump's tariff policies have helped or hurt the national economy?",
+     "respondents": 2196,
+     "answers": [
+      {
+       "label": "Helped",
+       "share": 24,
+       "dem": 4,
+       "rep": 96
+      },
+      {
+       "label": "Hurt",
+       "share": 62,
+       "dem": 80,
+       "rep": 18
+      },
+      {
+       "label": "No difference",
+       "share": 14,
+       "dem": 13,
+       "rep": 84
+      }
+     ]
+    },
+    "iran": {
+     "question": "Did the U.S. make the right decision or wrong decision in taking military action against Iran?",
+     "respondents": 2153,
+     "answers": [
+      {
+       "label": "Right decision",
+       "share": 39,
+       "dem": 8,
+       "rep": 92
+      },
+      {
+       "label": "Wrong decision",
+       "share": 60,
+       "dem": 82,
+       "rep": 16
+      }
+     ]
+    },
+    "immigration": {
+     "question": "Have the Trump administration's actions on immigration enforcement:",
+     "respondents": 2153,
+     "answers": [
+      {
+       "label": "Gone too far",
+       "share": 55,
+       "dem": 89,
+       "rep": 9
+      },
+      {
+       "label": "Not gone far enough",
+       "share": 22,
+       "dem": 9,
+       "rep": 90
+      },
+      {
+       "label": "Been about right",
+       "share": 23,
+       "dem": 8,
+       "rep": 91
+      }
+     ]
+    },
+    "maga": {
+     "question": "Do you consider yourself MAGA?",
+     "respondents": 5178,
+     "answers": [
+      {
+       "label": "Yes",
+       "share": 27,
+       "dem": 5,
+       "rep": 95
+      },
+      {
+       "label": "No",
+       "share": 71,
+       "dem": 71,
+       "rep": 27
+      }
+     ]
+    },
+    "senateVote": {
+     "question": "In today's election for U.S. Senate, did you just vote for:",
+     "respondents": 5140,
+     "answers": [
+      {
+       "label": "Talarico",
+       "share": 55,
+       "dem": 94,
+       "rep": 5
+      },
+      {
+       "label": "Paxton",
+       "share": 43,
+       "dem": 2,
+       "rep": 98
+      }
+     ]
+    }
+   }
+  }
+ }
+}
