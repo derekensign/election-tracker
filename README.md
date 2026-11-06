@@ -92,6 +92,8 @@ The tab also has a Senate-floor seat chart, a map, and a race table laid out lik
 
 The swing from the 2024 presidential margin is split four ways (`decomposeSwing`): who turned out (the 2026 voters' recalled 2024 vote against the real result), voters who switched, 2024 non-voters, and the gap between the poll and the count. The parts add up exactly, but they lean on recalled votes, so the page calls them approximate.
 
+`coalitionStack` turns any exit-poll question that covers the whole electorate into raw-vote estimates. Each group gets its share of the race's total, and each candidate's votes from it are scaled so they add up to the candidate's count. The page stacks those votes against a majority of every vote cast and shows each group's estimated net votes.
+
 ## Ask the data
 
 The Ask tab sends each question to OpenAI with a fresh digest of the page's data (`buildAskContext` in `public/app.js`, about 10k tokens), under the instructions in `ingest/ask-prompt.js` (never call races, use only the digest). Two ways to pay for it:

@@ -18,7 +18,7 @@
   const votesText = (n) => Number(n).toLocaleString("en-US");
   const roughVotes = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)} million` : `${(Math.round(n / 1e3) * 1e3).toLocaleString("en-US")}`);
   const ratioText = (r) => `${Math.round(r * 100)}%`;
-  const listText = (items) => (items.length < 3 ? items.join(" and ") : `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`);
+  const listText = (items, conjunction = "and") => (items.length < 3 ? items.join(` ${conjunction} `) : `${items.slice(0, -1).join(", ")}, ${conjunction} ${items.at(-1)}`);
   const plus = (v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
   const leanClass = (m) => (m > 0 ? "lean-d" : m < 0 ? "lean-r" : "");
   const leanSpan = (m) => `<span class="${leanClass(m)}">${esc(marginText(m))}</span>`;
@@ -34,6 +34,12 @@
     return lines;
   }, []);
   const redraws = [];
+  const bindToggle = (attribute, draw, first) => {
+    const buttons = [...root.querySelectorAll(`button.mode[${attribute}]`)];
+    const key = attribute.replace(/^data-/, "").replace(/-([a-z0-9])/g, (m, c) => c.toUpperCase());
+    buttons.forEach((button) => button.addEventListener("click", () => { buttons.forEach((b) => b.classList.toggle("active", b === button)); draw(button.dataset[key]); }));
+    draw(first);
+  };
   const marginScale = (domain) => d3.scaleDiverging().domain([-domain, 0, domain]).clamp(true).interpolator((t) => d3.interpolateRgbBasis([cssVar("--r4"), cssVar("--r2"), "#f2f2f0", cssVar("--d2"), cssVar("--d4")])(t));
 
   const races = Object.fromEntries(data.statewide.map((race) => [race.id, race]));
@@ -78,28 +84,72 @@
   byId("tx26-vote2024").innerHTML = `<tr><th>How they voted in 2024</th><th class="num">Share of 2026 voters</th><th class="num">${esc(lastName(senate.democrat))}</th><th class="num">${esc(lastName(senate.republican))}</th><th class="num">${esc(lastName(governor.democrat))}</th><th class="num">${esc(lastName(governor.republican))}</th></tr>`
     + sAnswers.map((a) => { const g = answer(gAnswers, a.label); return `<tr><td><i class="sw" style="background:${groupColor[a.label]}"></i> ${esc(groupName[a.label] || a.label)}</td><td class="num">${a.share}%</td><td class="num"><b>${a.dem}%</b></td><td class="num">${a.rep}%</td><td class="num"><b>${g?.dem ?? "—"}%</b></td><td class="num">${g?.rep ?? "—"}%</td></tr>`; }).join("");
 
-  // Each candidate's votes as one bar split by 2024 vote.
-  const coalitionRows = [
-    { name: senate.democrat, votes: senate.dem, parts: talaricoCoalition },
-    { name: senate.republican, votes: senate.rep, parts: data.swing["tx-senate"].coalitions.rep },
-    { name: governor.democrat, votes: governor.dem, parts: hinojosaCoalition },
-    { name: governor.republican, votes: governor.rep, parts: data.swing["tx-governor"].coalitions.rep },
-  ];
-  const maxVotes = Math.max(...coalitionRows.map((row) => row.votes));
-  byId("tx26-coalition-legend").innerHTML = sAnswers.map((a) => `<span><i class="sw" style="background:${groupColor[a.label]}"></i>${esc(groupName[a.label])}</span>`).join("");
-  byId("tx26-coalitions").innerHTML = coalitionRows.map((row) => `<div class="seg-row"><div class="seg-name"><b>${esc(row.name)}</b><span>${roughVotes(row.votes)} votes</span></div><div class="seg-track"><div class="seg-bar" style="width:${(100 * row.votes) / maxVotes}%">${row.parts.filter((p) => p.votes > 0).map((p) => `<span class="seg${p.label === "Other" ? " light" : ""}" style="flex:${p.share} 1 0;background:${groupColor[p.label]}" data-tip="${esc(`<b>${esc(row.name)}</b><div class="row"><span>${esc(groupName[p.label])}</span><span>about ${votesText(Math.round(p.votes / 1000) * 1000)}</span></div><div class="row"><span>Share of ${esc(lastName(row.name))}'s votes</span><span>${p.share}%</span></div>`)}" data-label="${p.share >= 1 ? `${Math.round(p.share)}%` : ""}"></span>`).join("")}</div></div></div>`).join("");
-  const fitSegmentLabels = () => {
-    // A block gets its share printed only when the text fits inside it with room to spare.
+  // ---------- how each coalition adds up to a majority ----------
+  // Group colors: the 2024 vote and party keep the party colors; other questions take these six in order (checked
+  // with the dataviz validator for neighboring blocks, so the blocks keep the poll's order in every bar).
+  const CATEGORICAL = ["#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6"];
+  const PARTY_COLORS = { Democrat: cssVar("--d3"), Republican: cssVar("--r3") };
+  const STACK_ORDER = { vote2024: ["Kamala Harris (Dem)", "Did not vote", "Other", "Donald Trump (Rep)"] };
+  const stackName = (key, label) => (key === "vote2024" ? groupName[label] || label : label);
+  const stackColor = (key, label, index) => (key === "vote2024" ? groupColor[label] : key === "party" ? PARTY_COLORS[label] ?? "#b9bec6" : CATEGORICAL[index % CATEGORICAL.length]);
+  // Text inside a block: white or the page's ink, whichever contrasts more with the fill (WCAG relative luminance).
+  const luminance = (color) => { const { r, g, b } = d3.rgb(color); const lin = (v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }; return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b); };
+  const textOn = (color) => { const fill = luminance(color), ink = luminance(cssVar("--ink")); return 1.05 / (fill + 0.05) >= (fill + 0.05) / (ink + 0.05) ? "#fff" : cssVar("--ink"); };
+  const compactVotes = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e4 ? `${Math.round(n / 1e3)}K` : votesText(n));
+  const netText = (n) => { const size = Math.abs(n); return `${n >= 0 ? "+" : "−"}${size >= 1e6 ? `${(size / 1e6).toFixed(2)}M` : size >= 1e3 ? `${Math.round(size / 1e3)}K` : "<1K"}`; };
+  const aboutVotes = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)} million` : votesText(Math.round(n / 1000) * 1000));
+  const stackState = { race: "tx-senate" };
+  const drawStack = () => {
+    const raceId = stackState.race, key = byId("tx26-stack-split").value;
+    const race = races[raceId], stack = data.swing[raceId].stacks[key];
+    if (!stack) return;
+    const order = STACK_ORDER[key] ? STACK_ORDER[key].map((label) => stack.groups.findIndex((g) => g.label === label)).filter((i) => i >= 0) : stack.groups.map((g, i) => i);
+    const rows = [{ name: race.democrat, side: stack.dem }, { name: race.republican, side: stack.rep }];
+    byId("tx26-stack-legend").innerHTML = order.map((i) => `<span><i class="sw" style="background:${stackColor(key, stack.groups[i].label, i)}"></i>${esc(stackName(key, stack.groups[i].label))}</span>`).join("");
+    const pctOfAll = (votes) => (100 * votes) / stack.total;
+    const block = (row, i, left) => {
+      const group = stack.groups[i], part = row.side.parts[i], color = stackColor(key, group.label, i);
+      const tip = `<b>${esc(lastName(row.name))}: ${esc(stackName(key, group.label))}</b>${group.suppressed ? ' <span class="muted">too few respondents; assumed to split like everyone</span>' : ""}`
+        + `<div class="row"><span>Votes (estimated)</span><span>${votesText(part.votes)}</span></div><div class="row"><span>Share of every vote in the race</span><span>${part.ofTotal.toFixed(1)}%</span></div>`
+        + `<div class="row"><span>Share of ${esc(lastName(row.name))}'s votes</span><span>${part.ofCandidate.toFixed(1)}%</span></div><div class="row"><span>${esc(lastName(row.name))}'s share of this group</span><span>${part.rate.toFixed(0)}%</span></div>`
+        + `<div class="row"><span>The group's voters (estimated)</span><span>${votesText(group.voters)} (${group.share}%)</span></div>`;
+      return `<span class="seg" style="left:calc(${left}% + 1px);width:calc(${pctOfAll(part.votes)}% - 2px);background:${color};color:${textOn(color)}" data-tip="${esc(tip)}" data-label="${compactVotes(part.votes)}" data-pct="${pctOfAll(part.votes)}"></span>`;
+    };
+    const rowHtml = (row) => {
+      let left = 0;
+      const blocks = order.filter((i) => row.side.parts[i].votes > 0).map((i) => { const html = block(row, i, left); left += pctOfAll(row.side.parts[i].votes); return html; }).join("");
+      return `<div class="stack-row"><div class="stack-name"><b>${esc(row.name)}</b><span>${votesText(row.side.votes)} votes</span></div><div class="stack-track">${blocks}<span class="stack-end" style="left:${left}%" data-left="${left}">${compactVotes(row.side.votes)} · ${row.side.ofTotal.toFixed(1)}%</span></div></div>`;
+    };
+    byId("tx26-stack").innerHTML = `<div class="stack-row stack-axis"><div></div><div class="stack-track"><span class="majority-label">Majority: ${votesText(stack.majority)} votes (50%)</span></div></div>` + rows.map(rowHtml).join("") + '<i class="majority-line"></i>';
+    fitStackLabels();
+    // Which groups the winner's majority needed: take any one of them away and the rest fall below 50%.
+    const note = rows.map((row) => {
+      const name = lastName(row.name), surplus = row.side.votes - stack.majority;
+      if (surplus < 0) return `${name}'s groups add up to ${row.side.ofTotal.toFixed(1)}% of all votes, about ${aboutVotes(-surplus)} short of a majority.`;
+      const phrase = (label) => (key === "vote2024" ? { "Did not vote": "2024 non-voters", Other: "third-party voters" }[label] || stackName(key, label) : label);
+      const needed = order.filter((i) => row.side.votes - row.side.parts[i].votes < stack.majority).map((i) => `${phrase(stack.groups[i].label)} (about ${aboutVotes(row.side.parts[i].votes)})`);
+      return `${name} finished with ${row.side.ofTotal.toFixed(1)}% of all votes, about ${aboutVotes(surplus)} more than a majority. ${needed.length > 1 ? `Take away any one of these groups' votes and ${name} falls below 50%: ${listText(needed, "or")}.` : needed.length ? `Take away the votes of ${needed[0]} and ${name} falls below 50%.` : "No single group's votes were needed for that majority."}`;
+    });
+    const others = stack.total - stack.dem.votes - stack.rep.votes;
+    byId("tx26-stack-note").textContent = `${note.join(" ")} The other ${((100 * others) / stack.total).toFixed(1)}% (${votesText(others)} votes) went to third-party and write-in candidates.`;
+    byId("tx26-stack-table").innerHTML = `<tr><th>${key === "vote2024" ? "How they voted in 2024" : "Group"}</th><th class="num">Voters<span class="sub">estimated</span></th><th class="num">Share of voters</th><th class="num">${esc(lastName(race.democrat))}<span class="sub">votes, estimated</span></th><th class="num">% of all votes</th><th class="num">${esc(lastName(race.republican))}<span class="sub">votes, estimated</span></th><th class="num">% of all votes</th></tr>`
+      + order.map((i) => { const g = stack.groups[i], d = stack.dem.parts[i], r = stack.rep.parts[i]; return `<tr><td><i class="sw" style="background:${stackColor(key, g.label, i)}"></i> ${esc(stackName(key, g.label))}${g.suppressed ? ' <span class="thin">assumed</span>' : ""}</td><td class="num">${votesText(g.voters)}</td><td class="num">${g.share}%</td><td class="num"><b>${votesText(d.votes)}</b></td><td class="num">${d.ofTotal.toFixed(1)}%</td><td class="num"><b>${votesText(r.votes)}</b></td><td class="num">${r.ofTotal.toFixed(1)}%</td></tr>`; }).join("")
+      + `<tr class="group-start"><td><b>All voters</b> <span class="muted">the count</span></td><td class="num"><b>${votesText(stack.total)}</b></td><td class="num">100%</td><td class="num"><b>${votesText(stack.dem.votes)}</b></td><td class="num"><b>${stack.dem.ofTotal.toFixed(1)}%</b></td><td class="num"><b>${votesText(stack.rep.votes)}</b></td><td class="num"><b>${stack.rep.ofTotal.toFixed(1)}%</b></td></tr>`;
+  };
+  const fitStackLabels = () => {
+    // A block prints its votes only when they fit inside it with room to spare.
     const narrowRows = window.matchMedia("(max-width: 640px)").matches;
-    const width = (byId("tx26-coalitions").clientWidth || document.querySelector("main").clientWidth - 40) - (narrowRows ? 0 : 170);
-    for (const bar of byId("tx26-coalitions").querySelectorAll(".seg-bar")) {
-      const barWidth = (width * parseFloat(bar.style.width)) / 100, total = [...bar.children].reduce((t, s) => t + parseFloat(s.style.flexGrow), 0);
-      for (const seg of bar.children) seg.textContent = (barWidth * parseFloat(seg.style.flexGrow)) / total > seg.dataset.label.length * 7.5 + 12 ? seg.dataset.label : "";
+    const width = (byId("tx26-stack").clientWidth || document.querySelector("main").clientWidth - 40) - (narrowRows ? 0 : 160);
+    for (const seg of byId("tx26-stack").querySelectorAll(".seg")) seg.textContent = (width * Number(seg.dataset.pct)) / 100 > seg.dataset.label.length * 7.2 + 12 ? seg.dataset.label : "";
+    // A bar ending just short of the majority line puts its total past the line instead of across it.
+    for (const end of byId("tx26-stack").querySelectorAll(".stack-end")) {
+      const left = Number(end.dataset.left), labelWidth = end.textContent.length * 7 + 10;
+      end.style.left = left < 50 && (width * left) / 100 + labelWidth > width / 2 ? "calc(50% + 4px)" : `${left}%`;
     }
   };
-  fitSegmentLabels();
-  window.addEventListener("resize", fitSegmentLabels);
-  window.addEventListener("hashchange", fitSegmentLabels);
+  bindToggle("data-tx26-stack-race", (raceId) => { stackState.race = raceId; drawStack(); }, "tx-senate");
+  byId("tx26-stack-split").addEventListener("change", drawStack);
+  window.addEventListener("resize", fitStackLabels);
   root.addEventListener("mousemove", (event) => { const seg = event.target.closest("[data-tip]"); if (seg && root.contains(seg)) showTooltip(event, seg.dataset.tip); });
   root.addEventListener("mouseout", (event) => { if (event.target.closest("[data-tip]")) hideTooltip(); });
 
@@ -145,12 +195,6 @@
       d3.select(this).selectAll("tspan").data(lines).join("tspan").attr("x", left(b) + barWidth / 2).attr("dy", (line, i) => (i ? 13 : 0)).text((line) => line);
     });
     byId("tx26-waterfall-note").textContent = decompositionNote(raceId);
-  };
-  const bindToggle = (attribute, draw, first) => {
-    const buttons = [...root.querySelectorAll(`button.mode[${attribute}]`)];
-    const key = attribute.replace(/^data-/, "").replace(/-([a-z0-9])/g, (m, c) => c.toUpperCase());
-    buttons.forEach((button) => button.addEventListener("click", () => { buttons.forEach((b) => b.classList.toggle("active", b === button)); draw(button.dataset[key]); }));
-    draw(first);
   };
   bindToggle("data-tx26-split", drawWaterfall, "tx-senate");
 
@@ -261,13 +305,18 @@
       const answers = question.answers.filter((a) => (a.dem || a.rep) && (!only || only.some((label) => label.toLowerCase() === a.label.toLowerCase())));
       if (!answers.length) continue;
       rows.push(`<div class="gm-head">${esc(title)}</div>`);
+      const stack = data.swing[raceId].stacks?.[key];
       for (const a of answers) {
         const m = a.dem - a.rep, half = Math.min(50, Math.abs(m) / 2);
-        const tip = `<b>${esc(a.label)}</b> <span class="muted">${a.share}% of voters</span><div class="row"><span>${esc(race.democrat)}</span><span>${a.dem}%</span></div><div class="row"><span>${esc(race.republican)}</span><span>${a.rep}%</span></div>`;
-        rows.push(`<div class="gm-row" data-tip="${esc(tip)}"><span class="gm-label">${esc(a.label.replace(/^(.)/, (c) => c.toUpperCase()).replace(/ (Men|Women)$/, (w) => w.toLowerCase()))}</span><span class="gm-share">${a.share}%</span><span class="gm-track"><i class="${m >= 0 ? "d" : "r"}" style="${m >= 0 ? "left" : "right"}:50%;width:${half}%"></i></span><span class="gm-value">${wholeLean(m)}</span></div>`);
+        // Net votes: the group's estimated votes for the Democrat minus the Republican (see coalitionStack).
+        const index = stack ? stack.groups.findIndex((g) => g.label === a.label) : -1;
+        const dVotes = index >= 0 ? stack.dem.parts[index].votes : null, rVotes = index >= 0 ? stack.rep.parts[index].votes : null;
+        const net = dVotes == null ? null : dVotes - rVotes;
+        const tip = `<b>${esc(a.label)}</b> <span class="muted">${a.share}% of voters${index >= 0 ? `, about ${aboutVotes(stack.groups[index].voters)}` : ""}</span><div class="row"><span>${esc(race.democrat)}</span><span>${a.dem}%${dVotes == null ? "" : ` · about ${aboutVotes(dVotes)}`}</span></div><div class="row"><span>${esc(race.republican)}</span><span>${a.rep}%${rVotes == null ? "" : ` · about ${aboutVotes(rVotes)}`}</span></div>${net == null ? "" : `<div class="row"><span>Net votes</span><span>${net >= 0 ? "+" : "−"}${aboutVotes(Math.abs(net))} ${net >= 0 ? esc(lastName(race.democrat)) : esc(lastName(race.republican))}</span></div>`}`;
+        rows.push(`<div class="gm-row" data-tip="${esc(tip)}"><span class="gm-label">${esc(a.label.replace(/^(.)/, (c) => c.toUpperCase()).replace(/ (Men|Women)$/, (w) => w.toLowerCase()))}</span><span class="gm-share">${a.share}%</span><span class="gm-track"><i class="${m >= 0 ? "d" : "r"}" style="${m >= 0 ? "left" : "right"}:50%;width:${half}%"></i></span><span class="gm-value">${wholeLean(m)}</span><span class="gm-net ${leanClass(net ?? 0)}">${net == null ? "—" : netText(net)}</span></div>`);
       }
     }
-    byId("tx26-groups").innerHTML = `<div class="gm-row gm-cols"><span class="gm-label"></span><span class="gm-share">Share of voters</span><span class="gm-track-head"><span>${esc(lastName(race.republican))} ahead</span><span>${esc(lastName(race.democrat))} ahead</span></span><span class="gm-value">Margin</span></div>` + rows.join("");
+    byId("tx26-groups").innerHTML = `<div class="gm-row gm-cols"><span class="gm-label"></span><span class="gm-share">Share of voters</span><span class="gm-track-head"><span>${esc(lastName(race.republican))} ahead</span><span>${esc(lastName(race.democrat))} ahead</span></span><span class="gm-value">Margin</span><span class="gm-net">Net votes<br>(est.)</span></div>` + rows.join("");
     const q = questions;
     const latino = q.race?.answers.find((a) => /hispanic/i.test(a.label)), young = q.age?.answers[0], moderate = q.ideology?.answers.find((a) => a.label === "Moderate"), indep = q.party?.answers.find((a) => /independent/i.test(a.label));
     const early = data.voteMethod[raceId].early, day = data.voteMethod[raceId].electionDay;

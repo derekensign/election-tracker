@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { coalition, countyAnalysis, decomposeSwing, returnRates, statewideOffices, usHouseResults, voteMethodSplit } from "./texas-2026-analysis.js";
+import { apportion, coalition, coalitionStack, countyAnalysis, decomposeSwing, returnRates, statewideOffices, usHouseResults, voteMethodSplit } from "./texas-2026-analysis.js";
 
 // The Senate exit poll's 2024-vote question, as published: share of voters, then Talarico and Paxton.
 const VOTE_2024 = [
@@ -81,4 +81,32 @@ test("every statewide office: the Senate race first, then the state's, courts ma
   assert.equal(offices[1].court, true);
   assert.equal(offices[1].republican, "John Roe");
   assert.equal(offices[1].margin, 4);
+});
+
+test("apportioned votes are whole and add up", () => {
+  assert.deepEqual(apportion(10, [1, 1, 1]), [4, 3, 3]);
+  assert.equal(apportion(9_889_704, [42, 47, 2, 8]).reduce((t, v) => t + v, 0), 9_889_704);
+  assert.deepEqual(apportion(5, [0, 0]), [0, 0]);
+});
+
+test("a coalition stack: voters per group, each side's votes adding up to the count, shares of every vote", () => {
+  const count = { total: 9_889_704, dem: 5_444_982, rep: 4_249_373 };
+  const stack = coalitionStack(VOTE_2024, count);
+  assert.equal(stack.majority, 4_944_853);
+  assert.equal(stack.groups.reduce((t, g) => t + g.voters, 0), count.total);
+  assert.equal(stack.dem.parts.reduce((t, p) => t + p.votes, 0), count.dem);
+  assert.equal(stack.rep.parts.reduce((t, p) => t + p.votes, 0), count.rep);
+  assert.equal(stack.dem.ofTotal, 55.1);
+  const trump = stack.dem.parts.find((p) => /trump/i.test(p.label));
+  assert.equal(trump.ofCandidate, 9.5);
+  // Without the Trump voters who crossed over, Talarico would have been just short of a majority.
+  assert.ok(count.dem - trump.votes < stack.majority);
+});
+
+test("a suppressed group (published as 0 and 0) splits like everyone else", () => {
+  const stack = coalitionStack([{ label: "Male", share: 45, dem: 51, rep: 47 }, { label: "Female", share: 54, dem: 58, rep: 40 }, { label: "Another way", share: 1, dem: 0, rep: 0 }], { total: 1000, dem: 550, rep: 430 });
+  const other = stack.dem.parts.find((p) => p.label === "Another way");
+  assert.ok(other.votes > 0);
+  assert.equal(stack.groups[2].suppressed, true);
+  assert.equal(stack.dem.parts.reduce((t, p) => t + p.votes, 0), 550);
 });

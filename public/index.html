@@ -318,10 +318,31 @@
     <h3>Where Talarico's and Hinojosa's votes came from</h3>
     <p class="note" id="tx26-sources-note"></p>
     <div class="table-scroll"><table id="tx26-vote2024" class="data tx26-narrow"></table></div>
-    <h4>Each candidate's votes, by how those voters voted in 2024</h4>
-    <div class="legend" id="tx26-coalition-legend"></div>
-    <div id="tx26-coalitions" class="seg-chart"></div>
-    <p class="note hint">Estimated from the exit poll's shares and the state's count, so each group's number is approximate. Hover a block for its votes.</p>
+    <h4>How each coalition adds up to a majority</h4>
+    <div class="mode-row">
+      <span>Race:</span>
+      <button class="mode active" data-tx26-stack-race="tx-senate">U.S. Senate</button>
+      <button class="mode" data-tx26-stack-race="tx-governor">Governor</button>
+      <label class="mode-select">Split by
+        <select id="tx26-stack-split">
+          <option value="vote2024">2024 vote</option>
+          <option value="race">Race and ethnicity</option>
+          <option value="age">Age</option>
+          <option value="party">Party</option>
+          <option value="ideology">Ideology</option>
+          <option value="area">Where they live</option>
+          <option value="region">Region of Texas</option>
+          <option value="college">College degree</option>
+          <option value="method">How they voted</option>
+          <option value="firstMidterm">First time voting in a midterm</option>
+        </select>
+      </label>
+    </div>
+    <div class="legend" id="tx26-stack-legend"></div>
+    <div id="tx26-stack" class="stack-chart"></div>
+    <p class="note" id="tx26-stack-note"></p>
+    <div class="table-scroll"><table id="tx26-stack-table" class="data tx26-narrow"></table></div>
+    <p class="note hint">Estimates: each group's share of voters and its support in the exit poll, applied to the state's count and scaled so each candidate's groups add up to the candidate's actual votes. Percentages are of every vote cast in the race, third parties and write-ins included, so 50% is a majority. Hover a block for its numbers.</p>
 
     <h3>Turnout or persuasion? Both, and switching mattered more</h3>
     <div class="mode-row">

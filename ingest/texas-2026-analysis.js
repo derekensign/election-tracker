@@ -51,6 +51,23 @@ export function decomposeSwing(answers, priorMargin, resultMargin) {
 }
 
 /**
+ * Split a whole number of votes in proportion to weights, in whole votes that still add up: round down, then
+ * hand the leftover votes to the largest remainders.
+ */
+export function apportion(votes, weights) {
+  const sum = weights.reduce((total, weight) => total + weight, 0);
+  if (!sum) return weights.map(() => 0);
+  const exact = weights.map((weight) => (votes * weight) / sum);
+  const whole = exact.map(Math.floor);
+  let leftover = votes - whole.reduce((total, value) => total + value, 0);
+  for (const index of exact.map((value, i) => i).sort((a, b) => (exact[b] - whole[b]) - (exact[a] - whole[a]))) {
+    if (leftover <= 0) break;
+    whole[index] += 1; leftover -= 1;
+  }
+  return whole;
+}
+
+/**
  * Where a candidate's votes came from by 2024 vote: each group's share of the electorate times its support, scaled
  * so the groups add up to the candidate's actual votes (the poll's own total is a little off the count).
  * @param {{ label: string, share: number, dem: number, rep: number }[]} answers the 2024-vote answers
@@ -58,18 +75,46 @@ export function decomposeSwing(answers, priorMargin, resultMargin) {
  * @param {number} votes the candidate's votes in the count
  */
 export function coalition(answers, side, votes) {
-  const parts = answers.map((answer) => ({ label: answer.label, weight: answer.share * answer[side] }));
-  const total = parts.reduce((sum, part) => sum + part.weight, 0);
-  // Whole votes that still add up to the count: round down, then hand the leftover votes to the largest remainders.
-  const exact = parts.map((part) => (votes * part.weight) / total);
-  const whole = exact.map(Math.floor);
-  let leftover = votes - whole.reduce((sum, value) => sum + value, 0);
-  for (const index of exact.map((value, i) => i).sort((a, b) => (exact[b] - whole[b]) - (exact[a] - whole[a]))) {
-    if (leftover <= 0) break;
-    whole[index] += 1; leftover -= 1;
-  }
-  return parts.map((part, i) => ({ label: part.label, share: round1((100 * part.weight) / total), votes: whole[i] }));
+  const weights = answers.map((answer) => answer.share * answer[side]);
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const whole = apportion(votes, weights);
+  return answers.map((answer, i) => ({ label: answer.label, share: round1((100 * weights[i]) / total), votes: whole[i] }));
 }
+
+/**
+ * Raw-vote estimates for one exit-poll question: how many of the race's voters were in each group (its share of
+ * the count's total), and each candidate's votes from each group, scaled so a candidate's groups add up to their
+ * actual votes. A group the poll suppressed (too few respondents, published as 0 and 0) is assumed to split like
+ * everyone else. `ofTotal` is a share of every vote in the race, third parties included, so 50 is a majority.
+ * @param {{ label: string, share: number, dem: number, rep: number }[]} answers
+ * @param {{ total: number, dem: number, rep: number }} count the race's votes in the count
+ */
+export function coalitionStack(answers, count) {
+  const known = answers.filter((answer) => answer.dem || answer.rep);
+  const knownShare = known.reduce((total, answer) => total + answer.share, 0);
+  const overall = (side) => known.reduce((total, answer) => total + answer.share * answer[side], 0) / knownShare;
+  const groups = answers.map((answer) => {
+    const suppressed = !(answer.dem || answer.rep);
+    return { label: answer.label, share: answer.share, suppressed, dem: suppressed ? overall("dem") : answer.dem, rep: suppressed ? overall("rep") : answer.rep };
+  });
+  const voters = apportion(count.total, groups.map((group) => group.share));
+  const ofTotal = (votes) => Math.round((1000 * votes) / count.total) / 10;
+  const side = (key, votes) => {
+    const parts = apportion(votes, groups.map((group) => group.share * group[key]));
+    return {
+      votes, ofTotal: ofTotal(votes),
+      parts: groups.map((group, i) => ({ label: group.label, rate: round1(group[key]), votes: parts[i], ofTotal: ofTotal(parts[i]), ofCandidate: votes ? round1((100 * parts[i]) / votes) : 0 })),
+    };
+  };
+  return {
+    total: count.total, majority: Math.floor(count.total / 2) + 1,
+    groups: groups.map((group, i) => ({ label: group.label, share: group.share, voters: voters[i], suppressed: group.suppressed })),
+    dem: side("dem", count.dem), rep: side("rep", count.rep),
+  };
+}
+
+/** The exit-poll questions that split the whole electorate, so their groups' votes can be stacked. */
+export const STACK_QUESTIONS = ["vote2024", "race", "raceGender", "gender", "age", "college", "educationRace", "party", "ideology", "area", "region", "method", "firstMidterm", "maga"];
 
 /**
  * What share of each 2024 candidate's voters voted in 2026, from the exit poll's 2024-vote shares and the 2026
@@ -256,6 +301,7 @@ export async function buildTexas2026Analysis(dataDir) {
       decomposition: decomposeSwing(answers, prior, marginOf(race.dem, race.rep, race.total)),
       coalitions: { dem: coalition(answers, "dem", race.dem), rep: coalition(answers, "rep", race.rep) },
       returnRates: returnRates(answers, race.total, p2024.democrat, p2024.republican),
+      stacks: Object.fromEntries(STACK_QUESTIONS.filter((key) => exitRace.questions[key]).map((key) => [key, coalitionStack(exitRace.questions[key].answers, race)])),
     };
   };
   const { counties, regions } = countyAnalysis(returns, baselines);
