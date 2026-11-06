@@ -90,7 +90,14 @@ The tab also has a Senate-floor seat chart, a map, and a race table laid out lik
 - the morning-of snapshot `history/2026-11-03.json`, for the final polls and model chances;
 - `public/data/tx-2026-exit-poll.json`, a hand-kept selection of ABC News's Texas exit-poll questions (shares as published, with links).
 
-The swing from the 2024 presidential margin is split four ways (`decomposeSwing`): who turned out (the 2026 voters' recalled 2024 vote against the real result), voters who switched, 2024 non-voters, and the gap between the poll and the count. The parts add up exactly, but they lean on recalled votes, so the page calls them approximate.
+The change from the 2024 presidential result is split four ways, in net votes (`decomposeVotes`; `decomposeSwing` does the same in points of the margin):
+
+- who turned out: the 2026 voters' recalled 2024 vote against the real result;
+- voters who switched;
+- 2024 non-voters;
+- the gap between the poll and the count.
+
+The page uses votes, because points compare two electorates of different sizes and understate turnout. The parts add up exactly, but they lean on recalled votes, so the page calls them approximate.
 
 `coalitionStack` turns any exit-poll question that covers the whole electorate into raw-vote estimates. Each group gets its share of the race's total, and each candidate's votes from it are scaled so they add up to the candidate's count. The page stacks those votes against a majority of every vote cast and shows each group's estimated net votes.
 

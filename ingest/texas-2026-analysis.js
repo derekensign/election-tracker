@@ -51,6 +51,46 @@ export function decomposeSwing(answers, priorMargin, resultMargin) {
 }
 
 /**
+ * The same split in net votes (the Democrat's minus the Republican's), which is easier to read than points: points
+ * of a margin compare a 2024 electorate of one size with a 2026 electorate of another. Each 2024-vote group is sized
+ * from its share of the poll and the count's total.
+ *  - Who turned out: how this year's voters say they voted in 2024, against the 2024 result.
+ *  - Voters who switched: the same people's 2026 votes against their 2024 votes. A switch counts twice, since it
+ *    takes a vote off one side and puts one on the other.
+ *  - 2024 non-voters: their net votes.
+ *  - Count vs. exit poll: the rest, so the steps add up exactly to the change.
+ * @param {{ label: string, share: number, dem: number, rep: number }[]} answers the 2024-vote answers
+ * @param {{ democrat: number, republican: number }} prior the 2024 presidential result
+ * @param {{ total: number, dem: number, rep: number }} count the 2026 race in the count
+ */
+export function decomposeVotes(answers, prior, count) {
+  const find = (pattern) => answers.find((answer) => pattern.test(answer.label));
+  const harris = find(/harris/i), trump = find(/trump/i), other = find(/^other/i), none = find(/did not vote/i);
+  if (!harris || !trump) throw new Error("the 2024-vote question needs Harris and Trump answers");
+  const answered = answers.reduce((total, answer) => total + answer.share, 0);
+  const size = (answer) => (answer ? (count.total * answer.share) / answered : 0);
+  const net = (answer) => (answer ? (size(answer) * (answer.dem - answer.rep)) / 100 : 0);
+  const priorNet = prior.democrat - prior.republican, resultNet = count.dem - count.rep;
+  const recalled = size(harris) - size(trump);
+  const returningNow = net(harris) + net(trump) + net(other);
+  const steps = [
+    { key: "turnout", label: "Who turned out", value: Math.round(recalled - priorNet) },
+    { key: "switched", label: "Voters who switched", value: Math.round(returningNow - recalled) },
+    { key: "new", label: "2024 non-voters", value: Math.round(net(none)) },
+  ];
+  steps.push({ key: "count", label: "Count vs. exit poll", value: resultNet - priorNet - steps.reduce((total, step) => total + step.value, 0) });
+  const whole = (value) => Math.round(value);
+  return {
+    priorNet, resultNet, change: resultNet - priorNet, steps,
+    details: {
+      harrisVoters: prior.democrat, harrisReturned: whole(size(harris)), trumpVoters: prior.republican, trumpReturned: whole(size(trump)),
+      trumpToDem: whole((size(trump) * trump.dem) / 100), harrisToRep: whole((size(harris) * harris.rep) / 100),
+      newVoters: whole(size(none)), newNet: whole(net(none)), newDem: none?.dem ?? null, newRep: none?.rep ?? null, trumpDem: trump.dem, harrisRep: harris.rep,
+    },
+  };
+}
+
+/**
  * Split a whole number of votes in proportion to weights, in whole votes that still add up: round down, then
  * hand the leftover votes to the largest remainders.
  */
@@ -299,6 +339,7 @@ export async function buildTexas2026Analysis(dataDir) {
     const answers = exitRace.questions.vote2024.answers;
     return {
       decomposition: decomposeSwing(answers, prior, marginOf(race.dem, race.rep, race.total)),
+      votes: decomposeVotes(answers, p2024, race),
       coalitions: { dem: coalition(answers, "dem", race.dem), rep: coalition(answers, "rep", race.rep) },
       returnRates: returnRates(answers, race.total, p2024.democrat, p2024.republican),
       stacks: Object.fromEntries(STACK_QUESTIONS.filter((key) => exitRace.questions[key]).map((key) => [key, coalitionStack(exitRace.questions[key].answers, race)])),

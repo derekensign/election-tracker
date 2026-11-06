@@ -154,28 +154,46 @@
   root.addEventListener("mouseout", (event) => { if (event.target.closest("[data-tip]")) hideTooltip(); });
 
   // ---------- turnout or persuasion ----------
+  // In net votes (the Democrat's minus the Republican's): points of a margin compare a 2024 electorate of one size
+  // with a 2026 electorate of another, which shrinks the turnout part.
+  const signedVotes = (n) => `${n >= 0 ? "+" : "−"}${compactVotes(Math.abs(n))}`;
+  const netLead = (n) => (n === 0 ? "Even" : `${n > 0 ? "D" : "R"}+${compactVotes(Math.abs(n))}`);
   const decompositionNote = (raceId) => {
-    const race = races[raceId], split = data.swing[raceId].decomposition, rates = data.swing[raceId].returnRates;
+    const race = races[raceId], split = data.swing[raceId].votes, info = split.details, points = data.swing[raceId].decomposition;
+    const dem = lastName(race.democrat), rep = lastName(race.republican);
     const step = (key) => split.steps.find((s) => s.key === key).value;
-    return `Among this year's voters who voted in 2024, the exit poll's recalled 2024 vote was ${split.recalled < 0 ? "Trump" : "Harris"} ${Math.abs(split.recalled).toFixed(1)} points ahead. The actual 2024 result was Trump +${Math.abs(split.priorMargin).toFixed(1)}, so the people who showed up this year leaned less Republican than the 2024 electorate. That accounts for ${step("turnout").toFixed(1)} points of the ${split.swing.toFixed(1)}-point swing. By the poll's shares, about ${ratioText(rates.harris)} of Harris voters turned out again, against ${ratioText(rates.trump)} of Trump voters. The same returning voters then backed ${lastName(race.democrat)} by ${split.returningNow.toFixed(1)}, which is ${step("switched").toFixed(1)} points of switching. People who skipped 2024 added ${step("new").toFixed(1)} more. The last ${Math.abs(step("count")).toFixed(1)} is the gap between the poll's ${marginText(split.survey)} and the count's ${marginText(split.resultMargin)}.`;
+    // Head counts from the stack chart above, so the two sections quote the same numbers.
+    const stack = data.swing[raceId].stacks?.vote2024;
+    const base = stack?.dem.parts.find((p) => /harris/i.test(p.label));
+    const trumpToDem = stack?.dem.parts.find((p) => /trump/i.test(p.label))?.votes ?? info.trumpToDem;
+    const harrisToRep = stack?.rep.parts.find((p) => /harris/i.test(p.label))?.votes ?? info.harrisToRep;
+    const turnout = step("turnout"), switched = step("switched"), fresh = step("new");
+    const bigger = Math.abs(turnout - switched) < 0.15 * Math.max(turnout, switched) ? "Turnout and switching did about equal work" : turnout > switched ? "Turnout did more of the work than switching" : "Switching did more of the work than turnout";
+    return `<p>Most of ${esc(dem)}'s ${aboutVotes(race.dem)} votes came from Harris voters${base ? ` (about ${aboutVotes(base.votes)})` : ""}, but they don't explain the swing: they voted for the Democrat in 2024 too. Three things changed:</p><ul>`
+      + `<li><b>Fewer Trump voters came back, worth about ${aboutVotes(turnout)} net votes.</b> By the poll's shares, about ${ratioText(info.harrisReturned / info.harrisVoters)} of Harris's 2024 voters voted this year, against ${ratioText(info.trumpReturned / info.trumpVoters)} of Trump's. That's about ${aboutVotes(info.trumpVoters - info.trumpReturned)} Trump voters who sat this one out, against ${aboutVotes(info.harrisVoters - info.harrisReturned)} Harris voters.</li>`
+      + `<li><b>Some voters switched, worth about ${aboutVotes(switched)} net votes.</b> About ${aboutVotes(trumpToDem)} Trump voters (${info.trumpDem}% of those who came back) voted for ${esc(dem)}, against about ${aboutVotes(harrisToRep)} Harris voters for ${esc(rep)}. Each switch moves the margin twice, taking a vote off one side and adding one to the other. Third-party voters are included here.</li>`
+      + `<li><b>New voters, worth about ${aboutVotes(fresh)} net votes.</b> People who didn't vote in 2024, about ${aboutVotes(info.newVoters)} of them, went ${info.newDem}–${info.newRep} for ${esc(dem)}.</li></ul>`
+      + `<p>${bigger}. Together they turned Trump's ${aboutVotes(-split.priorNet)}-vote win into ${esc(dem)}'s ${aboutVotes(split.resultNet)}-vote ${split.resultNet >= 0 ? "win" : "loss"}. In points of the margin, the same split reads ${points.steps.find((s) => s.key === "turnout").value.toFixed(1)}, ${points.steps.find((s) => s.key === "switched").value.toFixed(1)}, and ${points.steps.find((s) => s.key === "new").value.toFixed(1)}. Points understate turnout, because 2024's electorate was ${aboutVotes(prior.total - race.total)} voters larger.</p>`;
   };
   const drawWaterfall = (raceId) => {
-    const race = races[raceId], split = data.swing[raceId].decomposition;
-    const width = chartWidth("tx26-waterfall"), narrow = width < 560, height = narrow ? 280 : 300, margin = { top: 24, right: 8, bottom: narrow ? 48 : 46, left: narrow ? 40 : 46 };
+    const race = races[raceId], split = data.swing[raceId].votes;
+    const width = chartWidth("tx26-waterfall"), narrow = width < 560, height = narrow ? 280 : 300, margin = { top: 24, right: 8, bottom: narrow ? 48 : 46, left: narrow ? 50 : 58 };
     // Short names under the bars on a phone; the tooltip keeps the full ones.
     const SHORT = { turnout: "Who voted", switched: "Switched", new: "New voters", count: "Count" };
-    const bars = [{ label: "2024 president", short: "2024", from: 0, to: split.priorMargin, total: true }];
-    let level = split.priorMargin;
+    const bars = [{ label: "2024 president", short: "2024", from: 0, to: split.priorNet, total: true }];
+    let level = split.priorNet;
     for (const step of split.steps) { bars.push({ label: step.label, short: SHORT[step.key], from: level, to: level + step.value, step }); level += step.value; }
-    bars.push({ label: `2026: ${lastName(race.democrat)}`, short: "2026", from: 0, to: split.resultMargin, total: true });
+    bars.push({ label: `2026: ${lastName(race.democrat)}`, short: "2026", from: 0, to: split.resultNet, total: true });
     const svg = d3.select("#tx26-waterfall").html("").append("svg").attr("viewBox", `0 0 ${width} ${height}`).attr("role", "img")
-      .attr("aria-label", `From Trump +${Math.abs(split.priorMargin)} in 2024 to ${marginText(split.resultMargin)}: ${split.steps.map((s) => `${s.label} ${plus(s.value)}`).join(", ")}`);
+      .attr("aria-label", `In net votes, from Trump ahead by ${votesText(-split.priorNet)} in 2024 to ${lastName(race.democrat)} ${split.resultNet >= 0 ? "ahead" : "behind"} by ${votesText(Math.abs(split.resultNet))}: ${split.steps.map((s) => `${s.label} ${signedVotes(s.value)}`).join(", ")}`);
     const x = d3.scaleBand().domain(bars.map((b) => b.label)).range([margin.left, width - margin.right]).paddingInner(0.35).paddingOuter(0.1);
-    // Room past the longest bar for its label.
-    const extent = Math.ceil((Math.max(12.5, ...bars.map((b) => Math.abs(b.to)), ...bars.map((b) => Math.abs(b.from))) + 3) / 5) * 5;
+    // Room past the longest bar for its label, in half-million steps.
+    const reach = Math.max(...bars.map((b) => Math.max(Math.abs(b.to), Math.abs(b.from))));
+    const extent = Math.ceil((reach + 250_000) / 500_000) * 500_000;
     const y = d3.scaleLinear().domain([-extent, extent]).range([height - margin.bottom, margin.top]);
-    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(6)).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => y(v)).attr("y2", (v) => y(v));
-    svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(6).tickFormat((v) => (v === 0 ? "Even" : `${v > 0 ? "D" : "R"}+${Math.abs(v)}`)).tickSize(0)).select(".domain").remove();
+    const ticks = d3.range(-extent, extent + 1, 500_000);
+    svg.append("g").attr("class", "grid").selectAll("line").data(ticks).join("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", (v) => y(v)).attr("y2", (v) => y(v));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y).tickValues(ticks).tickFormat((v) => (v === 0 ? "Even" : `${v > 0 ? "D" : "R"}+${Math.abs(v) >= 1e6 ? `${+(Math.abs(v) / 1e6).toFixed(1)}M` : `${Math.round(Math.abs(v) / 1e3)}K`}`)).tickSize(0)).select(".domain").remove();
     svg.append("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", y(0)).attr("y2", y(0)).attr("stroke", cssVar("--ink-3"));
     const barWidth = Math.min(64, x.bandwidth());
     const left = (b) => x(b.label) + (x.bandwidth() - barWidth) / 2;
@@ -185,16 +203,16 @@
     const colorOf = (b) => (b.total ? (b.to > 0 ? cssVar("--d3") : cssVar("--r3")) : b.to >= b.from ? cssVar("--d2") : cssVar("--r2"));
     svg.append("g").selectAll("rect").data(bars).join("rect").attr("x", left).attr("width", barWidth)
       .attr("y", (b) => y(Math.max(b.from, b.to))).attr("height", (b) => Math.max(1.5, Math.abs(y(b.from) - y(b.to)))).attr("rx", 3).attr("fill", colorOf)
-      .on("mousemove", (event, b) => showTooltip(event, `<b>${esc(b.label)}</b><div class="row"><span>${b.total ? "Margin" : "Moves the margin"}</span><span>${b.total ? esc(marginText(b.to)) : `${plus(b.to - b.from)} points`}</span></div>${b.total ? "" : `<div class="row"><span>From → to</span><span>${esc(marginText(b.from))} → ${esc(marginText(b.to))}</span></div>`}`)).on("mouseleave", hideTooltip);
+      .on("mousemove", (event, b) => showTooltip(event, `<b>${esc(b.label)}</b><div class="row"><span>${b.total ? "Net votes" : "Moves the net vote"}</span><span>${b.total ? esc(netLead(b.to)) : `${signedVotes(b.to - b.from)} toward ${b.to >= b.from ? "the Democrat" : "the Republican"}`}</span></div>${b.total ? "" : `<div class="row"><span>From → to</span><span>${esc(netLead(b.from))} → ${esc(netLead(b.to))}</span></div>`}`)).on("mouseleave", hideTooltip);
     svg.append("g").selectAll("text").data(bars).join("text").attr("class", "label").attr("text-anchor", "middle").attr("font-weight", 600)
       .attr("x", (b) => left(b) + barWidth / 2).attr("y", (b) => (b.to >= b.from ? y(Math.max(b.from, b.to)) - 6 : y(Math.min(b.from, b.to)) + 14))
-      .text((b) => (b.total ? marginText(b.to) : plus(b.to - b.from)));
+      .text((b) => (b.total ? netLead(b.to) : signedVotes(b.to - b.from)));
     const names = svg.append("g").selectAll("text").data(bars).join("text").attr("class", "label").attr("text-anchor", "middle").attr("x", (b) => left(b) + barWidth / 2).attr("y", height - margin.bottom + 16);
     names.each(function eachName(b) {
       const lines = wrapWords(narrow ? b.short : b.label, Math.max(7, Math.floor(x.step() / 6.6)));
       d3.select(this).selectAll("tspan").data(lines).join("tspan").attr("x", left(b) + barWidth / 2).attr("dy", (line, i) => (i ? 13 : 0)).text((line) => line);
     });
-    byId("tx26-waterfall-note").textContent = decompositionNote(raceId);
+    byId("tx26-waterfall-note").innerHTML = decompositionNote(raceId);
   };
   bindToggle("data-tx26-split", drawWaterfall, "tx-senate");
 

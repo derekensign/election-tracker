@@ -344,15 +344,16 @@
     <div class="table-scroll"><table id="tx26-stack-table" class="data tx26-narrow"></table></div>
     <p class="note hint">Estimates: each group's share of voters and its support in the exit poll, applied to the state's count and scaled so each candidate's groups add up to the candidate's actual votes. Percentages are of every vote cast in the race, third parties and write-ins included, so 50% is a majority. Hover a block for its numbers.</p>
 
-    <h3>Turnout or persuasion? Both, and switching mattered more</h3>
+    <h3>Turnout or persuasion? Both</h3>
+    <p class="note">The question here isn't where the votes came from but what changed since 2024. Harris voters are most of the Democrats' votes, yet they voted the same way both times. The chart counts the change in net votes, the Democrat's minus the Republican's.</p>
     <div class="mode-row">
       <span>Race:</span>
       <button class="mode active" data-tx26-split="tx-senate">U.S. Senate</button>
       <button class="mode" data-tx26-split="tx-governor">Governor</button>
     </div>
     <div id="tx26-waterfall" class="chart"></div>
-    <p class="note" id="tx26-waterfall-note"></p>
-    <p class="note hint">How the split works: the exit poll asked each voter how they voted in 2024. Comparing that recalled vote with the real 2024 result shows how different this year's electorate was (turnout). Comparing it with the same people's 2026 vote shows how many changed sides (switching). Adding voters who skipped 2024 gives the poll's margin, and the last step reconciles it with the count. People misremember past votes, and exit polls are weighted to match the count, so read the parts as approximate. The poll is clear that both mattered.</p>
+    <div class="note tx26-steps" id="tx26-waterfall-note"></div>
+    <p class="note hint">How the split works: the exit poll asked each voter how they voted in 2024, and each group is sized from its share of the poll and the state's count. "Who turned out" compares the 2024 result with how this year's voters say they voted then. "Voters who switched" compares that with how the same people voted this year. "2024 non-voters" adds people who skipped 2024, and the last step reconciles the poll with the count. People misremember past votes, and exit polls are weighted to match the count, so read the parts as approximate.</p>
 
     <h3>Where the vote moved</h3>
     <p class="note" id="tx26-geo-note"></p>

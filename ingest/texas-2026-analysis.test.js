@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { apportion, coalition, coalitionStack, countyAnalysis, decomposeSwing, returnRates, statewideOffices, usHouseResults, voteMethodSplit } from "./texas-2026-analysis.js";
+import { apportion, coalition, coalitionStack, countyAnalysis, decomposeSwing, decomposeVotes, returnRates, statewideOffices, usHouseResults, voteMethodSplit } from "./texas-2026-analysis.js";
 
 // The Senate exit poll's 2024-vote question, as published: share of voters, then Talarico and Paxton.
 const VOTE_2024 = [
@@ -109,4 +109,19 @@ test("a suppressed group (published as 0 and 0) splits like everyone else", () =
   assert.ok(other.votes > 0);
   assert.equal(stack.groups[2].suppressed, true);
   assert.equal(stack.dem.parts.reduce((t, p) => t + p.votes, 0), 550);
+});
+
+test("the swing in net votes: turnout, switching, new voters, and the count add up to the change", () => {
+  const split = decomposeVotes(VOTE_2024, { democrat: 4_835_250, republican: 6_393_597 }, { total: 9_889_704, dem: 5_444_982, rep: 4_249_373 });
+  assert.equal(split.priorNet, -1_558_347);
+  assert.equal(split.resultNet, 1_195_609);
+  assert.equal(split.steps.reduce((total, step) => total + step.value, 0), split.change);
+  const step = (key) => split.steps.find((s) => s.key === key).value;
+  // Fewer Trump voters came back (about 1.7 million didn't vote, against 640,000 Harris voters) ...
+  assert.ok(Math.abs(step("turnout") - 1_058_867) < 5);
+  // ... and about 516,000 Trump voters switched, each switch counting twice.
+  assert.ok(Math.abs(step("switched") - 1_163_788) < 5);
+  assert.ok(Math.abs(split.details.trumpToDem - 516_462) < 5);
+  assert.ok(Math.abs(step("new") - 519_459) < 5);
+  assert.equal(split.details.trumpVoters - split.details.trumpReturned, 1_698_485);
 });
