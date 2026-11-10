@@ -1,10 +1,9 @@
-Texas Polls Tracker, Monday, November 9, 2026
+Texas Polls Tracker, Tuesday, November 10, 2026
 
 Talarico 73% to win the Senate seat on a polling average of D+3.7. Hinojosa 39% for governor. Democrats 88% to control the U.S. Senate, 91% for the House, 9% for the Texas House.
 
 WHAT MOVED
-- New Hampshire Senate: FiftyPlusOne moved Safe D → Likely D
-- North Carolina Senate: FiftyPlusOne moved Likely D → Safe D
+- Nothing crossed the alert thresholds since the last snapshot.
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 73%. Average D+3.7 over 39 polls; latest Research Co. Nov 2 D+3.0.
@@ -23,7 +22,7 @@ TEXAS LEGISLATURE
 
 U.S. SENATE
 - Control: 88% for Democrats. Expected 52.4 Democratic-caucus seats; 51 needed.
-- Closest races: IA 50% D (average Even, 10 polls); SC 40% D (average R+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); MN 65% D (average D+2.4, 3 polls); TX 72% D (average D+3.5, 17 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 74% D (average D+3.9, 9 polls); KS 79% D (average D+4.9, 6 polls); ME 79% D (average D+4.9, 8 polls); FL 21% D (average R+5.1, 6 polls).
+- Closest races: IA 50% D (average Even, 10 polls); SC 40% D (average R+1.5, 3 polls); NE 39% D (average R+1.8, 3 polls); AK 62% D (average D+1.9, 3 polls); MN 65% D (average D+2.4, 3 polls); TX 72% D (average D+3.5, 17 polls); ID 28% D (average R+4.0, 1 polls); MS 28% D (average R+4.0, 3 polls); OH 74% D (average D+3.9, 9 polls); KS 79% D (average D+4.9, 6 polls); ME 79% D (average D+4.9, 8 polls); FL 21% D (average R+5.0, 5 polls).
 
 U.S. HOUSE
 - Control: 91% for Democrats (expected 236.7 seats, 218 needed). Generic ballot D+8.1 over 3 polls.
