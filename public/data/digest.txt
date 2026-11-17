@@ -1,20 +1,9 @@
-Texas Polls Tracker, Monday, November 16, 2026
+Texas Polls Tracker, Tuesday, November 17, 2026
 
 Talarico 75% to win the Senate seat on a polling average of D+4.0. Hinojosa 39% for governor. Democrats 79% to control the U.S. Senate, 91% for the House, 9% for the Texas House.
 
 WHAT MOVED
-- U.S. Senate control (polls model): D 88% → 79% (−9.0 pts)
-- Idaho Senate: poll-model D win chance 28% → 2% (−26.1 pts)
-- Minnesota Senate: poll-model D win chance 65% → 90% (+25.0 pts)
-- Kansas Senate: poll-model D win chance 81% → 60% (−20.8 pts)
-- Maine Senate: poll-model D win chance 79% → 60% (−19.2 pts)
-- Mississippi Senate: poll-model D win chance 28% → 10% (−17.6 pts)
-- Expected Democratic-caucus seats 52.4 → 51.9
-- Nebraska Senate: poll-model D win chance 39% → 25% (−13.6 pts)
-- Ohio Senate: poll-model D win chance 74% → 60% (−13.5 pts)
-- Texas Senate: poll-model D win chance 73% → 60% (−13.1 pts)
-- Florida Senate: poll-model D win chance 21% → 10% (−11.0 pts)
-- Michigan Senate: poll-model D win chance 83% → 75% (−7.9 pts)
+- Nothing crossed the alert thresholds since the last snapshot.
 
 TEXAS STATEWIDE
 - U.S. Senate: Talarico 75%. Average D+4.0 over 30 polls; latest Research Co. Nov 2 D+3.0.
